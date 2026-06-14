@@ -856,7 +856,10 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
 const SK='agrolotes_v2';
 const FB_DOC='datos_principal';
 
-// Inicializar Firebase con auth anónima (con guard por si SDK no cargó)
+// ── Firebase: UID fijo (mono-usuario, sin auth anónima) ──
+// Se apunta siempre al documento del UID maestro que contiene todos los datos.
+const FIXED_UID='Ki43LqAIoIaM1l1QbMqdQDrzIc23';
+
 const _fbApp=firebase.initializeApp({
   apiKey:'AIzaSyAGMcgZzqSlcvPMDdLHdLkIrAPoXjTt4xA',
   authDomain:'agrolotes-afcd0.firebaseapp.com',
@@ -866,21 +869,13 @@ const _fbApp=firebase.initializeApp({
   appId:'1:488109493001:web:5ec526c2d0b24c78d4a1d8'
 });
 const _db=firebase.firestore();
-const _auth=firebase.auth();
-let _docRef=null;
-let _fbReady=false;
-
-// Login anónimo: cada dispositivo tiene su UID privado
-_auth.signInAnonymously().then(cred=>{
-  const uid=cred.user.uid;
-  localStorage.setItem('agrolotes_uid',uid);
-  _docRef=_db.collection('agrolotes').doc(uid).collection('data').doc(FB_DOC);
-  _fbReady=true;
-  _fbInitSync();
-}).catch(e=>{
-  console.warn('Firebase auth error:',e);
-  _fbShowSyncStatus('error');
-}).catch(e=>{console.warn('Firebase auth error:',e);_fbShowSyncStatus('error');});
+// Sin auth: apuntamos directamente al documento del UID con datos reales.
+// Las reglas de Firestore deben permitir lectura/escritura sin autenticación
+// (ver instrucciones al pie del archivo o en el README).
+let _docRef=_db.collection('agrolotes').doc(FIXED_UID).collection('data').doc(FB_DOC);
+let _fbReady=true;
+// Arrancar sincronización inmediatamente (no hay login que esperar)
+setTimeout(_fbInitSync,0);
 
 function ddb(){return{clientes:[],campos:[],lotes:[],productos:[],relevamientos:[],actividades:[],campanas:['2022/23','2023/24','2024/25','2025/26','2026/27'],cultivos:['Soja','Trigo','Maíz','Cebada','Girasol','Sorgo','Barbecho'],malezas:[],ots:[]};}
 // Cargar datos: primero localStorage (instantáneo), luego Firebase actualiza si hay datos más nuevos
@@ -969,7 +964,16 @@ async function _fbInitSync(){
     }
     _fbSyncPending=true;_fbSync();
   }catch(e){
-    console.warn('Firebase init sync error:',e);_fbShowSyncStatus('error');
+    const code=e&&e.code?e.code:'';
+    const msg=e&&e.message?e.message:String(e);
+    console.warn('Firebase init sync error (code='+code+'):', msg, e);
+    if(code==='permission-denied'||msg.toLowerCase().includes('permission')||msg.toLowerCase().includes('missing or insufficient')){
+      _fbShowSyncStatus('error');
+      mostrarSnackbar('⛔ Firestore: permiso denegado — revisá las Reglas en Firebase Console','red');
+      console.error('%cFIRESTORE REGLAS:%c Las reglas actuales bloquean el acceso sin autenticación. Actualizalas en Firebase Console → Firestore → Reglas:\n\nrules_version = \'2\';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    match /agrolotes/Ki43LqAIoIaM1l1QbMqdQDrzIc23/{document=**} {\n      allow read, write: if true;\n    }\n  }\n}','color:red;font-weight:bold','');
+    } else {
+      _fbShowSyncStatus('error');
+    }
   }
 }
 function _fbShowSyncStatus(estado){
