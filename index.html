@@ -269,6 +269,11 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
     <button class="nb" onclick="navTo('campanas')"><span>📅</span> Campañas</button>
     <button class="nb" onclick="navTo('cultivos')"><span>🌾</span> Cultivos</button>
     <button class="nb" onclick="exportarExcel()"><span>📥</span> Exportar Excel</button>
+    <div style="margin:8px 12px 0;border-top:1px solid rgba(255,255,255,.15)"></div>
+    <span class="nav-lbl">Backup</span>
+    <button class="nb" onclick="exportarJSON()" title="Descarga un archivo .json con TODO el contenido de la app"><span>💾</span> Exportar JSON</button>
+    <button class="nb" onclick="importarJSON()" title="Restaura la app desde un archivo .json exportado anteriormente"><span>📂</span> Importar JSON</button>
+    <input type="file" id="import-json-input" accept=".json" style="display:none" onchange="procesarImportJSON(this)">
   </div>
 </nav>
 
@@ -4021,6 +4026,68 @@ window.addEventListener('beforeunload',()=>{
   if(_fbSyncPending&&_docRef&&_fbReady){localStorage.setItem(SK+'_ts',Date.now());_fbSync();}
 });
 
+
+// ══════════════════════════════════════════════
+// BACKUP: Exportar / Importar JSON completo
+// ══════════════════════════════════════════════
+
+function exportarJSON(){
+  try{
+    const fecha=new Date().toISOString().slice(0,16).replace('T','_').replace(/:/g,'-');
+    const payload={_version:3,_exportedAt:new Date().toISOString(),_app:'AgroLotes',...DB};
+    const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;a.download=`AgroLotes_backup_${fecha}.json`;
+    document.body.appendChild(a);a.click();
+    setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},1000);
+    mostrarSnackbar('💾 Backup JSON exportado correctamente');
+  }catch(e){console.error(e);alert('Error al exportar: '+e.message);}
+}
+
+function importarJSON(){
+  if(!confirm('⚠️ ATENCIÓN\n\nEsto reemplazará TODOS los datos actuales con los del archivo de backup.\n\n¿Querés continuar?'))return;
+  const inp=document.getElementById('import-json-input');
+  inp.value='';inp.click();
+}
+
+function procesarImportJSON(input){
+  const file=input.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      const parsed=JSON.parse(e.target.result);
+      if(!parsed.clientes||!parsed.lotes||!parsed.relevamientos){
+        alert('❌ El archivo no parece ser un backup válido de AgroLotes.');return;
+      }
+      const resumen=[
+        `Clientes: ${(parsed.clientes||[]).length}`,
+        `Campos: ${(parsed.campos||[]).length}`,
+        `Lotes: ${(parsed.lotes||[]).length}`,
+        `Relevamientos: ${(parsed.relevamientos||[]).length}`,
+        `Productos: ${(parsed.productos||[]).length}`,
+        `Malezas: ${(parsed.malezas||[]).length}`,
+        `Actividades: ${(parsed.actividades||[]).length}`,
+        `OTs: ${(parsed.ots||[]).length}`,
+        ``,
+        `Exportado: ${parsed._exportedAt||'desconocido'}`,
+      ].join('\n');
+      if(!confirm(`✅ Backup válido:\n\n${resumen}\n\n¿Confirmar importación? Esto no se puede deshacer.`))return;
+      const {_version,_exportedAt,_app,...dbData}=parsed;
+      Object.keys(DB).forEach(k=>delete DB[k]);
+      Object.assign(DB,dbData);
+      ['clientes','campos','lotes','relevamientos','productos','malezas','actividades','ots','campanas','cultivos'].forEach(k=>{
+        if(!Array.isArray(DB[k]))DB[k]=[];
+      });
+      localStorage.setItem('agrolotes_v2',JSON.stringify(DB));
+      localStorage.removeItem('agrolotes_v2_ts');
+      renderDashboard();navTo('dashboard');
+      _fbSyncPending=true;_fbSync();
+      mostrarSnackbar('✅ Backup importado — sincronizando con Firebase...');
+    }catch(err){console.error(err);alert('❌ Error al leer el archivo:\n'+err.message);}
+  };
+  reader.readAsText(file,'utf-8');
+}
 </script>
 <div id="ot-print-area" style="display:none"></div>
 </body>
