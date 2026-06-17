@@ -261,6 +261,19 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
 .msel-actions{display:flex;justify-content:space-between;padding:4px 4px 2px;border-top:1px solid var(--border);margin-top:4px;}
 .msel-actions a{font-size:11px;color:var(--accent);cursor:pointer;text-decoration:none;}
 .msel-actions a:hover{text-decoration:underline;}
+/* REPORTES */
+.rp-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px;}
+@media(max-width:900px){.rp-grid{grid-template-columns:1fr;}}
+.rp-card{margin:0;}
+.rp-bar-row{display:flex;align-items:center;gap:8px;margin-bottom:7px;font-size:12px;}
+.rp-bar-label{width:150px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text2);}
+.rp-bar-track{flex:1;background:var(--bg2);border-radius:5px;height:16px;overflow:hidden;position:relative;}
+.rp-bar-fill{height:100%;border-radius:5px;display:flex;align-items:center;}
+.rp-bar-val{width:64px;text-align:right;flex-shrink:0;font-family:'DM Mono',monospace;font-size:11px;color:var(--text2);}
+.rp-empty{padding:16px;text-align:center;color:var(--text3);font-size:12px;}
+#db-body-wrap.collapsed{display:none;}
+.rp-alert-row{display:flex;align-items:flex-start;gap:8px;padding:8px 10px;border-radius:8px;background:var(--amber-bg);margin-bottom:6px;font-size:12px;}
+.rp-alert-row.high{background:var(--red-bg);}
 </style>
 <!-- Firebase SDK -->
 </head>
@@ -272,7 +285,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
   <div class="brand"><h1>🌾 AgroLotes</h1><small>v2.0 — Relevamientos y OT</small></div>
   <div class="nav-sec">
     <span class="nav-lbl">Principal</span>
-    <button class="nb active" onclick="navTo('dashboard')"><span>📊</span> Resumen</button>
+    <button class="nb active" onclick="navTo('dashboard')"><span>📈</span> Reportes</button>
     <button class="nb" onclick="navTo('tablero')"><span>🗺</span> Tablero de Lotes</button>
     <button class="nb" onclick="navTo('relevamientos')"><span>🔍</span> Relevamientos</button>
     <button class="nb" onclick="navTo('aplicaciones')"><span>✅</span> Aplicaciones</button>
@@ -307,11 +320,47 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
 
     <!-- DASHBOARD -->
     <div class="page active" id="page-dashboard">
+      <div class="filters ph" style="gap:6px;margin-bottom:10px">
+        <span style="font-size:11px;color:var(--text3)">Campaña</span>
+        <select id="rp-camp" onchange="renderDashboard()"><option value="">Todas</option></select>
+        <span style="font-size:11px;color:var(--text3);margin-left:6px">Cliente</span>
+        <select id="rp-cli" onchange="renderDashboard()"><option value="">Todos</option></select>
+      </div>
       <div class="stats" id="stats"></div>
-      <div class="card">
-        <div class="ch"><span class="ct">Últimos relevamientos</span>
-          <button class="btn bp bsm ph" onclick="openModalRelev()">+ Nuevo relevamiento</button></div>
-        <div class="cb" id="db-body"></div>
+
+      <div class="rp-grid">
+        <div class="card rp-card">
+          <div class="ch"><span class="ct">🌿 Superficie con malezas difíciles</span></div>
+          <div class="cb" id="rp-malezas-dificiles"></div>
+        </div>
+        <div class="card rp-card">
+          <div class="ch"><span class="ct">🏆 Malezas más frecuentes</span></div>
+          <div class="cb" id="rp-malezas-top"></div>
+        </div>
+        <div class="card rp-card">
+          <div class="ch"><span class="ct">🧴 Productos más usados (por familia / PA)</span></div>
+          <div class="cb" id="rp-productos-familia"></div>
+        </div>
+        <div class="card rp-card">
+          <div class="ch"><span class="ct">💰 Costo aplicado por campaña</span></div>
+          <div class="cb" id="rp-costos"></div>
+        </div>
+        <div class="card rp-card" style="grid-column:1/-1">
+          <div class="ch"><span class="ct">📅 Estacionalidad — aplicaciones por mes</span></div>
+          <div class="cb" id="rp-estacionalidad"></div>
+        </div>
+        <div class="card rp-card" style="grid-column:1/-1">
+          <div class="ch"><span class="ct">⚠️ Repetición de principio activo en el mismo lote (riesgo de resistencia)</span></div>
+          <div class="cb" id="rp-repeticion-pa"></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:14px">
+        <div class="ch" style="cursor:pointer" onclick="document.getElementById('db-body-wrap').classList.toggle('collapsed')">
+          <span class="ct">📋 Últimos relevamientos</span>
+          <button class="btn bp bsm ph" onclick="event.stopPropagation();openModalRelev()">+ Nuevo relevamiento</button>
+        </div>
+        <div class="cb" id="db-body-wrap"><div id="db-body"></div></div>
       </div>
     </div>
 
@@ -1022,7 +1071,7 @@ function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2
 
 // ══ NAV ══
 const PM={
-  dashboard:{t:'Resumen',s:'Vista general de relevamientos y órdenes'},
+  dashboard:{t:'Reportes',s:'Estadísticas, malezas, productos y estacionalidad'},
   tablero:{t:'Tablero de Lotes',s:'Vista operativa de todos los lotes'},
   relevamientos:{t:'Relevamientos',s:'Historial de relevamientos por lote y campaña'},
   aplicaciones:{t:'Aplicaciones',s:'Historial de aplicaciones realizadas'},
@@ -2241,20 +2290,48 @@ function toggleAll(cb){
 
 // ══ DASHBOARD ══
 function renderDashboard(){
+  // Poblar filtros de campaña y cliente
+  const sCamp=document.getElementById('rp-camp');
+  if(sCamp){const pv=sCamp.value;sCamp.innerHTML='<option value="">Todas</option>';[...new Set(DB.relevamientos.map(r=>r.campaña).filter(Boolean))].sort().reverse().forEach(v=>sCamp.innerHTML+=`<option value="${v}"${v===pv?' selected':''}>${v}</option>`);}
+  const sCli=document.getElementById('rp-cli');
+  if(sCli){const pv=sCli.value;sCli.innerHTML='<option value="">Todos</option>';DB.clientes.slice().sort((a,b)=>a.nombre.localeCompare(b.nombre)).forEach(c=>sCli.innerHTML+=`<option value="${c.id}"${c.id===pv?' selected':''}>${c.nombre}</option>`);}
+
+  const fCamp=document.getElementById('rp-camp')?.value||'';
+  const fCli=document.getElementById('rp-cli')?.value||'';
+
+  // Conjunto de relevamientos sobre el cual se calculan TODOS los reportes (respeta filtros)
+  const relevsBase=DB.relevamientos.filter(r=>{
+    if(fCamp && r.campaña!==fCamp)return false;
+    if(fCli && r.clienteId!==fCli)return false;
+    return true;
+  });
+  const relevsValidos=relevsBase.filter(r=>r.estado!=='Borrador');
+
+  // ── KPIs ──
   const last30=new Date(Date.now()-30*864e5).toISOString().slice(0,10);
-  const totalHa=DB.lotes.reduce((s,l)=>s+(l.ha||0),0);
+  const totalHa=[...new Map(DB.lotes.map(l=>[l.id,l.ha||0])).values()].reduce((s,h)=>s+h,0);
+  const haConRelevFiltrado=[...new Map(relevsValidos.map(r=>[r.loteId,r.loteHa||0])).values()].reduce((s,h)=>s+h,0);
   document.getElementById('stats').innerHTML=`
     <div class="stat"><div class="sl">Clientes</div><div class="sv">${DB.clientes.length}</div>
-      <div class="ss">${DB.lotes.length} lotes (de ${DB.clientes.length} cliente(s)) <!-- --> </div></div>
-    <div class="stat"><div class="sl">Relevamientos</div><div class="sv">${DB.relevamientos.length}</div>
-      <div class="ss">${DB.relevamientos.filter(r=>r.fecha>=last30).length} en últimos 30 días</div></div>
-    <div class="stat"><div class="sl">Con OT emitida</div><div class="sv">${DB.relevamientos.filter(r=>r.estado==='Con OT').length}</div>
-      <div class="ss">${DB.relevamientos.filter(r=>r.estado==='Relevado').length} pendientes</div></div>
-    <div class="stat"><div class="sl">Hectáreas</div><div class="sv">${totalHa.toLocaleString('es-AR')}</div>
-      <div class="ss">en todos los lotes</div></div>`;
-  const rs=[...DB.relevamientos].sort((a,b)=>b.fecha.localeCompare(a.fecha)).slice(0,8);
+      <div class="ss">${DB.lotes.length} lotes en total</div></div>
+    <div class="stat"><div class="sl">Relevamientos${fCamp||fCli?' (filtrado)':''}</div><div class="sv">${relevsBase.length}</div>
+      <div class="ss">${DB.relevamientos.filter(r=>r.fecha>=last30).length} en últimos 30 días (global)</div></div>
+    <div class="stat"><div class="sl">Pendientes de decisión</div><div class="sv">${relevsValidos.filter(r=>estadoEfectivo(r)==='Relevado con tratamiento').length}</div>
+      <div class="ss">con tratamiento, sin aplicar ni descartar</div></div>
+    <div class="stat"><div class="sl">Hectáreas relevadas</div><div class="sv">${haConRelevFiltrado.toLocaleString('es-AR')}</div>
+      <div class="ss">de ${totalHa.toLocaleString('es-AR')} ha totales</div></div>`;
+
+  rpRenderMalezasDificiles(relevsValidos);
+  rpRenderMalezasTop(relevsValidos);
+  rpRenderProductosFamilia(relevsValidos);
+  rpRenderCostos(relevsValidos);
+  rpRenderEstacionalidad(relevsValidos);
+  rpRenderRepeticionPA(relevsValidos);
+
+  // ── Últimos relevamientos ──
+  const rs=[...relevsBase].sort((a,b)=>b.fecha.localeCompare(a.fecha)).slice(0,8);
   const cont=document.getElementById('db-body');
-  if(!rs.length){cont.innerHTML='<div class="empty"><div class="empty-icon">🌱</div><div class="empty-t">Bienvenido a AgroLotes</div><div class="empty-s">Cargá clientes, productos y comenzá a relevar</div></div>';return;}
+  if(!rs.length){cont.innerHTML='<div class="empty"><div class="empty-icon">🌱</div><div class="empty-t">Sin relevamientos para este filtro</div><div class="empty-s">Probá cambiar la campaña o el cliente seleccionado</div></div>';return;}
   cont.innerHTML=`<div class="tw"><table>
     <thead><tr><th>Campaña</th><th>Fecha</th><th>Cliente</th><th>Lote</th><th>Cultivo</th><th>Malezas</th><th>Estado</th><th></th></tr></thead>
     <tbody>${rs.map(r=>`<tr>
@@ -2264,10 +2341,178 @@ function renderDashboard(){
       <td>${r.campoNombre} › ${r.loteNombre}</td>
       <td><span class="badge bg-amber">${r.cultivo||'—'}</span></td>
       <td>${(r.malezas||[]).slice(0,2).map(m=>`<span class="mal-pill">${m.nombre}</span>`).join('')}${(r.malezas||[]).length>2?`<span class="muted" style="font-size:10px">+${r.malezas.length-2}</span>`:''}</td>
-      <td><span class="badge ${r.estado==='Con OT'?'bg-green':'bg-gray'}">${r.estado||'Relevado'}</span></td>
+      <td><span class="badge ${r.estado==='Aplicado'?'bg-green':'bg-gray'}">${estadoEfectivo(r)}</span></td>
       <td><button class="btn bb bxs ph" onclick="openOTFromRelev('${r.id}')">📋 OT</button></td>
     </tr>`).join('')}
     </tbody></table></div>`;
+}
+
+// Barra horizontal reutilizable para los reportes
+function rpBar(label,val,max,colorVar,suffix){
+  const pct=max>0?Math.max(2,Math.round(val/max*100)):0;
+  return `<div class="rp-bar-row">
+    <div class="rp-bar-label" title="${label}">${label}</div>
+    <div class="rp-bar-track"><div class="rp-bar-fill" style="width:${pct}%;background:${colorVar}"></div></div>
+    <div class="rp-bar-val">${val}${suffix||''}</div>
+  </div>`;
+}
+
+function rpRenderMalezasDificiles(relevs){
+  const cont=document.getElementById('rp-malezas-dificiles');
+  const malDifsSet=new Set(DB.malezas.filter(m=>m.dificil).flatMap(m=>[m.comun,m.cientifico]).filter(Boolean));
+  if(!malDifsSet.size){cont.innerHTML='<div class="rp-empty">No marcaste ninguna maleza como "difícil" en el catálogo de Malezas.</div>';return;}
+  // Hectáreas únicas por lote donde aparece al menos una maleza difícil
+  const lotesConDificil=new Map(); // loteId -> ha
+  const lotesTotales=new Map();
+  relevs.forEach(r=>{
+    lotesTotales.set(r.loteId,r.loteHa||0);
+    if((r.malezas||[]).some(m=>malDifsSet.has(m.nombre))) lotesConDificil.set(r.loteId,r.loteHa||0);
+  });
+  const haDificil=[...lotesConDificil.values()].reduce((s,h)=>s+h,0);
+  const haTotal=[...lotesTotales.values()].reduce((s,h)=>s+h,0);
+  const pct=haTotal?Math.round(haDificil/haTotal*100):0;
+  // Detalle por maleza difícil específica
+  const porMaleza=new Map();
+  relevs.forEach(r=>(r.malezas||[]).forEach(m=>{
+    if(malDifsSet.has(m.nombre)){
+      if(!porMaleza.has(m.nombre))porMaleza.set(m.nombre,new Set());
+      porMaleza.get(m.nombre).add(r.loteId);
+    }
+  }));
+  const filas=[...porMaleza.entries()].map(([nombre,lotesSet])=>{
+    const ha=[...lotesSet].reduce((s,lid)=>s+(lotesTotales.get(lid)||0),0);
+    return{nombre,ha,lotes:lotesSet.size};
+  }).sort((a,b)=>b.ha-a.ha);
+  const maxHa=Math.max(...filas.map(f=>f.ha),1);
+  cont.innerHTML=`
+    <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:10px">
+      <span style="font-size:26px;font-weight:700;color:var(--red)">${pct}%</span>
+      <span style="font-size:12px;color:var(--text3)">de la superficie relevada (${haDificil.toLocaleString('es-AR')} de ${haTotal.toLocaleString('es-AR')} ha) tiene al menos una maleza difícil</span>
+    </div>
+    ${filas.length?filas.map(f=>rpBar(f.nombre,f.ha,maxHa,'var(--red)',' ha')).join(''):'<div class="rp-empty">Sin coincidencias en el período filtrado.</div>'}`;
+}
+
+function rpRenderMalezasTop(relevs){
+  const cont=document.getElementById('rp-malezas-top');
+  const conteo=new Map(); // nombre -> Set(loteId) para no duplicar por relevamientos repetidos del mismo lote
+  relevs.forEach(r=>(r.malezas||[]).forEach(m=>{
+    if(!conteo.has(m.nombre))conteo.set(m.nombre,new Set());
+    conteo.get(m.nombre).add(r.loteId);
+  }));
+  const filas=[...conteo.entries()].map(([nombre,set])=>({nombre,n:set.size})).sort((a,b)=>b.n-a.n).slice(0,8);
+  if(!filas.length){cont.innerHTML='<div class="rp-empty">Sin malezas relevadas en el período filtrado.</div>';return;}
+  const max=Math.max(...filas.map(f=>f.n),1);
+  cont.innerHTML=filas.map(f=>rpBar(f.nombre,f.n,max,'var(--purple)',' lotes')).join('');
+}
+
+function rpRenderProductosFamilia(relevs){
+  const cont=document.getElementById('rp-productos-familia');
+  const porFamilia=new Map(); // familia -> litros/kg totales aplicados (dosis*ha*factor)
+  relevs.forEach(r=>(r.productos||[]).forEach(p=>{
+    const prod=DB.productos.find(x=>x.id===p.productoId);
+    if(!prod||!r.loteHa)return;
+    const f=p.factor!==undefined?p.factor:1;
+    const cant=(p.dosis||0)*r.loteHa*f;
+    const key=prod.familia||prod.pa||prod.nombre;
+    porFamilia.set(key,(porFamilia.get(key)||0)+cant);
+  }));
+  const filas=[...porFamilia.entries()].map(([k,v])=>({k,v:Math.round(v*10)/10})).sort((a,b)=>b.v-a.v).slice(0,8);
+  if(!filas.length){cont.innerHTML='<div class="rp-empty">Sin productos aplicados en el período filtrado.</div>';return;}
+  const max=Math.max(...filas.map(f=>f.v),1);
+  cont.innerHTML=filas.map(f=>rpBar(f.k,f.v,max,'var(--accent)','')).join('');
+}
+
+function rpRenderCostos(relevs){
+  const cont=document.getElementById('rp-costos');
+  const porCampaña=new Map();
+  let sinPrecio=false;
+  relevs.forEach(r=>(r.productos||[]).forEach(p=>{
+    const prod=DB.productos.find(x=>x.id===p.productoId);
+    const precio=p.precioUSD||prod?.precio;
+    if(!precio){sinPrecio=true;return;}
+    if(!r.loteHa)return;
+    const f=p.factor!==undefined?p.factor:1;
+    const costo=(p.dosis||0)*r.loteHa*f*precio;
+    const key=r.campaña||'(sin campaña)';
+    porCampaña.set(key,(porCampaña.get(key)||0)+costo);
+  }));
+  const filas=[...porCampaña.entries()].map(([k,v])=>({k,v:Math.round(v)})).sort((a,b)=>a.k.localeCompare(b.k));
+  if(!filas.length){cont.innerHTML='<div class="rp-empty">No hay productos con precio cargado en este período. Cargá precios en el catálogo de Productos para ver este reporte.</div>';return;}
+  const max=Math.max(...filas.map(f=>f.v),1);
+  cont.innerHTML=filas.map(f=>rpBar(f.k,f.v,max,'var(--blue)',' USD')).join('')
+    +(sinPrecio?'<div style="font-size:10px;color:var(--text3);margin-top:6px">⚠️ Algunos productos no tienen precio cargado y no se incluyen en este total.</div>':'');
+}
+
+function rpRenderEstacionalidad(relevs){
+  const cont=document.getElementById('rp-estacionalidad');
+  const meses=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  const porMes=new Array(12).fill(0);
+  relevs.forEach(r=>{
+    if(!(r.productos||[]).length)return; // solo cuenta relevamientos con tratamiento
+    const m=parseInt((r.fecha||'').slice(5,7),10)-1;
+    if(m>=0&&m<12)porMes[m]++;
+  });
+  const max=Math.max(...porMes,1);
+  const total=porMes.reduce((s,v)=>s+v,0);
+  if(!total){cont.innerHTML='<div class="rp-empty">Sin relevamientos con tratamiento en el período filtrado.</div>';return;}
+  cont.innerHTML=`<div style="display:flex;align-items:flex-end;gap:6px;height:140px;padding:0 4px">
+    ${porMes.map((v,i)=>`
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end">
+        <div class="mono" style="font-size:10px;color:var(--text3)">${v||''}</div>
+        <div style="width:100%;background:var(--accent);border-radius:4px 4px 0 0;height:${Math.max(2,Math.round(v/max*100))}%;min-height:2px" title="${meses[i]}: ${v} relevamiento(s) con tratamiento"></div>
+        <div style="font-size:10px;color:var(--text3)">${meses[i]}</div>
+      </div>`).join('')}
+  </div>`;
+}
+
+function rpRenderRepeticionPA(relevs){
+  const cont=document.getElementById('rp-repeticion-pa');
+  // Para cada lote, listar aplicaciones (productos con fecha) agrupadas por principio activo o familia
+  const porLotePA=new Map(); // loteId -> Map(pa -> [{fecha,producto}])
+  relevs.forEach(r=>{
+    if(!(r.productos||[]).length)return;
+    (r.productos||[]).forEach(p=>{
+      const prod=DB.productos.find(x=>x.id===p.productoId);
+      if(!prod)return;
+      const pa=prod.pa||prod.familia||prod.nombre;
+      const key=r.loteId;
+      if(!porLotePA.has(key))porLotePA.set(key,new Map());
+      const m=porLotePA.get(key);
+      if(!m.has(pa))m.set(pa,[]);
+      m.get(pa).push({fecha:r.fecha,producto:prod.nombre,loteNombre:r.loteNombre,clienteNombre:r.clienteNombre});
+    });
+  });
+  // Detectar superposiciones: mismo PA aplicado 2+ veces en el mismo lote con menos de 45 días de diferencia
+  const UMBRAL_DIAS=45;
+  const alertas=[];
+  porLotePA.forEach((mapPA,loteId)=>{
+    mapPA.forEach((apps,pa)=>{
+      if(apps.length<2)return;
+      const ordenadas=apps.slice().sort((a,b)=>a.fecha.localeCompare(b.fecha));
+      for(let i=1;i<ordenadas.length;i++){
+        const d1=new Date(ordenadas[i-1].fecha),d2=new Date(ordenadas[i].fecha);
+        const dias=Math.round((d2-d1)/864e5);
+        if(dias<=UMBRAL_DIAS){
+          alertas.push({
+            pa,loteNombre:ordenadas[i].loteNombre,clienteNombre:ordenadas[i].clienteNombre,
+            fecha1:ordenadas[i-1].fecha,fecha2:ordenadas[i].fecha,dias,
+            producto1:ordenadas[i-1].producto,producto2:ordenadas[i].producto
+          });
+        }
+      }
+    });
+  });
+  if(!alertas.length){cont.innerHTML='<div class="rp-empty">✅ No se detectaron repeticiones cercanas (≤45 días) del mismo principio activo en un mismo lote, en el período filtrado.</div>';return;}
+  alertas.sort((a,b)=>a.dias-b.dias);
+  cont.innerHTML=alertas.slice(0,12).map(a=>`
+    <div class="rp-alert-row ${a.dias<=21?'high':''}">
+      <span style="font-size:16px">${a.dias<=21?'🔴':'🟡'}</span>
+      <div>
+        <strong>${a.pa}</strong> repetido en <strong>${a.clienteNombre} › ${a.loteNombre}</strong> con solo <strong>${a.dias} día(s)</strong> de diferencia
+        <div class="mono muted" style="font-size:10px;margin-top:2px">${a.fecha1} (${a.producto1}) → ${a.fecha2} (${a.producto2})</div>
+      </div>
+    </div>`).join('')
+    +(alertas.length>12?`<div style="font-size:11px;color:var(--text3);margin-top:4px">+${alertas.length-12} alerta(s) más en el período filtrado</div>`:'');
 }
 
 // ══ OT ══
