@@ -381,6 +381,17 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
           <option value="Relevado sin tratamiento">Relevado sin tratamiento</option>
           <option value="No se aplica">⛔ No se aplica</option>
           <option value="Aplicado">✓ Aplicado</option></select>
+        <select id="f-activ" onchange="renderRelev()">
+          <option value="">Actividad...</option>
+          <option value="Siembra">✓ Sembrado</option>
+          <option value="NO:Siembra">✕ No sembrado</option>
+          <option value="Cosecha">✓ Cosechado</option>
+          <option value="NO:Cosecha">✕ No cosechado</option>
+          <option value="Laboreo mecánico">✓ Laboreo mecánico</option>
+          <option value="NO:Laboreo mecánico">✕ Sin laboreo</option>
+          <option value="Fertilización">✓ Fertilización</option>
+          <option value="NO:Fertilización">✕ Sin fertilización</option>
+        </select>
         <span style="font-size:11px;color:var(--text3)">Desde</span>
         <input type="date" id="f-desde" onchange="renderRelev()" style="width:128px">
         <span style="font-size:11px;color:var(--text3)">Hasta</span>
@@ -467,6 +478,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
           <option value="relevado_con">Relevado con tratamiento</option>
           <option value="aplicado">Aplicado</option>
         </select>
+        <div class="msel" id="msel-tl-cult" data-field="tl-cult-vals"></div>
         <select id="tl-factiv" class="fi" onchange="renderTablero()">
           <option value="">Actividad registrada...</option>
           <option value="Siembra">✓ Sembrado</option>
@@ -1093,6 +1105,11 @@ function navTo(id,params={}){
   document.querySelectorAll('.nb').forEach(b=>{if((b.getAttribute('onclick')||'').includes("'"+id+"'"))b.classList.add('active');});
   document.getElementById('tb-title').textContent=PM[id].t;
   document.getElementById('tb-sub').textContent=PM[id].s;
+  // Reset automático de filtros al cambiar de solapa
+  if(id==='relevamientos') clearFiltros();
+  if(id==='tablero')       tlLimpiarFiltros();
+  if(id==='aplicaciones')  clearFiltrosAp();
+  if(id==='dashboard'){document.getElementById('rp-camp')&&(document.getElementById('rp-camp').value='');document.getElementById('rp-cli')&&(document.getElementById('rp-cli').value='');}
   if(id==='dashboard')    renderDashboard();
   if(id==='relevamientos')renderRelev();
   if(id==='ot')           renderOTPage(params);
@@ -1101,7 +1118,8 @@ function navTo(id,params={}){
   if(id==='campanas')     renderCampanas();
   if(id==='cultivos')     renderCultivos();
   if(id==='malezas')      renderMalezas();
-  if(id==='aplicaciones') {clearFiltrosAp();renderAplicaciones();}
+  if(id==='aplicaciones') renderAplicaciones();
+  if(id==='tablero')      renderTablero();
   if(id==='lote')         renderLoteDetail(params.loteId,params.cliId,params.campoId);
 }
 
@@ -1961,7 +1979,7 @@ function generarOTDesdeSeleccion(){
 }
 
 function clearFiltros(){
-  ['f-txt','f-camp','f-lote','f-mal','f-prod','f-estado','f-desde','f-hasta','f-agrupar'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['f-txt','f-camp','f-lote','f-mal','f-prod','f-estado','f-desde','f-hasta','f-agrupar','f-activ'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   _mselGet('f-cli-vals').clear();
   _mselGet('f-campo-vals').clear();
   _mselGet('f-cult-vals').clear();
@@ -2060,6 +2078,7 @@ function getFiltrados(){
   const estado=document.getElementById('f-estado')?.value||'';
   const desde=document.getElementById('f-desde')?.value||'';
   const hasta=document.getElementById('f-hasta')?.value||'';
+  const factiv=document.getElementById('f-activ')?.value||'';
   return DB.relevamientos.filter(r=>{
     // Borradores: solo aparecen si no hay filtro de estado, o si se filtró por Borrador
     if(estadoEfectivo(r)==='Borrador'&&estado&&estado!=='Borrador')return false;
@@ -2075,6 +2094,14 @@ function getFiltrados(){
     if(hasta && r.fecha>hasta)return false;
     if(prod && !(r.productos||[]).some(p=>p.productoId===prod))return false;
     if(mal){const ms=(r.malezas||[]).map(m=>m.nombre.toLowerCase()).join(' ');if(!ms.includes(mal))return false;}
+    // Filtro por actividad registrada en el lote (soporta negación con "NO:")
+    if(factiv){
+      const negar=factiv.startsWith('NO:');
+      const tipo=negar?factiv.slice(3):factiv;
+      const tieneAct=(DB.actividades||[]).some(a=>a.loteId===r.loteId&&a.tipo===tipo);
+      if(negar&&tieneAct)return false;
+      if(!negar&&!tieneAct)return false;
+    }
     if(txt){const blob=[r.clienteNombre,r.campoNombre,r.loteNombre,r.cultivo,r.campaña,(r.malezas||[]).map(m=>m.nombre).join(' '),(r.productos||[]).map(p=>DB.productos.find(x=>x.id===p.productoId)?.nombre||'').join(' ')].join(' ').toLowerCase();if(!blob.includes(txt))return false;}
     // Borradores sin filtros activos se muestran siempre arriba
     return true;
@@ -2870,6 +2897,7 @@ let _tlSel=new Set();
 function tlSortBy(col){if(_tlSort.col===col)_tlSort.dir*=-1;else{_tlSort.col=col;_tlSort.dir=1;}renderTablero();}
 function tlLimpiarFiltros(){
   ['tl-txt','tl-fcli','tl-fcampo','tl-fcamp','tl-fdificil','tl-festado','tl-fmal','tl-fprod','tl-fdesde','tl-fhasta','tl-factiv','tl-factiv-desde','tl-factiv-hasta'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  _mselGet('tl-cult-vals').clear();
   renderTablero();
 }
 function tlToggleAll(cb){
@@ -2973,6 +3001,9 @@ function renderTablero(){
   if(fmalSel){const pv=fmalSel.value;fmalSel.innerHTML='<option value="">Maleza...</option>';[...new Set(DB.relevamientos.flatMap(r=>(r.malezas||[]).map(m=>m.nombre)).filter(Boolean))].sort().forEach(v=>fmalSel.innerHTML+=`<option value="${v}"${v===pv?' selected':''}>${v}</option>`);}
   const fprodSel=document.getElementById('tl-fprod');
   if(fprodSel){const pv=fprodSel.value;fprodSel.innerHTML='<option value="">Producto aplicado...</option>';DB.productos.forEach(p=>fprodSel.innerHTML+=`<option value="${p.id}"${p.id===pv?' selected':''}>${p.nombre}</option>`);}
+  // Multiselect cultivo
+  const cultOpts=[...new Set(DB.relevamientos.map(r=>r.cultivo).filter(Boolean))].sort().map(v=>({value:v,label:v}));
+  mselRender('msel-tl-cult','tl-cult-vals','Cultivo',cultOpts,()=>renderTablero());
 
   // Obtener filtros
   const q=(document.getElementById('tl-txt')?.value||'').toLowerCase();
@@ -2987,6 +3018,7 @@ function renderTablero(){
   const factiv=document.getElementById('tl-factiv')?.value||'';
   const factivDesde=document.getElementById('tl-factiv-desde')?.value||'';
   const factivHasta=document.getElementById('tl-factiv-hasta')?.value||'';
+  const fcults=_mselGet('tl-cult-vals');
 
   // Construir datos por lote
   let lotesData=DB.lotes.map(lote=>{
@@ -3032,6 +3064,8 @@ function renderTablero(){
     if(fcliId&&d.lote.clienteId!==fcliId)return false;
     if(fcampoId&&d.lote.campoId!==fcampoId)return false;
     if(festado&&d.estadoOp!==festado)return false;
+    // Filtro multiselect cultivo: el lote debe tener al menos un relevamiento con ese cultivo
+    if(fcults.size&&!d.relevs.some(r=>fcults.has(r.cultivo)))return false;
     if(fdificil){
       // Filtrar lotes que tengan (o no) al menos una maleza difícil en sus relevamientos
       const malDifs=new Set(DB.malezas.filter(m=>m.dificil).flatMap(m=>[m.comun,m.cientifico]).filter(Boolean));
@@ -3081,7 +3115,8 @@ function renderTablero(){
 
   // Resumen
   const resDiv=document.getElementById('tl-resumen');
-  const hayF=['tl-txt','tl-fcli','tl-fcampo','tl-fcamp','tl-fdificil','tl-festado','tl-fmal','tl-fprod','tl-fdesde','tl-fhasta','tl-factiv','tl-factiv-desde','tl-factiv-hasta'].some(id=>document.getElementById(id)?.value);
+  const hayF=['tl-txt','tl-fcli','tl-fcampo','tl-fcamp','tl-fdificil','tl-festado','tl-fmal','tl-fprod','tl-fdesde','tl-fhasta','tl-factiv','tl-factiv-desde','tl-factiv-hasta'].some(id=>document.getElementById(id)?.value)
+    || _mselGet('tl-cult-vals').size>0;
   if(resDiv){
     resDiv.style.display=hayF?'flex':'none';
     const haTotal=lotesData.reduce((s,d)=>s+(d.lote.ha||0),0);
