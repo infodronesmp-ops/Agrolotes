@@ -305,8 +305,8 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
   <div class="nav-sec">
     <span class="nav-lbl">Gestión</span>
     <button class="nb" onclick="navTo('clientes')"><span>👤</span> Clientes / Lotes</button>
-    <button class="nb" onclick="navTo('productos')"><span>🧴</span> Productos</button>
-    <button class="nb" onclick="navTo('malezas')"><span>🌿</span> Malezas</button>
+    <button class="nb" onclick="navTo('productos')"><span>🧴</span> Soluciones</button>
+    <button class="nb" onclick="navTo('malezas')"><span>🌿</span> Diagnósticos</button>
     <button class="nb" onclick="navTo('campanas')"><span>📅</span> Campañas</button>
     <button class="nb" onclick="navTo('cultivos')"><span>🌾</span> Cultivos</button>
     <button class="nb" onclick="exportarExcel()"><span>📥</span> Exportar Excel</button>
@@ -379,12 +379,12 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
     <div class="page" id="page-relevamientos">
       <div class="filters ph" style="gap:6px">
         <input type="text" id="f-txt" placeholder="Buscar..." oninput="renderRelev()" style="width:120px">
-        <select id="f-camp" onchange="renderRelev()"><option value="">Campaña...</option></select>
+        <div class="msel" id="msel-camp" data-field="f-camp-vals"></div>
         <div class="msel" id="msel-cli" data-field="f-cli-vals"></div>
         <div class="msel" id="msel-campo" data-field="f-campo-vals"></div>
-        <select id="f-lote" onchange="renderRelev()"><option value="">Lote...</option></select>
+        <div class="msel" id="msel-lote" data-field="f-lote-vals"></div>
         <div class="msel" id="msel-cult" data-field="f-cult-vals"></div>
-        <select id="f-mal" onchange="renderRelev()"><option value="">Maleza...</option></select>
+        <select id="f-mal" onchange="renderRelev()"><option value="">Diagnóstico...</option></select>
         <select id="f-prod" onchange="renderRelev()"><option value="">Producto...</option></select>
         <select id="f-estado" onchange="renderRelev()"><option value="">Estado...</option>
           <option value="Borrador">⚠ Borrador</option>
@@ -507,7 +507,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
         <input type="date" id="tl-factiv-desde" onchange="renderTablero()" style="width:128px" title="Actividad — fecha inicio">
         <span style="font-size:11px;color:var(--text3)">Act. hasta</span>
         <input type="date" id="tl-factiv-hasta" onchange="renderTablero()" style="width:128px" title="Actividad — fecha fin">
-        <select id="tl-fmal" class="fi" onchange="renderTablero()"><option value="">Maleza...</option></select>
+        <select id="tl-fmal" class="fi" onchange="renderTablero()"><option value="">Diagnóstico...</option></select>
         <select id="tl-fprod" class="fi" onchange="renderTablero()"><option value="">Producto aplicado...</option></select>
         <span style="font-size:11px;color:var(--text3)">Desde</span>
         <input type="date" id="tl-fdesde" onchange="renderTablero()" style="width:128px">
@@ -555,23 +555,35 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
 
     <!-- CLIENTES -->
     <div class="page" id="page-clientes">
-      <div class="rf mb16 ph" style="gap:8px">
+      <div class="rf mb16 ph" style="gap:8px;flex-wrap:wrap">
         <button class="btn bp bsm" onclick="openModalCliente()">+ Nuevo cliente</button>
         <input type="text" id="cli-search" class="fi" placeholder="Buscar..." style="width:160px" oninput="renderClientes()">
-        <select id="cli-f-cli" onchange="cliFCliChange()" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:5px 8px;font-family:'Sora',sans-serif;font-size:12px;color:var(--text);outline:none"><option value="">Cliente...</option></select>
-        <select id="cli-f-campo" onchange="cliFCampoChange()" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:5px 8px;font-family:'Sora',sans-serif;font-size:12px;color:var(--text);outline:none"><option value="">Campo...</option></select>
-        <select id="cli-f-lote" onchange="renderClientes()" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:5px 8px;font-family:'Sora',sans-serif;font-size:12px;color:var(--text);outline:none"><option value="">Lote...</option></select>
-        <select id="cli-f-cult" onchange="renderClientes()" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:5px 8px;font-family:'Sora',sans-serif;font-size:12px;color:var(--text);outline:none"><option value="">Cultivo...</option></select>
-        <select id="cli-f-cult" onchange="renderClientes()" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:5px 8px;font-family:'Sora',sans-serif;font-size:12px;color:var(--text);outline:none"><option value="">Cultivo...</option></select>
+        <div class="ms-combo" style="position:relative">
+          <button type="button" class="fi" id="ms-btn-cli-f-cli" onclick="msToggle('cli-f-cli')" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:5px 8px;font-family:'Sora',sans-serif;font-size:12px;color:var(--text);cursor:pointer;text-align:left;width:130px">Cliente...</button>
+          <div class="ms-drop" id="ms-drop-cli-f-cli" style="display:none;position:absolute;top:calc(100% + 2px);left:0;z-index:50;background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:6px;max-height:220px;overflow:auto;min-width:180px;box-shadow:0 4px 12px rgba(0,0,0,.15)"></div>
+        </div>
+        <div class="ms-combo" style="position:relative">
+          <button type="button" class="fi" id="ms-btn-cli-f-campo" onclick="msToggle('cli-f-campo')" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:5px 8px;font-family:'Sora',sans-serif;font-size:12px;color:var(--text);cursor:pointer;text-align:left;width:130px">Campo...</button>
+          <div class="ms-drop" id="ms-drop-cli-f-campo" style="display:none;position:absolute;top:calc(100% + 2px);left:0;z-index:50;background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:6px;max-height:220px;overflow:auto;min-width:180px;box-shadow:0 4px 12px rgba(0,0,0,.15)"></div>
+        </div>
+        <div class="ms-combo" style="position:relative">
+          <button type="button" class="fi" id="ms-btn-cli-f-lote" onclick="msToggle('cli-f-lote')" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:5px 8px;font-family:'Sora',sans-serif;font-size:12px;color:var(--text);cursor:pointer;text-align:left;width:130px">Lote...</button>
+          <div class="ms-drop" id="ms-drop-cli-f-lote" style="display:none;position:absolute;top:calc(100% + 2px);left:0;z-index:50;background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:6px;max-height:220px;overflow:auto;min-width:180px;box-shadow:0 4px 12px rgba(0,0,0,.15)"></div>
+        </div>
+        <div class="ms-combo" style="position:relative">
+          <button type="button" class="fi" id="ms-btn-cli-f-cult" onclick="msToggle('cli-f-cult')" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:5px 8px;font-family:'Sora',sans-serif;font-size:12px;color:var(--text);cursor:pointer;text-align:left;width:130px">Cultivo...</button>
+          <div class="ms-drop" id="ms-drop-cli-f-cult" style="display:none;position:absolute;top:calc(100% + 2px);left:0;z-index:50;background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:6px;max-height:220px;overflow:auto;min-width:180px;box-shadow:0 4px 12px rgba(0,0,0,.15)"></div>
+        </div>
         <button class="btn bs bsm" onclick="clearFiltrosCli()">Limpiar</button>
       </div>
+      <div id="cli-ha-bar" class="ph" style="display:none;font-size:12px;color:var(--accent2);margin-bottom:10px"></div>
       <div id="tree-clientes"></div>
     </div>
 
     <!-- PRODUCTOS -->
     <div class="page" id="page-productos">
       <div class="rf mb16 ph" style="gap:8px;flex-wrap:wrap">
-        <button class="btn bp bsm" onclick="openModalProducto()">+ Nuevo producto</button>
+        <button class="btn bp bsm" onclick="openModalProducto()">+ Nueva solución</button>
         <input type="text" id="prod-search" class="fi" placeholder="Buscar nombre, P.A., familia..." style="width:220px" oninput="renderProductos()">
         <select id="prod-ftipo" class="fi" style="width:130px" onchange="renderProductos()"><option value="">Tipo...</option>
           <option>Herbicida</option><option>Fungicida</option><option>Insecticida</option><option>Fertilizante</option><option>Coadyuvante</option><option>Servicio / Mano de obra</option></select>
@@ -579,7 +591,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
         <button class="btn bs bxs" onclick="clearFiltrosProd()">Limpiar</button>
       </div>
       <div class="card">
-        <div class="ch"><span class="ct" id="prod-ct">Catálogo de productos</span></div>
+        <div class="ch"><span class="ct" id="prod-ct">Catálogo de soluciones</span></div>
         <div class="cb" id="prod-body"></div>
       </div>
     </div>
@@ -600,6 +612,10 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
           <span style="font-size:11px;font-family:'DM Mono',monospace;color:var(--accent2);text-transform:uppercase;letter-spacing:.05em">Campaña activa</span>
           <select id="camp-activa-sel" onchange="setCampanaActiva(this.value)" style="background:transparent;border:none;font-family:'Sora',sans-serif;font-size:14px;font-weight:600;color:var(--accent2);outline:none;cursor:pointer"></select>
         </div>
+        <div class="ms-combo" style="position:relative">
+          <button type="button" class="fi" id="ms-btn-rot-f-camps" onclick="msToggle('rot-f-camps')" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:5px 8px;font-family:'Sora',sans-serif;font-size:12px;color:var(--text);cursor:pointer;text-align:left;width:140px">Campañas...</button>
+          <div class="ms-drop" id="ms-drop-rot-f-camps" style="display:none;position:absolute;top:calc(100% + 2px);left:0;z-index:50;background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:6px;max-height:220px;overflow:auto;min-width:180px;box-shadow:0 4px 12px rgba(0,0,0,.15)"></div>
+        </div>
         <select id="rot-f-cli" onchange="renderCampanas()" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:5px 8px;font-size:12px;font-family:'Sora',sans-serif;color:var(--text);outline:none"><option value="">Cliente...</option></select>
         <select id="rot-f-cult1" onchange="renderCampanas()" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:5px 8px;font-size:12px;font-family:'Sora',sans-serif;color:var(--text);outline:none"><option value="">Cultivo principal...</option></select>
         <select id="rot-f-cult2" onchange="renderCampanas()" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:5px 8px;font-size:12px;font-family:'Sora',sans-serif;color:var(--text);outline:none"><option value="">Cultivo 2da...</option><option value="__vacio__">Sin cultivo 2da</option></select>
@@ -617,13 +633,33 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
     <!-- MALEZAS -->
     <div class="page" id="page-malezas">
       <div class="rf mb16 ph" style="gap:8px;flex-wrap:wrap">
-        <button class="btn bp bsm" onclick="openModalMaleza()">+ Nueva maleza</button>
+        <button class="btn bp bsm" onclick="openModalMaleza()">+ Nuevo diagnóstico</button>
         <input type="text" id="mal-search" class="fi" placeholder="Nombre científico o común..." style="width:220px" oninput="renderMalezas()">
+        <select id="mal-fcategoria" class="fi" style="width:150px" onchange="renderMalezas()">
+          <option value="">Todas las categorías</option>
+        </select>
+        <button class="btn bs bsm" onclick="openModalCategorias()">⚙️ Categorías</button>
+        <div class="ms-combo" style="position:relative">
+          <button type="button" class="fi" id="ms-btn-mal-f-camp" onclick="msToggle('mal-f-camp')" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:5px 8px;font-family:'Sora',sans-serif;font-size:12px;color:var(--text);cursor:pointer;text-align:left;width:130px">Campaña...</button>
+          <div class="ms-drop" id="ms-drop-mal-f-camp" style="display:none;position:absolute;top:calc(100% + 2px);left:0;z-index:50;background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:6px;max-height:220px;overflow:auto;min-width:180px;box-shadow:0 4px 12px rgba(0,0,0,.15)"></div>
+        </div>
+        <div class="ms-combo" style="position:relative">
+          <button type="button" class="fi" id="ms-btn-mal-f-cli" onclick="msToggle('mal-f-cli')" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:5px 8px;font-family:'Sora',sans-serif;font-size:12px;color:var(--text);cursor:pointer;text-align:left;width:130px">Cliente...</button>
+          <div class="ms-drop" id="ms-drop-mal-f-cli" style="display:none;position:absolute;top:calc(100% + 2px);left:0;z-index:50;background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:6px;max-height:220px;overflow:auto;min-width:180px;box-shadow:0 4px 12px rgba(0,0,0,.15)"></div>
+        </div>
+        <div class="ms-combo" style="position:relative">
+          <button type="button" class="fi" id="ms-btn-mal-f-campo" onclick="msToggle('mal-f-campo')" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:5px 8px;font-family:'Sora',sans-serif;font-size:12px;color:var(--text);cursor:pointer;text-align:left;width:130px">Campo...</button>
+          <div class="ms-drop" id="ms-drop-mal-f-campo" style="display:none;position:absolute;top:calc(100% + 2px);left:0;z-index:50;background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:6px;max-height:220px;overflow:auto;min-width:180px;box-shadow:0 4px 12px rgba(0,0,0,.15)"></div>
+        </div>
+        <div class="ms-combo" style="position:relative">
+          <button type="button" class="fi" id="ms-btn-mal-f-lote" onclick="msToggle('mal-f-lote')" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:5px 8px;font-family:'Sora',sans-serif;font-size:12px;color:var(--text);cursor:pointer;text-align:left;width:130px">Lote...</button>
+          <div class="ms-drop" id="ms-drop-mal-f-lote" style="display:none;position:absolute;top:calc(100% + 2px);left:0;z-index:50;background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:6px;max-height:220px;overflow:auto;min-width:180px;box-shadow:0 4px 12px rgba(0,0,0,.15)"></div>
+        </div>
         <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer"><input type="checkbox" id="mal-fdificil" onchange="renderMalezas()"> Solo difíciles ⚠️</label>
+        <button class="btn bs bsm" onclick="clearFiltrosMal()">Limpiar</button>
       </div>
-      <div id="mal-lotes-panel"></div>
       <div class="card">
-        <div class="ch"><span class="ct" id="mal-ct">Catálogo de malezas</span></div>
+        <div class="ch"><span class="ct" id="mal-ct">Catálogo de Diagnósticos</span></div>
         <div class="cb" id="mal-body"></div>
       </div>
     </div>
@@ -633,6 +669,11 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
       <div id="lote-detail-content"></div>
     </div>
 
+    <!-- DIAGNÓSTICO DETAIL -->
+    <div class="page" id="page-diagnostico">
+      <div id="diag-detail-content"></div>
+    </div>
+
   </div><!-- /content -->
 </div><!-- /main -->
 </div><!-- /app -->
@@ -640,7 +681,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
 <!-- ══ MODAL RELEVAMIENTO ══ -->
 <div class="mo" id="modal-relev">
   <div class="modal" style="max-width:680px">
-    <div class="mh"><span class="mt" id="mrelev-title">Nuevo relevamiento</span><button class="mx" onclick="closeModal('modal-relev')">✕</button></div>
+    <div class="mh"><span class="mt" id="mrelev-title">Nuevo relevamiento</span><button class="mx" onclick="cancelModalRelev()">✕</button></div>
     <div class="mb">
       <div class="fg mb12">
         <div class="fg fg3">
@@ -671,22 +712,22 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
           </div>
         </div>
       </div>
-      <!-- MALEZAS -->
+      <!-- DIAGNÓSTICO -->
       <div class="card mb12">
-        <div class="ch"><span class="ct">🌿 Malezas relevadas</span>
+        <div class="ch"><span class="ct">🔬 Diagnóstico</span>
           <div class="rf" style="gap:6px">
-            <button class="btn bs bsm" onclick="openModalMalezaDesdeRelev()">+ Nueva maleza</button>
+            <button class="btn bs bsm" onclick="openModalMalezaDesdeRelev()">+ Nuevo diagnóstico</button>
             <button class="btn bp bsm" onclick="addMalezaRow()">+ Agregar</button>
           </div></div>
         <div class="cb" id="maleza-rows">
-          <div class="muted" style="font-size:11px">Cargá las malezas presentes en el lote con su % de peso relativo</div>
+          <div class="muted" style="font-size:11px">Cargá lo detectado en el lote — maleza, enfermedad, plaga, fitotoxicidad, daño por helada, etc.</div>
         </div>
       </div>
-      <!-- PRODUCTOS -->
+      <!-- SOLUCIONES -->
       <div class="card mb12">
-        <div class="ch"><span class="ct">🧴 Productos recomendados</span>
+        <div class="ch"><span class="ct">💊 Soluciones recomendadas</span>
           <div class="rf" style="gap:6px">
-            <button class="btn bs bsm" onclick="openModalProductoDesdeRelev()">+ Nuevo producto</button>
+            <button class="btn bs bsm" onclick="openModalProductoDesdeRelev()">+ Nuevo producto/servicio</button>
             <button class="btn bp bsm" onclick="addProdRow()">+ Agregar</button>
           </div></div>
         <div class="cb" id="prod-rows"></div>
@@ -694,7 +735,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
       <div class="field"><label>Observaciones</label><textarea id="r-obs" class="fi" placeholder="Condiciones del lote, estadío de las malezas, notas..."></textarea></div>
     </div>
     <div class="mf">
-      <button class="btn bs" onclick="closeModal('modal-relev')">Cancelar</button>
+      <button class="btn bs" onclick="cancelModalRelev()">Cancelar</button>
       <button class="btn bp" onclick="saveRelev()">Guardar relevamiento</button>
     </div>
   </div>
@@ -819,11 +860,19 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
 <!-- ══ MODAL MALEZA ══ -->
 <div class="mo" id="modal-maleza">
   <div class="modal" style="max-width:420px">
-    <div class="mh"><span class="mt" id="mmal-title">Nueva maleza</span><button class="mx" onclick="closeModal('modal-maleza')">✕</button></div>
+    <div class="mh"><span class="mt" id="mmal-title">Nuevo diagnóstico</span><button class="mx" onclick="cancelModalMaleza()">✕</button></div>
     <div class="mb">
       <div class="fg">
         <div class="field"><label>Nombre científico *</label><input type="text" id="mal-cientifico" class="fi" placeholder="Ej: Vicia villosa"></div>
         <div class="field"><label>Nombre común</label><input type="text" id="mal-comun" class="fi" placeholder="Ej: Vicia guacha"></div>
+        <div class="field"><label>Categoría</label>
+          <select id="mal-categoria" class="fi" onchange="onCategoriaMalChange()"></select>
+        </div>
+        <div class="field" id="mal-umbral-wrap" style="display:none">
+          <label>Umbral de incidencia — aplicar desde (%)</label>
+          <input type="number" id="mal-umbral" class="fi" min="0" max="100" step="1" placeholder="Ej: 5">
+          <span class="muted" style="font-size:10px;display:block;margin-top:2px">Nivel de daño económico de esta enfermedad puntual. Si lo dejás vacío, se usan umbrales genéricos.</span>
+        </div>
         <div class="field" style="grid-column:1/-1">
           <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:500">
             <input type="checkbox" id="mal-dificil" style="width:16px;height:16px">
@@ -834,8 +883,39 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
       </div>
     </div>
     <div class="mf">
-      <button class="btn bs" onclick="closeModal('modal-maleza')">Cancelar</button>
+      <button class="btn bs" onclick="cancelModalMaleza()">Cancelar</button>
       <button class="btn bp" onclick="saveMaleza()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL GESTIÓN DE CATEGORÍAS DE DIAGNÓSTICO ══ -->
+<div class="mo" id="modal-categorias-diag">
+  <div class="modal" style="max-width:420px">
+    <div class="mh"><span class="mt">⚙️ Categorías de diagnóstico</span><button class="mx" onclick="closeModal('modal-categorias-diag')">✕</button></div>
+    <div class="mb">
+      <p style="font-size:11px;color:var(--text3);margin-bottom:10px">Agregá, renombrá o eliminá las categorías. Los diagnósticos que usen una categoría eliminada pasan a "Otro".</p>
+      <div id="cat-diag-lista"></div>
+      <div class="rf" style="gap:4px;margin-top:10px;border-top:1px solid var(--border);padding-top:10px">
+        <input type="text" id="cat-diag-nuevo-icono" class="fi" placeholder="🔬" style="width:48px;text-align:center">
+        <input type="text" id="cat-diag-nuevo-nombre" class="fi" placeholder="Nombre de la nueva categoría" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();agregarCategoriaDiag();}">
+        <button class="btn bp bxs" onclick="agregarCategoriaDiag()">+ Agregar</button>
+      </div>
+    </div>
+    <div class="mf">
+      <button class="btn bp" onclick="closeModal('modal-categorias-diag')">Listo</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL CONFIRMACIÓN GENÉRICA (reemplaza confirm() del navegador) ══ -->
+<div class="mo" id="modal-confirm-generico">
+  <div class="modal" style="max-width:380px">
+    <div class="mh"><span class="mt">Confirmar</span><button class="mx" onclick="_confirmGenericoNo()">✕</button></div>
+    <div class="mb"><p id="confirm-generico-msg" style="font-size:13px;color:var(--text)"></p></div>
+    <div class="mf">
+      <button class="btn bs" onclick="_confirmGenericoNo()">Cancelar</button>
+      <button class="btn bd" onclick="_confirmGenericoSi()">Eliminar</button>
     </div>
   </div>
 </div>
@@ -882,7 +962,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
 <!-- ══ MODAL PRODUCTO ══ -->
 <div class="mo" id="modal-producto">
   <div class="modal" style="max-width:540px">
-    <div class="mh"><span class="mt" id="mprod-title">Nuevo producto</span><button class="mx" onclick="closeModal('modal-producto')">✕</button></div>
+    <div class="mh"><span class="mt" id="mprod-title">Nueva solución</span><button class="mx" onclick="cancelModalProducto()">✕</button></div>
     <div class="mb">
       <div class="fg">
         <div class="field"><label>Nombre *</label><input type="text" id="p-nombre" class="fi" placeholder="Ej: Glifosato 48%"></div>
@@ -903,9 +983,14 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
             </select>
           </div>
         </div>
-        <div class="field"><label>Familia / Mecanismo de acción</label>
-          <select id="p-familia" class="fi"><option value="">— seleccioná tipo primero —</option></select>
+        <div class="field"><label id="p-familia-lbl">Familia / Mecanismo de acción</label>
+          <select id="p-familia" class="fi" onchange="onFamiliaChange()"><option value="">— seleccioná tipo primero —</option></select>
           <span id="p-fam-desc" style="font-size:10px;color:var(--text3);margin-top:2px;display:block"></span>
+          <div id="p-familia-nuevo" class="rf" style="display:none;gap:4px;margin-top:4px">
+            <input type="text" id="p-familia-nuevo-input" class="fi" placeholder="Nombre del nuevo tipo de coadyuvante..." style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();confirmarNuevoTipoCoadyuvante();}">
+            <button type="button" class="btn bp bxs" onclick="confirmarNuevoTipoCoadyuvante()">Agregar</button>
+            <button type="button" class="btn bs bxs" onclick="cancelarNuevoTipoCoadyuvante()">✕</button>
+          </div>
         </div>
         <div class="field"><label>Formulación (define orden de mezcla en OT)</label>
           <select id="p-form" class="fi">
@@ -951,8 +1036,45 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
       </div>
     </div>
     <div class="mf">
-      <button class="btn bs" onclick="closeModal('modal-producto')">Cancelar</button>
+      <button class="btn bs" onclick="cancelModalProducto()">Cancelar</button>
       <button class="btn bp" onclick="saveProducto()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL CAMBIAR ESTADO DE RELEVAMIENTO ══ -->
+<div class="mo" id="modal-cambiar-estado">
+  <div class="modal" style="max-width:380px">
+    <div class="mh"><span class="mt" id="ce-title">Cambiar estado</span><button class="mx" onclick="cancelarCambioEstado()">✕</button></div>
+    <div class="mb">
+      <p id="ce-msg" style="display:none;font-size:13px;color:var(--text)"></p>
+      <div class="field" id="ce-fecha-wrap" style="display:none">
+        <label>Fecha de aplicación</label>
+        <input type="date" id="ce-fecha" class="fi">
+      </div>
+      <div class="field" id="ce-motivo-wrap" style="display:none">
+        <label>Motivo (opcional)</label>
+        <input type="text" id="ce-motivo" class="fi" placeholder='Ej: "se re-relevó", "lluvia", "decisión agronómica"'>
+      </div>
+    </div>
+    <div class="mf">
+      <button class="btn bs" onclick="cancelarCambioEstado()">Cancelar</button>
+      <button class="btn bp" onclick="confirmarCambioEstado()">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL CONFIRMAR IMPORTACIÓN DE BACKUP ══ -->
+<div class="mo" id="modal-import-confirm">
+  <div class="modal" style="max-width:420px">
+    <div class="mh"><span class="mt">⚠️ Confirmar importación</span><button class="mx" onclick="cancelarImportacionBackup()">✕</button></div>
+    <div class="mb">
+      <p style="font-size:12px;color:var(--text3);margin-bottom:10px">Esto reemplaza <strong>todos</strong> los datos actuales de la app por los del archivo. No se puede deshacer.</p>
+      <pre id="import-resumen" style="white-space:pre-wrap;font-size:12px;background:var(--bg);padding:10px;border-radius:var(--r);border:1px solid var(--border)"></pre>
+    </div>
+    <div class="mf">
+      <button class="btn bs" onclick="cancelarImportacionBackup()">Cancelar</button>
+      <button class="btn bd" onclick="confirmarImportacionBackup()">Sí, reemplazar todo</button>
     </div>
   </div>
 </div>
@@ -1048,7 +1170,23 @@ let DB=(()=>{try{return JSON.parse(localStorage.getItem(SK))||ddb();}catch{retur
   // (caso donde migración anterior falló parcialmente)
   if(!Array.isArray(DB.campos))DB.campos=[];
   if(!Array.isArray(DB.lotes))DB.lotes=[];
+  // Reparar relevamientos viejos sin "loteHa" guardado (por eso no sumaban ha en ningún lado)
+  if(repararLoteHa())save();
 })();
+
+// Relevamientos guardados antes de que se capturara la superficie del lote quedan
+// con loteHa=0/undefined, y eso rompe todas las sumas de hectáreas (lupa de
+// diagnósticos, listados, dashboard). Acá se completan con la superficie actual del lote.
+function repararLoteHa(){
+  let cambio=false;
+  (DB.relevamientos||[]).forEach(r=>{
+    if(!r.loteHa){
+      const l=DB.lotes.find(x=>x.id===r.loteId);
+      if(l&&l.ha){r.loteHa=l.ha;cambio=true;}
+    }
+  });
+  return cambio;
+}
 
 // ── Helpers de acceso plano ──
 function getCamposByCliente(cliId){return DB.campos.filter(c=>c.clienteId===cliId);}
@@ -1085,10 +1223,11 @@ async function _fbInitSync(){
         const fbDB=JSON.parse(fbData.data||'{}');
         if(fbDB&&fbDB.clientes!==undefined){
           Object.assign(DB,fbDB);
-          localStorage.setItem(SK,JSON.stringify(DB));
-          localStorage.setItem(SK+'_ts',fbTs);
           const def=ddb();
           ['campanas','cultivos','malezas','ots','actividades','campos','lotes'].forEach(k=>{if(!Array.isArray(DB[k]))DB[k]=def[k]||[];});
+          repararLoteHa();
+          localStorage.setItem(SK,JSON.stringify(DB));
+          localStorage.setItem(SK+'_ts',fbTs);
           renderDashboard();
           _fbShowSyncStatus('ok');
           mostrarSnackbar('✅ Datos sincronizados desde la nube');
@@ -1127,11 +1266,12 @@ const PM={
 
   ot:{t:'Orden de trabajo',s:'Generá y descargá órdenes para el aplicador'},
   clientes:{t:'Clientes / Lotes',s:'Gestión de productores, campos y lotes'},
-  productos:{t:'Catálogo de productos',s:'Herbicidas, fungicidas, insecticidas y más'},
+  productos:{t:'Catálogo de soluciones',s:'Herbicidas, fungicidas, insecticidas, fertilizaciones, servicios y más'},
   lote:{t:'Detalle de lote',s:'Historial de relevamientos del lote'},
   campanas:{t:'Campañas',s:'Gestión de campañas agrícolas'},
   cultivos:{t:'Cultivos',s:'Gestión de cultivos'},
-  malezas:{t:'Malezas',s:'Catálogo de malezas relevadas'},
+  malezas:{t:'Diagnósticos',s:'Catálogo de diagnósticos: malezas, enfermedades, plagas y más'},
+  diagnostico:{t:'Diagnóstico',s:'Presencia por campaña, cliente, campo y lote'},
 };
 let _prevPage='dashboard';
 function navTo(id,params={}){
@@ -1158,18 +1298,45 @@ function navTo(id,params={}){
   if(id==='aplicaciones') renderAplicaciones();
   if(id==='tablero')      renderTablero();
   if(id==='lote')         renderLoteDetail(params.loteId,params.cliId,params.campoId);
+  if(id==='diagnostico')  renderDiagnosticoDetail(params.malId);
 }
 
 // ══ MODALES ══
 function openModal(id){document.getElementById(id).classList.add('open');}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
+// Cancelar "Nuevo diagnóstico" / "Nueva solución" abiertos desde un relevamiento:
+// hay que volver al relevamiento (con lo ya cargado), no dejarlo cerrado.
+function cancelModalMaleza(){
+  document.getElementById('modal-maleza').classList.remove('open');
+  if(_afterMalSave){_afterMalSave=null;openModal('modal-relev');}
+}
+function cancelModalProducto(){
+  document.getElementById('modal-producto').classList.remove('open');
+  if(_afterProdSave){_afterProdSave=null;openModal('modal-relev');}
+}
+// Editar un relevamiento puntual desde la Orden de Trabajo: al guardar o
+// cancelar, se vuelve directo a esa misma OT (ya actualizada).
+function editarRelevDesdeOT(relevId){
+  window._otEditReturn=true;
+  openModalRelev(relevId);
+}
+function cancelModalRelev(){
+  closeModal('modal-relev');
+  if(window._otEditReturn){
+    window._otEditReturn=false;
+    navTo('ot',{ids:window._otCurrentIds||[]});
+  }
+}
 document.querySelectorAll('.mo').forEach(o=>o.addEventListener('click',e=>{
   if(e.target!==o)return;
   if(o.id==='modal-relev'){
     guardarComoBorrador();
     o.classList.remove('open');
+    if(window._otEditReturn){window._otEditReturn=false;navTo('ot',{ids:window._otCurrentIds||[]});}
     return;
   }
+  if(o.id==='modal-maleza'){cancelModalMaleza();return;}
+  if(o.id==='modal-producto'){cancelModalProducto();return;}
   o.classList.remove('open');
 }));
 // Snackbar
@@ -1185,6 +1352,17 @@ function mostrarSnackbar(msg,color='green'){
 }
 const DRAFT_KEY='agrolotes_draft_relev';
 
+// Lee densidad/estadio de una fila de diagnóstico, agregando el % si son
+// campos de Incidencia/Severidad (inputs numéricos) en vez de categorías de maleza.
+function leerDensidadEstadio(idx){
+  const dEl=document.getElementById('md-'+idx);
+  const eEl=document.getElementById('me-'+idx);
+  let densidad=dEl?.value||'';
+  let estadio=eEl?.value||'';
+  if(dEl?.type==='number'&&densidad!=='')densidad=densidad+'%';
+  if(eEl?.type==='number'&&estadio!=='')estadio=estadio+'%';
+  return{densidad,estadio};
+}
 function guardarComoBorrador(){
   // Capturar todos los datos del modal en su estado actual
   try{
@@ -1200,10 +1378,8 @@ function guardarComoBorrador(){
     document.querySelectorAll('[id^="mr-"]').forEach(row=>{
       const idx=row.id.split('mr-')[1];
       const nombre=document.getElementById('mn-'+idx)?.value?.trim();
-      const pct=parseFloat(document.getElementById('mp-'+idx)?.value)||0;
-      const densidad=document.getElementById('md-'+idx)?.value||'';
-      const estadio=document.getElementById('me-'+idx)?.value||'';
-      if(nombre)malezas.push({nombre,pct,densidad,estadio});
+      const {densidad,estadio}=leerDensidadEstadio(idx);
+      if(nombre)malezas.push({nombre,densidad,estadio});
     });
     // Capturar productos
     const productos=[];
@@ -1345,7 +1521,117 @@ const FO=[
   'Antideriva',    // 17 ÚLTIMO — antideriva/antievaporante
   'Coadyuvante',   // 18 coadyuvante genérico
 ];
+// ══ CONVERSIÓN DE UNIDADES ══
+// El precio de catálogo se entiende siempre por unidad "base" (L, kg o u).
+// Si la dosis se carga en una sub-unidad (ml, cc, g, tn), hay que normalizarla
+// a la base antes de multiplicar por el precio — si no, el costo queda
+// inflado (o reducido) por un factor de 1000.
+const UNIDAD_BASE={
+  'L/ha':{f:1,base:'L'},'ml/ha':{f:0.001,base:'L'},'cc/ha':{f:0.001,base:'L'},
+  'kg/ha':{f:1,base:'kg'},'g/ha':{f:0.001,base:'kg'},'tn/ha':{f:1000,base:'kg'},
+  'u/ha':{f:1,base:'u'},'$/ha':{f:1,base:'$'}
+};
+function convUnidad(u){
+  return UNIDAD_BASE[u]||{f:1,base:(u||'').replace('/ha','')||'u'};
+}
+// Dosis*ha normalizada a la unidad base, para totales físicos (OT, exportaciones).
+function totalBaseUnidad(dosis,ha,unidad){
+  const c=convUnidad(unidad);
+  return {valor:(dosis||0)*(ha||0)*c.f,unidad:c.base};
+}
+
+// ══ CATEGORÍAS DE DIAGNÓSTICO (editable por el usuario) ══
+// Lo que antes solo era "malezas" ahora puede ser cualquier diagnóstico de lote.
+const DIAG_CAT_DEFAULT=[
+  {nombre:'Maleza',icono:'🌿'},{nombre:'Enfermedad',icono:'🦠'},{nombre:'Plaga',icono:'🐛'},
+  {nombre:'Fitotoxicidad',icono:'⚗️'},{nombre:'Daño por helada',icono:'❄️'},{nombre:'Otro',icono:'📋'}
+];
+function categoriasDiag(){
+  if(!Array.isArray(DB.categoriasDiagnostico)||!DB.categoriasDiagnostico.length)DB.categoriasDiagnostico=DIAG_CAT_DEFAULT.map(c=>({...c}));
+  return DB.categoriasDiagnostico;
+}
+function diagIcono(cat){const c=categoriasDiag().find(x=>x.nombre===cat);return c?c.icono:'📋';}
+function opcionesCategoriasHTML(valorSel){
+  return categoriasDiag().map(c=>`<option value="${c.nombre}"${c.nombre===valorSel?' selected':''}>${c.icono} ${c.nombre}</option>`).join('');
+}
+function openModalCategorias(){
+  renderCategoriasDiagLista();
+  document.getElementById('cat-diag-nuevo-icono').value='';
+  document.getElementById('cat-diag-nuevo-nombre').value='';
+  openModal('modal-categorias-diag');
+}
+function renderCategoriasDiagLista(){
+  const cont=document.getElementById('cat-diag-lista');if(!cont)return;
+  cont.innerHTML=categoriasDiag().map((c,i)=>`
+    <div class="rf" style="gap:4px;margin-bottom:6px">
+      <input type="text" class="fi" value="${c.icono}" style="width:48px;text-align:center" onchange="editarCategoriaDiag(${i},'icono',this.value)">
+      <input type="text" class="fi" value="${c.nombre}" style="flex:1" onchange="editarCategoriaDiag(${i},'nombre',this.value)">
+      <button class="btn bd bxs" onclick="eliminarCategoriaDiag(${i})" title="Eliminar">✕</button>
+    </div>`).join('');
+}
+function editarCategoriaDiag(i,campo,valor){
+  const cats=categoriasDiag();
+  if(!cats[i])return;
+  valor=(valor||'').trim();
+  if(campo==='nombre'){
+    if(!valor)return;
+    const anterior=cats[i].nombre;
+    if(anterior===valor)return;
+    cats[i].nombre=valor;
+    // Actualizar los diagnósticos que usaban el nombre viejo
+    DB.malezas.forEach(m=>{if(m.categoria===anterior)m.categoria=valor;});
+  } else {
+    cats[i].icono=valor||'📋';
+  }
+  save();
+  renderCategoriasDiagLista();
+  renderMalezas();
+}
+function agregarCategoriaDiag(){
+  const icono=(document.getElementById('cat-diag-nuevo-icono').value||'📋').trim()||'📋';
+  const nombre=(document.getElementById('cat-diag-nuevo-nombre').value||'').trim();
+  if(!nombre){document.getElementById('cat-diag-nuevo-nombre').focus();return;}
+  const cats=categoriasDiag();
+  if(cats.some(c=>c.nombre===nombre)){alert('Ya existe una categoría con ese nombre.');return;}
+  cats.push({nombre,icono});
+  save();
+  document.getElementById('cat-diag-nuevo-icono').value='';
+  document.getElementById('cat-diag-nuevo-nombre').value='';
+  renderCategoriasDiagLista();
+  renderMalezas();
+}
+function eliminarCategoriaDiag(i){
+  const cats=categoriasDiag();
+  const cat=cats[i];if(!cat)return;
+  if(cats.length<=1){alert('Tiene que quedar al menos una categoría.');return;}
+  confirmarAccion(`¿Eliminar la categoría "${cat.nombre}"? Los diagnósticos que la usan pasan a "Otro".`,()=>{
+    cats.splice(i,1);
+    const otro=cats.find(c=>c.nombre==='Otro')||cats[0];
+    DB.malezas.forEach(m=>{if(m.categoria===cat.nombre)m.categoria=otro.nombre;});
+    save();
+    renderCategoriasDiagLista();
+    renderMalezas();
+  });
+}
 function fl(v){return v&&FO[parseInt(v)]?FO[parseInt(v)]:'—';}
+// ══ CONFIRMACIÓN GENÉRICA (reemplaza confirm() del navegador, que queda bloqueado
+// silenciosamente al probar la app como link publicado) ══
+let _confirmCb=null;
+function confirmarAccion(msg,cb){
+  const el=document.getElementById('confirm-generico-msg');
+  if(el)el.textContent=msg;
+  _confirmCb=cb;
+  openModal('modal-confirm-generico');
+}
+function _confirmGenericoSi(){
+  const cb=_confirmCb;_confirmCb=null;
+  closeModal('modal-confirm-generico');
+  if(cb)cb();
+}
+function _confirmGenericoNo(){
+  _confirmCb=null;
+  closeModal('modal-confirm-generico');
+}
 function fo(v){
   if(!v)return 99;
   const n=parseInt(v);
@@ -1363,10 +1649,7 @@ function getCultivoDeLote(loteId,camp){
   if(DB.loteCultivos?.[key])return DB.loteCultivos[key];
   const r=[...DB.relevamientos].filter(rv=>rv.loteId===loteId&&rv.campaña===camp&&rv.cultivo).sort((a,b)=>b.fecha.localeCompare(a.fecha))[0];
   if(r?.cultivo)return r.cultivo;
-  const prefs=(DB.lotePrefs||{})[loteId];
-  if(prefs?.cultivo)return prefs.cultivo;
-  const rAny=[...DB.relevamientos].filter(rv=>rv.loteId===loteId&&rv.cultivo).sort((a,b)=>b.fecha.localeCompare(a.fecha))[0];
-  return rAny?.cultivo||'';
+  return '';
 }
 function getCultivo2DeLote(loteId,camp){return DB.loteCultivos?.[loteId+'||'+camp+'||2']||'';}
 function setCultivoDeLote(loteId,camp,cultivo,cultivo2){
@@ -1429,18 +1712,20 @@ function saveCliente(){
   save();closeModal('modal-cliente');renderClientes();
 }
 function deleteCliente(id){
-  if(!confirm('¿Eliminar cliente y todos sus datos?'))return;
-  DB.clientes=DB.clientes.filter(c=>c.id!==id);
-  DB.relevamientos=DB.relevamientos.filter(r=>r.clienteId!==id);
-  save();renderClientes();
+  confirmarAccion('¿Eliminar cliente y todos sus datos?',()=>{
+    DB.clientes=DB.clientes.filter(c=>c.id!==id);
+    DB.relevamientos=DB.relevamientos.filter(r=>r.clienteId!==id);
+    save();renderClientes();
+  });
 }
 function deleteCampo(cliId,campoId){
-  if(!confirm('¿Eliminar campo y sus lotes?'))return;
-  const loteIds=DB.lotes.filter(l=>l.campoId===campoId).map(l=>l.id);
-  DB.lotes=DB.lotes.filter(l=>l.campoId!==campoId);
-  DB.campos=DB.campos.filter(c=>c.id!==campoId);
-  DB.relevamientos.filter(r=>loteIds.includes(r.loteId)).forEach(r=>{r.campoId=null;r.loteId=null;r.campoNombre='(campo eliminado)';r.loteNombre='(lote eliminado)';});
-  save();renderClientes();
+  confirmarAccion('¿Eliminar campo y sus lotes?',()=>{
+    const loteIds=DB.lotes.filter(l=>l.campoId===campoId).map(l=>l.id);
+    DB.lotes=DB.lotes.filter(l=>l.campoId!==campoId);
+    DB.campos=DB.campos.filter(c=>c.id!==campoId);
+    DB.relevamientos.filter(r=>loteIds.includes(r.loteId)).forEach(r=>{r.campoId=null;r.loteId=null;r.campoNombre='(campo eliminado)';r.loteNombre='(lote eliminado)';});
+    save();renderClientes();
+  });
 }
 function editLote(cliId,campoId,loteId){
   _loteTarget={cliId,campoId,loteId};
@@ -1478,82 +1763,123 @@ function saveLote(){
 function deleteLote(cliId,campoId,loteId){
   const nRel=DB.relevamientos.filter(r=>r.loteId===loteId).length;
   const msg=nRel?`¿Eliminar este lote? Tiene ${nRel} relevamiento(s). Los relevamientos se conservarán pero quedarán sin lote asignado.`:'¿Eliminar este lote?';
-  if(!confirm(msg))return;
-  DB.lotes=DB.lotes.filter(l=>l.id!==loteId);
-  DB.relevamientos.filter(r=>r.loteId===loteId).forEach(r=>{r.loteId=null;r.loteNombre='(lote eliminado)';});
-  save();renderClientes();
+  confirmarAccion(msg,()=>{
+    DB.lotes=DB.lotes.filter(l=>l.id!==loteId);
+    DB.relevamientos.filter(r=>r.loteId===loteId).forEach(r=>{r.loteId=null;r.loteNombre='(lote eliminado)';});
+    save();renderClientes();
+  });
 }
+// ══ MULTI-SELECT genérico (checkboxes en desplegable) ══
+const _msState={};
+const _msOnChange={};
+function msToggle(id){
+  document.querySelectorAll('.ms-drop').forEach(d=>{if(d.id!=='ms-drop-'+id)d.style.display='none';});
+  const drop=document.getElementById('ms-drop-'+id);
+  if(drop)drop.style.display=drop.style.display==='none'?'block':'none';
+}
+function msRender(id,options,label,onChange){
+  if(onChange)_msOnChange[id]=onChange;
+  const sel=_msState[id]||new Set();
+  const drop=document.getElementById('ms-drop-'+id);
+  if(drop)drop.innerHTML=options.length?options.map(o=>`<label style="display:flex;gap:6px;align-items:center;padding:3px 4px;font-size:12px;cursor:pointer;white-space:nowrap"><input type="checkbox" value="${o.value}" ${sel.has(o.value)?'checked':''} onchange="msToggleVal('${id}',this.value,this.checked)"> ${o.label}</label>`).join(''):'<div class="muted" style="font-size:11px;padding:4px">Sin opciones</div>';
+  const btn=document.getElementById('ms-btn-'+id);
+  if(btn)btn.textContent=sel.size?`${label} (${sel.size})`:label+'...';
+}
+function msToggleVal(id,val,checked){
+  if(!_msState[id])_msState[id]=new Set();
+  if(checked)_msState[id].add(val);else _msState[id].delete(val);
+  if(_msOnChange[id])_msOnChange[id]();
+}
+function msValues(id){return _msState[id]?[..._msState[id]]:[];}
+function msClear(id){_msState[id]=new Set();}
+document.addEventListener('click',e=>{
+  if(e.target.closest('.ms-combo'))return;
+  document.querySelectorAll('.ms-drop').forEach(d=>d.style.display='none');
+});
+
 function clearFiltrosCli(){
-  ['cli-search','cli-f-cli','cli-f-campo','cli-f-lote','cli-f-cult'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  const _sl=document.getElementById('cli-f-lote');if(_sl)_sl.innerHTML='<option value="">Lote...</option>';
+  const el=document.getElementById('cli-search');if(el)el.value='';
+  msClear('cli-f-cli');msClear('cli-f-campo');msClear('cli-f-lote');msClear('cli-f-cult');
   renderClientes();
 }
-function cliFCliChange(){renderClientes();}
-function cliFCampoChange(){renderClientes();}
 function poblarFiltrosCli(){
-  const scli=document.getElementById('cli-f-cli');
-  if(scli&&scli.options.length<2)DB.clientes.sort((a,b)=>a.nombre.localeCompare(b.nombre)).forEach(cli=>scli.innerHTML+=`<option value="${cli.id}">${cli.nombre}</option>`);
-  const slote=document.getElementById('cli-f-lote');
-  if(slote){const prev=slote.value;slote.innerHTML='<option value="">Lote...</option>';
-    DB.clientes.sort((a,b)=>a.nombre.localeCompare(b.nombre)).forEach(cli=>{
-      DB.lotes.filter(l=>l.clienteId===cli.id).sort((a,b)=>naturalCmp(a.nombre,b.nombre))
-        .forEach(l=>slote.innerHTML+=`<option value="${l.id}">${l.nombre} — ${cli.nombre}</option>`);
-    });if(prev)slote.value=prev;}
+  const fCliIds=msValues('cli-f-cli');
+  msRender('cli-f-cli',DB.clientes.slice().sort((a,b)=>a.nombre.localeCompare(b.nombre)).map(cli=>({value:cli.id,label:cli.nombre})),'Cliente',()=>renderClientes());
+  const camposDisp=DB.campos.filter(c=>!fCliIds.length||fCliIds.includes(c.clienteId)).sort((a,b)=>a.nombre.localeCompare(b.nombre));
+  msRender('cli-f-campo',camposDisp.map(c=>{
+    const cli=DB.clientes.find(x=>x.id===c.clienteId);
+    return{value:c.id,label:c.nombre+(cli?' — '+cli.nombre:'')};
+  }),'Campo',()=>renderClientes());
+  const fCampoIds=msValues('cli-f-campo');
+  let lotesDisp=DB.lotes;
+  if(fCampoIds.length)lotesDisp=lotesDisp.filter(l=>fCampoIds.includes(l.campoId));
+  else if(fCliIds.length)lotesDisp=lotesDisp.filter(l=>fCliIds.includes(l.clienteId));
+  lotesDisp=lotesDisp.slice().sort((a,b)=>naturalCmp(a.nombre,b.nombre));
+  msRender('cli-f-lote',lotesDisp.map(l=>{
+    const cli=DB.clientes.find(x=>x.id===l.clienteId);
+    return{value:l.id,label:l.nombre+(cli?' — '+cli.nombre:'')};
+  }),'Lote',()=>renderClientes());
 }
 function renderClientes(){
   const cont=document.getElementById('tree-clientes');
   if(!DB.clientes.length){cont.innerHTML='<div class="empty"><div class="empty-icon">👤</div><div class="empty-t">Sin clientes</div><div class="empty-s">Hacé clic en "+ Nuevo cliente"</div></div>';return;}
   const q=(document.getElementById('cli-search')?.value||'').toLowerCase().trim();
-  const fCliId=document.getElementById('cli-f-cli')?.value||'';
-  const fCampoId=document.getElementById('cli-f-campo')?.value||'';
-  const fLoteId=document.getElementById('cli-f-lote')?.value||'';
+  const fCliIds=msValues('cli-f-cli');
 
-  // Poblar selector de clientes si está vacío
-  const scli=document.getElementById('cli-f-cli');
-  if(scli&&scli.options.length<2){
-    DB.clientes.forEach(cli=>scli.innerHTML+=`<option value="${cli.id}">${cli.nombre}</option>`);
-  }
   poblarFiltrosCli();
+  const fCampoIds=msValues('cli-f-campo');
+  const fLoteIds=msValues('cli-f-lote');
   const campAct=getCampanaActiva();
-  const _sc=document.getElementById('cli-f-cult');
-  if(_sc){const _pv=_sc.value;_sc.innerHTML='<option value="">Cultivo...</option>';
-    const _cs=new Set();
-    Object.values(DB.loteCultivos||{}).forEach((cu,k)=>{if(cu)_cs.add(cu.replace(/^Barbecho /i,'').trim());});
-    DB.relevamientos.filter(r=>r.cultivo).forEach(r=>_cs.add((r.cultivo||'').replace(/^Barbecho /i,'').trim()));
-    [..._cs].filter(Boolean).sort().forEach(cu=>_sc.innerHTML+=`<option value="${cu}">${cu}</option>`);
-    if(_pv)_sc.value=_pv;}
-  const fCult=document.getElementById('cli-f-cult')?.value||'';
+  const _cs=new Set();
+  Object.values(DB.loteCultivos||{}).forEach((cu,k)=>{if(cu)_cs.add(cu.replace(/^Barbecho /i,'').trim());});
+  DB.relevamientos.filter(r=>r.cultivo).forEach(r=>_cs.add((r.cultivo||'').replace(/^Barbecho /i,'').trim()));
+  msRender('cli-f-cult',[..._cs].filter(Boolean).sort().map(cu=>({value:cu,label:cu})),'Cultivo',()=>renderClientes());
+  const fCults=msValues('cli-f-cult');
   let loteIdsOk=null;
-  if(fLoteId)loteIdsOk=new Set([fLoteId]);
-  if(fCult){
+  if(fLoteIds.length)loteIdsOk=new Set(fLoteIds);
+  if(fCults.length){
     const lm=DB.lotes.filter(l=>{
-      const cv=getCultivoDeLote(l.id,campAct);
-      return cv.replace(/^Barbecho /i,'').trim()===fCult||cv===fCult;
+      const cv=getCultivoDeLote(l.id,campAct).replace(/^Barbecho /i,'').trim();
+      return fCults.includes(cv);
     }).map(l=>l.id);
     loteIdsOk=loteIdsOk?new Set([...loteIdsOk].filter(id=>lm.includes(id))):new Set(lm);
   }
+  const hayFiltro=!!(q||fCliIds.length||fCampoIds.length||fLoteIds.length||fCults.length);
 
   const clisFiltrados=DB.clientes.map(cli=>{
-    // Filtro por cliente seleccionado
-    if(fCliId && cli.id!==fCliId)return null;
-    // Filtro por texto
-    const cliMatch=!q||cli.nombre.toLowerCase().includes(q)||(cli.localidad||'').toLowerCase().includes(q);
+    // Filtro por cliente(s) seleccionado(s)
+    if(fCliIds.length && !fCliIds.includes(cli.id))return null;
     const todosCamposDelCli=DB.campos.filter(c=>c.clienteId===cli.id).map(c=>({...c,lotes:DB.lotes.filter(l=>l.campoId===c.id)}));
+    if(!hayFiltro)return{cli,campos:todosCamposDelCli};
+
+    // Con algún filtro activo: mostrar SOLO lo que matchea, apilando todos los filtros entre sí
+    const cliNombreMatch=q&&(cli.nombre.toLowerCase().includes(q)||(cli.localidad||'').toLowerCase().includes(q));
     const camposFiltrados=todosCamposDelCli.map(c=>{
-      // Filtro por campo seleccionado
-      if(fCampoId && c.id!==fCampoId)return null;
+      if(fCampoIds.length && !fCampoIds.includes(c.id))return null;
       let lotes=c.lotes;
-      // Filtro por lote seleccionado
+      if(fLoteIds.length)lotes=lotes.filter(l=>fLoteIds.includes(l.id));
       if(loteIdsOk)lotes=lotes.filter(l=>loteIdsOk.has(l.id));
-      else if(q&&!cliMatch)lotes=lotes.filter(l=>l.nombre.toLowerCase().includes(q));
-      else if(q&&!cliMatch)lotes=lotes.filter(l=>l.nombre.toLowerCase().includes(q)||c.nombre.toLowerCase().includes(q));
-      if(!fCampoId&&!fLoteId&&!q&&!cliMatch)return null;
+      if(q&&!cliNombreMatch)lotes=lotes.filter(l=>l.nombre.toLowerCase().includes(q)||c.nombre.toLowerCase().includes(q));
+      if(!lotes.length)return null;
       return{...c,lotes};
-    }).filter(Boolean).filter(c=>fCampoId||fLoteId||cliMatch||c.lotes.length);
-    if(!cliMatch&&!camposFiltrados.length&&!fCliId&&!fCampoId&&!fLoteId)return null;
-    const camposFinales=(!q&&!fCampoId&&!fLoteId&&cliMatch)?todosCamposDelCli:camposFiltrados;
-    return{cli,campos:camposFinales,match:'all'};
+    }).filter(Boolean);
+    // Si sólo hay búsqueda de texto y matchea el nombre del cliente (sin otros filtros), mostrar todos sus campos/lotes
+    const soloTexto=q&&!fCliIds.length&&!fCampoIds.length&&!fLoteIds.length&&!fCults.length;
+    if(soloTexto&&cliNombreMatch)return{cli,campos:todosCamposDelCli};
+    if(!camposFiltrados.length)return null;
+    return{cli,campos:camposFiltrados};
   }).filter(Boolean);
+  // Barra de hectáreas según los filtros activos
+  const haBar=document.getElementById('cli-ha-bar');
+  if(haBar){
+    if(hayFiltro){
+      const lotesFiltrados=clisFiltrados.flatMap(({campos})=>campos.flatMap(c=>c.lotes));
+      const haUnicas=new Map();lotesFiltrados.forEach(l=>{if(!haUnicas.has(l.id))haUnicas.set(l.id,l.ha||0);});
+      const haTot=[...haUnicas.values()].reduce((s,h)=>s+h,0);
+      haBar.style.display='block';
+      haBar.innerHTML=`<strong>${haUnicas.size}</strong> lote(s) · <strong>${haTot.toFixed(1)} ha</strong>`;
+    } else haBar.style.display='none';
+  }
   if(!clisFiltrados.length){cont.innerHTML=`<div class="empty"><div class="empty-icon">🔍</div><div class="empty-t">Sin resultados</div><div class="empty-s">Probá con otro nombre de cliente o lote</div></div>`;return;}
   // Ordenar clientes por nombre
   const clisSorted=[...clisFiltrados].sort((a,b)=>a.cli.nombre.localeCompare(b.cli.nombre));
@@ -1626,17 +1952,60 @@ function toggleTree(h){h.classList.toggle('open');h.nextElementSibling.classList
 // ══ PRODUCTOS ══
 let _editProdId=null,_pSort={col:"nombre",dir:1};
 function prodSortBy(c){if(_pSort.col===c)_pSort.dir*=-1;else{_pSort.col=c;_pSort.dir=1;}renderProductos();}
-function fillFamilias(){
+function familiasDe(tipo){
+  // Lista base (FAM) + tipos de coadyuvante agregados por el usuario (solo aplica a Coadyuvante)
+  const base=(FAM[tipo]||[]).slice();
+  if(tipo==='Coadyuvante'){
+    (DB.subcoadyuvantes||[]).forEach(v=>{ if(!base.some(f=>f.v===v)) base.push({v,d:''}); });
+  }
+  return base;
+}
+function fillFamilias(valorPreseleccionado){
   const tipo=document.getElementById('p-tipo').value;
   const sel=document.getElementById('p-familia');
   const desc=document.getElementById('p-fam-desc');
+  const lbl=document.getElementById('p-familia-lbl');
+  cancelarNuevoTipoCoadyuvante();
+  if(lbl) lbl.textContent = tipo==='Coadyuvante' ? 'Tipo de coadyuvante' : 'Familia / Mecanismo de acción';
   sel.innerHTML='<option value="">— seleccioná —</option>';desc.textContent='';
-  (FAM[tipo]||[]).forEach(f=>sel.innerHTML+=`<option value="${f.v}">${f.v}</option>`);
-  sel.onchange=()=>{const f=(FAM[tipo]||[]).find(x=>x.v===sel.value);desc.textContent=f?f.d:'';};
+  familiasDe(tipo).forEach(f=>sel.innerHTML+=`<option value="${f.v}">${f.v}</option>`);
+  if(tipo==='Coadyuvante'){
+    sel.innerHTML+='<option value="__nuevo__">+ Agregar tipo nuevo…</option>';
+  }
+  if(valorPreseleccionado) sel.value=valorPreseleccionado;
+}
+function onFamiliaChange(){
+  const tipo=document.getElementById('p-tipo').value;
+  const sel=document.getElementById('p-familia');
+  const desc=document.getElementById('p-fam-desc');
+  if(sel.value==='__nuevo__'){
+    sel.value='';
+    const box=document.getElementById('p-familia-nuevo');
+    if(box){box.style.display='flex';document.getElementById('p-familia-nuevo-input').value='';document.getElementById('p-familia-nuevo-input').focus();}
+    return;
+  }
+  const f=familiasDe(tipo).find(x=>x.v===sel.value);
+  desc.textContent=f?f.d:'';
+}
+function confirmarNuevoTipoCoadyuvante(){
+  const input=document.getElementById('p-familia-nuevo-input');
+  const nombre=(input?.value||'').trim();
+  if(!nombre){input?.focus();return;}
+  if(!Array.isArray(DB.subcoadyuvantes)) DB.subcoadyuvantes=[];
+  if(!DB.subcoadyuvantes.includes(nombre)) DB.subcoadyuvantes.push(nombre);
+  save();
+  fillFamilias(nombre);
+  cancelarNuevoTipoCoadyuvante();
+}
+function cancelarNuevoTipoCoadyuvante(){
+  const box=document.getElementById('p-familia-nuevo');
+  if(box)box.style.display='none';
+  const input=document.getElementById('p-familia-nuevo-input');
+  if(input)input.value='';
 }
 function openModalProducto(editId=null){
   _editProdId=editId;
-  document.getElementById('mprod-title').textContent=editId?'Editar producto':'Nuevo producto';
+  document.getElementById('mprod-title').textContent=editId?'Editar solución':'Nueva solución';
   ['p-nombre','p-pa','p-obs'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('p-tipo').value='';document.getElementById('p-form').value='';
   document.getElementById('p-unidad').value='L/ha';
@@ -1644,6 +2013,7 @@ function openModalProducto(editId=null){
   document.getElementById('p-precio-unit').textContent='/ unidad';
   document.getElementById('p-familia').innerHTML='<option value="">— seleccioná tipo primero —</option>';
   document.getElementById('p-fam-desc').textContent='';
+  document.getElementById('p-familia-lbl').textContent='Familia / Mecanismo de acción';
   if(editId){
     const p=DB.productos.find(x=>x.id===editId);if(!p)return;
     document.getElementById('p-nombre').value=p.nombre;
@@ -1656,7 +2026,7 @@ function openModalProducto(editId=null){
     document.getElementById('p-precio-unit').textContent='/ '+(p.unidad||'unidad');
     fillFamilias();
     setTimeout(()=>{document.getElementById('p-familia').value=p.familia||'';
-      const f=(FAM[p.tipo]||[]).find(x=>x.v===p.familia);
+      const f=familiasDe(p.tipo).find(x=>x.v===p.familia);
       document.getElementById('p-fam-desc').textContent=f?f.d:'';},30);
   }
   openModal('modal-producto');
@@ -1679,7 +2049,7 @@ function saveProducto(){
   if(_afterProdSave){const cb=_afterProdSave;_afterProdSave=null;cb();}
   else renderProductos();
 }
-function deleteProducto(id){if(!confirm('¿Eliminar?'))return;DB.productos=DB.productos.filter(p=>p.id!==id);save();renderProductos();}
+function deleteProducto(id){confirmarAccion('¿Eliminar esta solución?',()=>{DB.productos=DB.productos.filter(p=>p.id!==id);save();renderProductos();});}
 function clearFiltrosProd(){
   ['prod-search','prod-ftipo','prod-fform'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   renderProductos();
@@ -1700,7 +2070,7 @@ function renderProductos(){
     return true;
   });
   const ct=document.getElementById('prod-ct');
-  if(ct)ct.textContent='Catálogo de productos ('+prodFilt.length+'/'+DB.productos.length+')';
+  if(ct)ct.textContent='Catálogo de soluciones ('+prodFilt.length+'/'+DB.productos.length+')';
   if(!prodFilt.length){cont.innerHTML='<div class="empty"><div class="empty-icon">🔍</div><div class="empty-t">Sin resultados</div></div>';return;}
   const psa=c=>`<span class="sa">${window._pSort&&window._pSort.col===c?(window._pSort.dir>0?'▲':'▼'):''}</span>`;
   const prodArr=[...prodFilt].sort((a,b)=>{
@@ -1847,12 +2217,34 @@ function openNuevoLoteDesdeRelev(){
 }
 
 // ══ ALERTAS DE MALEZA ══
-function calcAlerta(densidad,estadio){
-  if(!densidad&&!estadio)return null;
-  // Senescente: solo registro, sin acción de control
-  if(estadio==='Senescente')return{nivel:'info',icono:'🍂',texto:'Solo registro — sin control',css:'alerta-info'};
-  const dA=densidad==='Alta';const dM=densidad==='Media';const dB=densidad==='Baja';
-  const eP=estadio==='Pasado';const eL=estadio==='Límite';const eO=estadio==='Óptimo';
+function umbralDe(nombre){
+  const m=DB.malezas.find(x=>(x.comun&&x.comun===nombre)||x.cientifico===nombre);
+  if(!m||m.categoria!=='Enfermedad')return null;
+  return(typeof m.umbral==='number'&&m.umbral>0)?m.umbral:null;
+}
+function calcAlerta(densidad,estadio,umbral){
+  if((densidad===undefined||densidad===null||densidad==='')&&(estadio===undefined||estadio===null||estadio===''))return null;
+  // Incidencia/Severidad viajan como porcentaje ("35%") — se convierten al mismo
+  // nivel de alerta que usan las malezas (Baja/Media/Alta, Óptimo/Límite/Pasado),
+  // así toda la lógica de abajo y todas las pantallas que ya usan calcAlerta
+  // siguen funcionando sin cambios.
+  const pctA=parseFloat(densidad);
+  const esPctD=!isNaN(pctA)&&/%\s*$/.test(String(densidad).trim());
+  // Enfermedades con umbral propio configurado en el catálogo: la alerta se define
+  // directamente contra ese % de incidencia (daño económico), no contra bandas genéricas.
+  if(esPctD&&umbral){
+    if(pctA>=umbral)return{nivel:'roja',icono:'🔴',texto:`Superó el umbral (${umbral}%) — aplicar`,css:'alerta-roja'};
+    if(pctA>=umbral*0.6)return{nivel:'amarilla',icono:'🟡',texto:`Acercándose al umbral (${umbral}%)`,css:'alerta-amarilla'};
+    return{nivel:'verde',icono:'🟢',texto:`Por debajo del umbral (${umbral}%)`,css:'alerta-verde'};
+  }
+  const densidadCat=esPctD?(pctA>=50?'Alta':pctA>=20?'Media':'Baja'):densidad;
+  const pctB=parseFloat(estadio);
+  const esPctE=!isNaN(pctB)&&/%\s*$/.test(String(estadio).trim());
+  const estadioCat=esPctE?(pctB>=50?'Pasado':pctB>=20?'Límite':'Óptimo'):estadio;
+  // Senescente: solo registro, sin acción de control (exclusivo de malezas)
+  if(estadioCat==='Senescente')return{nivel:'info',icono:'🍂',texto:'Solo registro — sin control',css:'alerta-info'};
+  const dA=densidadCat==='Alta';const dM=densidadCat==='Media';const dB=densidadCat==='Baja';
+  const eP=estadioCat==='Pasado';const eL=estadioCat==='Límite';const eO=estadioCat==='Óptimo';
   if(dA&&eP)return{nivel:'critica',icono:'🔴🔴',texto:'Rescate urgente',css:'alerta-critica'};
   if(dA||eP)return{nivel:'roja',icono:'🔴',texto:dA?'Control urgente':'Control difícil',css:'alerta-roja'};
   if(dM||eL)return{nivel:'amarilla',icono:'🟡',texto:'Alerta — ajustar dosis',css:'alerta-amarilla'};
@@ -1860,11 +2252,16 @@ function calcAlerta(densidad,estadio){
   return{nivel:'verde',icono:'🟢',texto:'Bajo control',css:'alerta-verde'};
 }
 function updateAlertaMal(idx){
-  const d=document.getElementById('md-'+idx)?.value||'';
-  const e=document.getElementById('me-'+idx)?.value||'';
+  const dEl=document.getElementById('md-'+idx);
+  const eEl=document.getElementById('me-'+idx);
+  let d=dEl?.value||'';let e=eEl?.value||'';
+  // Si son campos numéricos (Incidencia/Severidad), agregarles el % para la vista previa de alerta
+  if(dEl?.type==='number'&&d!=='')d=d+'%';
+  if(eEl?.type==='number'&&e!=='')e=e+'%';
   const span=document.getElementById('mal-alerta-'+idx);
   if(!span)return;
-  const a=calcAlerta(d,e);
+  const nombre=document.getElementById('mn-'+idx)?.value||'';
+  const a=calcAlerta(d,e,umbralDe(nombre));
   if(!a){span.innerHTML='';return;}
   span.innerHTML=`<span class="${a.css}">${a.icono} ${a.texto}</span>`;
 }
@@ -1879,36 +2276,64 @@ function addMalezaRow(data=null){
   const initVal=data?.nombre||'';
   const initM=DB.malezas.find(m=>(m.comun&&m.comun===initVal)||m.cientifico===initVal);
   const initDisplay=initM?(initM.cientifico+(initM.comun?' ('+initM.comun+')':'')):initVal;
+  const catInicial=data?.categoria||initM?.categoria||'Maleza';
   d.innerHTML=`
+    <input type="hidden" id="mc-${idx}" value="${catInicial}">
     <div class="mal-combo" style="flex:3;position:relative">
-      <input type="text" id="mn-txt-${idx}" class="fi mal-combo-input" placeholder="Buscar maleza por nombre..." value="${initDisplay}"
+      <input type="text" id="mn-txt-${idx}" class="fi mal-combo-input" placeholder="Buscar por nombre..." value="${initDisplay}"
         oninput="malComboFilter(${idx})" onfocus="malComboOpen(${idx})" onblur="setTimeout(()=>malComboClose(${idx}),180)" autocomplete="off">
       <input type="hidden" id="mn-${idx}" value="${initVal}">
       <div class="mal-combo-drop" id="mn-drop-${idx}"></div>
     </div>
-    <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
-      <input type="number" id="mp-${idx}" value="${data?.pct||''}" min="0" max="100" step="1" placeholder="%" class="fi" style="width:58px">
-      <span style="font-size:12px;color:var(--text3)">%</span>
-    </div>
-    <select id="md-${idx}" class="fi" style="width:90px;font-size:11px" onchange="updateAlertaMal(${idx})" title="Densidad">
-      <option value="">Densidad...</option>
-      <option value="Baja"${data?.densidad==='Baja'?' selected':''}>🟡 Baja</option>
-      <option value="Media"${data?.densidad==='Media'?' selected':''}>🟠 Media</option>
-      <option value="Alta"${data?.densidad==='Alta'?' selected':''}>🔴 Alta</option>
-    </select>
-    <select id="me-${idx}" class="fi" style="width:100px;font-size:11px" onchange="updateAlertaMal(${idx})" title="Estadio fenológico">
-      <option value="">Estadio...</option>
-      <option value="Óptimo"${data?.estadio==='Óptimo'?' selected':''}>✅ Óptimo</option>
-      <option value="Límite"${data?.estadio==='Límite'?' selected':''}>⚠️ Límite</option>
-      <option value="Pasado"${data?.estadio==='Pasado'?' selected':''}>🚨 Pasado</option>
-      <option value="Senescente"${data?.estadio==='Senescente'?' selected':''}>🍂 Madurez/Senescencia</option>
-    </select>
+    <span id="mal-metrics-${idx}" style="display:flex;align-items:center;gap:6px;flex-shrink:0"></span>
     <span id="mal-alerta-${idx}" style="font-size:10px;min-width:80px"></span>
     <button class="btn bd bxs" onclick="document.getElementById('mr-${idx}').remove();verificarMDA()">✕</button>`;
-  if(data?.densidad||data?.estadio)setTimeout(()=>updateAlertaMal(idx),30);
   cont.appendChild(d);
+  renderMalMetrics(idx,catInicial,data);
   // Render inicial del dropdown
   malComboRender(idx,'');
+}
+// Campos de medición: Densidad/Estadio para Maleza, Incidencia/Severidad para el resto
+// (misma escala Baja/Media/Alta y Óptimo·Límite·Pasado ↔ Leve·Moderada·Severa por
+// abajo, así toda la lógica de alertas existente sigue funcionando igual).
+function renderMalMetrics(idx,categoria,data){
+  const span=document.getElementById('mal-metrics-'+idx);if(!span)return;
+  const esMaleza=categoria==='Maleza';
+  const lblD=esMaleza?'Densidad':'Incidencia';
+  const lblE=esMaleza?'Estadio':'Severidad';
+  const dValRaw=data?.densidad||'';
+  const eValRaw=data?.estadio||'';
+  // Para Incidencia/Severidad, el número editable es sin el %; si viene guardado como "35%" se lo saco para mostrarlo en el input
+  const dNum=(''+dValRaw).replace('%','').trim();
+  const eNum=(''+eValRaw).replace('%','').trim();
+  if(esMaleza){
+    span.innerHTML=`
+      <select id="md-${idx}" class="fi" style="width:95px;font-size:11px" onchange="updateAlertaMal(${idx})" title="${lblD}">
+        <option value="">${lblD}...</option>
+        <option value="Baja"${dValRaw==='Baja'?' selected':''}>🟡 Baja</option>
+        <option value="Media"${dValRaw==='Media'?' selected':''}>🟠 Media</option>
+        <option value="Alta"${dValRaw==='Alta'?' selected':''}>🔴 Alta</option>
+      </select>
+      <select id="me-${idx}" class="fi" style="width:105px;font-size:11px" onchange="updateAlertaMal(${idx})" title="${lblE}">
+        <option value="">${lblE}...</option>
+        <option value="Óptimo"${eValRaw==='Óptimo'?' selected':''}>✅ Óptimo</option>
+        <option value="Límite"${eValRaw==='Límite'?' selected':''}>⚠️ Límite</option>
+        <option value="Pasado"${eValRaw==='Pasado'?' selected':''}>🚨 Pasado</option>
+        <option value="Senescente"${eValRaw==='Senescente'?' selected':''}>🍂 Madurez/Senescencia</option>
+      </select>`;
+  } else {
+    span.innerHTML=`
+      <span style="display:flex;align-items:center;gap:3px">
+        <input type="number" id="md-${idx}" value="${dNum}" min="0" max="100" step="1" placeholder="${lblD}" class="fi" style="width:70px;font-size:11px" onchange="updateAlertaMal(${idx})" title="${lblD} (%)">
+        <span style="font-size:11px;color:var(--text3)">%</span>
+      </span>
+      <span style="display:flex;align-items:center;gap:3px">
+        <input type="number" id="me-${idx}" value="${eNum}" min="0" max="100" step="1" placeholder="${lblE}" class="fi" style="width:70px;font-size:11px" onchange="updateAlertaMal(${idx})" title="${lblE} (%)">
+        <span style="font-size:11px;color:var(--text3)">%</span>
+      </span>`;
+  }
+  if(dValRaw||eValRaw)setTimeout(()=>updateAlertaMal(idx),30);
+  else updateAlertaMal(idx);
 }
 function malComboRender(idx,q){
   const drop=document.getElementById('mn-drop-'+idx);if(!drop)return;
@@ -1936,12 +2361,23 @@ function malComboSelect(idx,val,display){
   const txt=document.getElementById('mn-txt-'+idx);
   if(hidden)hidden.value=val;
   if(txt)txt.value=display;
+  // La categoría viaja pegada al diagnóstico elegido, no se elige a mano ni se muestra en la fila.
+  const m=DB.malezas.find(x=>(x.comun&&x.comun===val)||x.cientifico===val);
+  const cat=m?.categoria||'Maleza';
+  const catHidden=document.getElementById('mc-'+idx);
+  const catAnterior=catHidden?.value;
+  if(catHidden)catHidden.value=cat;
+  // Si cambió de categoría (ej: de una maleza a una enfermedad), refrescar los campos de medición
+  const esMalezaAntes=catAnterior==='Maleza';
+  const esMalezaAhora=cat==='Maleza';
+  if(esMalezaAntes!==esMalezaAhora)renderMalMetrics(idx,cat,null);
   malComboClose(idx);
 }
 
 function calcCostoRow(idx){
   const pid=document.getElementById('pr-p-'+idx)?.value;
   const dosis=parseFloat(document.getElementById('pr-d-'+idx)?.value)||0;
+  const unidad=document.getElementById('pr-u-'+idx)?.value||'';
   const precio=parseFloat(document.getElementById('pr-precio-'+idx)?.value)||0;
   const factorPct=parseFloat(document.getElementById('pr-f-'+idx)?.value)||100;
   const span=document.getElementById('pr-costo-'+idx);
@@ -1949,7 +2385,7 @@ function calcCostoRow(idx){
   if(!pid||!dosis){span.textContent='';return;}
   const factorLabel=factorPct<100?` (${factorPct}% lote)`:'';
   if(!precio){span.textContent='sin precio'+factorLabel;span.style.color='var(--text3)';return;}
-  const costo=precio*dosis;
+  const costo=precio*dosis*convUnidad(unidad).f;
   span.textContent='= USD '+costo.toFixed(2)+'/ha'+factorLabel;
   span.style.color='var(--accent2)';
 }
@@ -2037,10 +2473,9 @@ function saveRelev(){
   document.querySelectorAll('[id^="mr-"]').forEach(row=>{
     const idx=row.id.split('mr-')[1];
     const nombre=document.getElementById('mn-'+idx)?.value?.trim();
-    const pct=parseFloat(document.getElementById('mp-'+idx)?.value)||0;
-    const densidad=document.getElementById('md-'+idx)?.value||'';
-    const estadio=document.getElementById('me-'+idx)?.value||'';
-    if(nombre)malezas.push({nombre,pct,densidad,estadio});
+    const {densidad,estadio}=leerDensidadEstadio(idx);
+    const categoria=document.getElementById('mc-'+idx)?.value||'Maleza';
+    if(nombre)malezas.push({nombre,densidad,estadio,categoria});
   });
   const productos=[];
   document.querySelectorAll('[id^="pr-"]').forEach(row=>{
@@ -2075,6 +2510,11 @@ function saveRelev(){
   save();closeModal('modal-relev');renderRelev();renderDashboard();
   sessionStorage.removeItem(DRAFT_KEY);
   mostrarSnackbar('✅ Relevamiento guardado correctamente');
+  // Si se editó desde la Orden de Trabajo, volver a esa OT ya actualizada
+  if(window._otEditReturn){
+    window._otEditReturn=false;
+    navTo('ot',{ids:window._otCurrentIds||[]});
+  }
 }
 
 function duplicarRelev(id){
@@ -2093,10 +2533,11 @@ function duplicarRelev(id){
   openModalRelev(copia.id);
 }
 function deleteRelev(id){
-  if(!confirm('¿Eliminar relevamiento?'))return;
-  DB.relevamientos=DB.relevamientos.filter(r=>r.id!==id);
-  _seleccionados.delete(id);
-  save();renderRelev();renderDashboard();updateSelBar();
+  confirmarAccion('¿Eliminar relevamiento?',()=>{
+    DB.relevamientos=DB.relevamientos.filter(r=>r.id!==id);
+    _seleccionados.delete(id);
+    save();renderRelev();renderDashboard();updateSelBar();renderAplicaciones();
+  });
 }
 
 function toggleSeleccion(id,cb){
@@ -2124,9 +2565,11 @@ function generarOTDesdeSeleccion(){
 }
 
 function clearFiltros(){
-  ['f-txt','f-camp','f-lote','f-mal','f-prod','f-estado','f-desde','f-hasta','f-agrupar','f-activ'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['f-txt','f-mal','f-prod','f-estado','f-desde','f-hasta','f-agrupar','f-activ'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   _mselGet('f-cli-vals').clear();
+  _mselGet('f-camp-vals').clear();
   _mselGet('f-campo-vals').clear();
+  _mselGet('f-lote-vals').clear();
   _mselGet('f-cult-vals').clear();
   renderRelev();
 }
@@ -2213,10 +2656,10 @@ document.addEventListener('click',function(e){
 
 function getFiltrados(){
   const txt=(document.getElementById('f-txt')?.value||'').toLowerCase();
-  const camp=document.getElementById('f-camp')?.value||'';
+  const camps=_mselGet('f-camp-vals');
   const cliIds=_mselGet('f-cli-vals');
   const campoIds=_mselGet('f-campo-vals');
-  const loteId=document.getElementById('f-lote')?.value||'';
+  const loteIds=_mselGet('f-lote-vals');
   const cults=_mselGet('f-cult-vals');
   const mal=(document.getElementById('f-mal')?.value||'').toLowerCase();
   const prod=document.getElementById('f-prod')?.value||'';
@@ -2228,10 +2671,10 @@ function getFiltrados(){
     // Borradores: solo aparecen si no hay filtro de estado, o si se filtró por Borrador
     if(estadoEfectivo(r)==='Borrador'&&estado&&estado!=='Borrador')return false;
     if(estadoEfectivo(r)==='Borrador'&&!estado)return true; // siempre arriba sin filtro
-    if(camp && r.campaña!==camp)return false;
+    if(camps.size && !camps.has(r.campaña))return false;
     if(cliIds.size && !cliIds.has(r.clienteId))return false;
     if(campoIds.size && !campoIds.has(r.campoId))return false;
-    if(loteId && r.loteId!==loteId)return false;
+    if(loteIds.size && !loteIds.has(r.loteId))return false;
     if(cults.size && !cults.has(r.cultivo))return false;
     // Filtro estado: comparar contra estado efectivo
     if(estado && estadoEfectivo(r)!==estado)return false;
@@ -2247,14 +2690,14 @@ function getFiltrados(){
       if(negar&&tieneAct)return false;
       if(!negar&&!tieneAct)return false;
     }
-    if(txt){const blob=[r.clienteNombre,r.campoNombre,r.loteNombre,r.cultivo,r.campaña,(r.malezas||[]).map(m=>m.nombre).join(' '),(r.productos||[]).map(p=>DB.productos.find(x=>x.id===p.productoId)?.nombre||'').join(' ')].join(' ').toLowerCase();if(!blob.includes(txt))return false;}
+    if(txt){const blob=[r.clienteNombre,r.campoNombre,r.loteNombre,r.cultivo,r.campaña,(r.malezas||[]).map(m=>{const cat=DB.malezas.find(c=>(c.comun&&c.comun===m.nombre)||c.cientifico===m.nombre);return[m.nombre,cat?.cientifico,cat?.comun].filter(Boolean).join(' ');}).join(' '),(r.productos||[]).map(p=>DB.productos.find(x=>x.id===p.productoId)?.nombre||'').join(' ')].join(' ').toLowerCase();if(!blob.includes(txt))return false;}
     // Borradores sin filtros activos se muestran siempre arriba
     return true;
   }).sort((a,b)=>{
     if(a.estado==='Borrador'&&b.estado!=='Borrador')return -1;
     if(b.estado==='Borrador'&&a.estado!=='Borrador')return 1;
     const d=_rSort.dir;
-    if(_rSort.col==='fecha')return a.fecha<b.fecha?d:-d;
+    if(_rSort.col==='fecha')return (a.fecha<b.fecha?-1:a.fecha>b.fecha?1:0)*d;
     if(_rSort.col==='cliente')return a.clienteNombre.localeCompare(b.clienteNombre)*d;
     if(_rSort.col==='campo')return (a.campoNombre+a.loteNombre).localeCompare(b.campoNombre+b.loteNombre)*d;
     if(_rSort.col==='cultivo')return (a.cultivo||'').localeCompare(b.cultivo||'')*d;
@@ -2269,40 +2712,40 @@ function renderRelev(){
   // Poblar filtro cliente (multiselect)
   const cliOpts=DB.clientes.slice().sort((a,b)=>a.nombre.localeCompare(b.nombre)).map(c=>({value:c.id,label:c.nombre}));
   mselRender('msel-cli','f-cli-vals','Cliente',cliOpts,()=>renderRelev());
-  // Poblar filtro campaña (siempre reconstruir para evitar duplicados)
-  const sf=document.getElementById('f-camp');
-  if(sf){const pv=sf.value;sf.innerHTML='<option value="">Campaña...</option>';[...new Set(DB.relevamientos.map(r=>r.campaña).filter(Boolean))].sort().forEach(v=>sf.innerHTML+=`<option value="${v}"${v===pv?' selected':''}>${v}</option>`);}
+  // Poblar filtro campaña (multiselect)
+  const campOpts=[...(DB.campanas||[])].sort().map(v=>({value:v,label:v}));
+  mselRender('msel-camp','f-camp-vals','Campaña',campOpts,()=>renderRelev());
   // Poblar filtro campo (multiselect, dependiente de los clientes seleccionados)
   const cliIdsSel=_mselGet('f-cli-vals');
   const camposDisponibles=cliIdsSel.size?DB.campos.filter(c=>cliIdsSel.has(c.clienteId)):DB.campos;
   const campoOpts=camposDisponibles.slice().sort((a,b)=>a.nombre.localeCompare(b.nombre)).map(c=>({value:c.id,label:c.nombre}));
   mselRender('msel-campo','f-campo-vals','Campo',campoOpts,()=>renderRelev());
-  // Poblar filtro lote (dependiente de los campos/clientes seleccionados)
+  // Poblar filtro lote (multiselect, dependiente de los campos/clientes seleccionados)
   const campoIdsSel=_mselGet('f-campo-vals');
-  const sfLote=document.getElementById('f-lote');
-  if(sfLote){const pv=sfLote.value;sfLote.innerHTML='<option value="">Lote...</option>';
-    let lotes=DB.lotes;
-    if(campoIdsSel.size)lotes=lotes.filter(l=>campoIdsSel.has(l.campoId));
-    else if(cliIdsSel.size)lotes=lotes.filter(l=>cliIdsSel.has(l.clienteId));
-    lotes=lotes.slice().sort((a,b)=>naturalCmp(a.nombre,b.nombre));
-    lotes.forEach(l=>{
-      const _cli=DB.clientes.find(x=>x.id===l.clienteId);
-      sfLote.innerHTML+=`<option value="${l.id}"${l.id===pv?' selected':''}>${l.nombre}${_cli?' — '+_cli.nombre:''}</option>`;
-    });}
+  let lotesDisponibles=DB.lotes;
+  if(campoIdsSel.size)lotesDisponibles=lotesDisponibles.filter(l=>campoIdsSel.has(l.campoId));
+  else if(cliIdsSel.size)lotesDisponibles=lotesDisponibles.filter(l=>cliIdsSel.has(l.clienteId));
+  const loteOpts=lotesDisponibles.slice().sort((a,b)=>naturalCmp(a.nombre,b.nombre)).map(l=>{
+    const _cli=DB.clientes.find(x=>x.id===l.clienteId);
+    return{value:l.id,label:l.nombre+(_cli?' — '+_cli.nombre:'')};
+  });
+  mselRender('msel-lote','f-lote-vals','Lote',loteOpts,()=>renderRelev());
   // Poblar filtro cultivo (multiselect)
   const cultOpts=[...new Set(DB.relevamientos.map(r=>r.cultivo).filter(Boolean))].sort().map(v=>({value:v,label:v}));
   mselRender('msel-cult','f-cult-vals','Cultivo',cultOpts,()=>renderRelev());
-  // Poblar filtro maleza — mostrar nombre científico, filtrar por valor guardado
+  // Poblar filtro diagnóstico — mostrar nombre científico, ordenado alfabéticamente por lo que se ve
   const sm=document.getElementById('f-mal');
   if(sm){
     const pv=sm.value;
-    // Valores únicos guardados en relevamientos
-    const valoresGuardados=[...new Set(DB.relevamientos.flatMap(r=>(r.malezas||[]).map(m=>m.nombre)).filter(Boolean))].sort();
-    sm.innerHTML='<option value="">Maleza...</option>';
-    valoresGuardados.forEach(v=>{
-      // Buscar en catálogo para mostrar nombre científico
+    // Valores únicos guardados en relevamientos, con su label resuelto contra el catálogo
+    const valoresGuardados=[...new Set(DB.relevamientos.flatMap(r=>(r.malezas||[]).map(m=>m.nombre)).filter(Boolean))];
+    const opciones=valoresGuardados.map(v=>{
       const cat=DB.malezas.find(m=>(m.comun&&m.comun===v)||m.cientifico===v);
       const label=cat?(cat.cientifico+(cat.comun&&cat.comun!==v?' ('+cat.comun+')':'')):v;
+      return{v,label};
+    }).sort((a,b)=>a.label.localeCompare(b.label));
+    sm.innerHTML='<option value="">Diagnóstico...</option>';
+    opciones.forEach(({v,label})=>{
       sm.innerHTML+=`<option value="${v}"${v===pv?' selected':''}>${label}</option>`;
     });
   }
@@ -2318,8 +2761,8 @@ function renderRelev(){
   // Ha únicas por loteId: evita contar doble cuando un lote tiene varios relevamientos
   const hasPorLote=new Map();rsb.forEach(r=>{if(!hasPorLote.has(r.loteId))hasPorLote.set(r.loteId,r.loteHa||0);});
   const haFil=[...hasPorLote.values()].reduce((s,h)=>s+h,0);
-  const hayF=['f-txt','f-camp','f-lote','f-mal','f-prod','f-estado','f-desde','f-hasta'].some(id=>document.getElementById(id)?.value)
-    || _mselGet('f-cli-vals').size>0 || _mselGet('f-campo-vals').size>0 || _mselGet('f-cult-vals').size>0;
+  const hayF=['f-txt','f-mal','f-prod','f-estado','f-desde','f-hasta'].some(id=>document.getElementById(id)?.value)
+    || _mselGet('f-cli-vals').size>0 || _mselGet('f-camp-vals').size>0 || _mselGet('f-campo-vals').size>0 || _mselGet('f-lote-vals').size>0 || _mselGet('f-cult-vals').size>0;
   if(hb){hb.style.display=hayF?'flex':'none';if(hayF)hb.innerHTML=`<strong>${rsb.length}</strong> relevamiento(s) · <strong>${haFil.toFixed(1)} ha</strong> (${hasPorLote.size} lote(s)) · <span style="color:var(--text3)">${[...new Set(rsb.map(r=>r.clienteNombre))].join(', ')||'—'}</span><button class="btn bp bxs mla" onclick="_seleccionados.clear();rsb.forEach(r=>_seleccionados.add(r.id));generarOTDesdeSeleccion()" style="font-size:11px">📋 OT con filtrados</button>`;}
   document.getElementById('relev-count').textContent=`Relevamientos (${rs.length})`;
   const cont=document.getElementById('relev-body');
@@ -2425,33 +2868,71 @@ function ieRelev(id,campo,el){
 function setAplicado(id){
   cambiarEstado(id,'Aplicado');
 }
+let _ceCtx=null;
 function cambiarEstadoDesdeAp(id,nuevoEstado){
   const r=DB.relevamientos.find(x=>x.id===id);if(!r)return;
   if(nuevoEstado==='Relevado'){
-    if(!confirm('¿Volver este registro a estado Relevado? Se quitará la fecha de aplicación.'))return;
-    r.estado='Relevado';r.fechaAplicacion=null;
-    save();renderAplicaciones();renderRelev();
-    mostrarSnackbar('🔄 Vuelto a Relevado');
+    _ceCtx={id,nuevoEstado:'Relevado',origen:'aplicaciones'};
+    document.getElementById('ce-title').textContent='Volver a Relevado';
+    document.getElementById('ce-msg').style.display='block';
+    document.getElementById('ce-msg').textContent='¿Volver este registro a estado Relevado? Se quitará la fecha de aplicación.';
+    document.getElementById('ce-fecha-wrap').style.display='none';
+    document.getElementById('ce-motivo-wrap').style.display='none';
+    openModal('modal-cambiar-estado');
   }
 }
 function cambiarEstado(id,nuevoEstado){
   const r=DB.relevamientos.find(x=>x.id===id);if(!r)return;
+  document.getElementById('ce-msg').style.display='none';
+  document.getElementById('ce-fecha-wrap').style.display='none';
+  document.getElementById('ce-motivo-wrap').style.display='none';
   if(nuevoEstado==='Aplicado'&&r.estado!=='Aplicado'){
-    const f=prompt('Fecha de aplicación (YYYY-MM-DD):',new Date().toISOString().slice(0,10));
-    if(!f){renderRelev();return;}
-    r.fechaAplicacion=f;
-    r.motivoNoAplica=null;
+    _ceCtx={id,nuevoEstado:'Aplicado'};
+    document.getElementById('ce-title').textContent='Marcar como Aplicado';
+    document.getElementById('ce-fecha-wrap').style.display='block';
+    document.getElementById('ce-fecha').value=new Date().toISOString().slice(0,10);
+    openModal('modal-cambiar-estado');
+    return;
   }
   if(nuevoEstado==='No se aplica'){
-    const motivo=prompt('Motivo (opcional, ej: "se re-relevó", "lluvia", "decisión agronómica"):','');
-    r.motivoNoAplica=motivo?motivo.trim():null;
-    r.fechaAplicacion=null;
+    _ceCtx={id,nuevoEstado:'No se aplica'};
+    document.getElementById('ce-title').textContent='Marcar como "No se aplica"';
+    document.getElementById('ce-motivo-wrap').style.display='block';
+    document.getElementById('ce-motivo').value='';
+    openModal('modal-cambiar-estado');
+    return;
   }
-  if(nuevoEstado==='Relevado'){r.fechaAplicacion=null;r.motivoNoAplica=null;}
-  r.estado=nuevoEstado;
+  // Relevado: no necesita datos extra, se aplica directo
+  r.fechaAplicacion=null;r.motivoNoAplica=null;r.estado=nuevoEstado;
   save();renderRelev();
+  mostrarSnackbar('🔄 Vuelto a Relevado');
+}
+function confirmarCambioEstado(){
+  if(!_ceCtx)return;
+  const r=DB.relevamientos.find(x=>x.id===_ceCtx.id);
+  if(!r){cancelarCambioEstado();return;}
+  if(_ceCtx.nuevoEstado==='Aplicado'){
+    const f=document.getElementById('ce-fecha').value;
+    if(!f){document.getElementById('ce-fecha').focus();return;}
+    r.fechaAplicacion=f;r.motivoNoAplica=null;
+  } else if(_ceCtx.nuevoEstado==='No se aplica'){
+    const motivo=document.getElementById('ce-motivo').value.trim();
+    r.motivoNoAplica=motivo||null;r.fechaAplicacion=null;
+  } else if(_ceCtx.nuevoEstado==='Relevado'){
+    r.fechaAplicacion=null;r.motivoNoAplica=null;
+  }
+  r.estado=_ceCtx.nuevoEstado;
+  save();
+  renderRelev();
+  renderAplicaciones();
   const msgs={'Aplicado':'✅ Marcado como Aplicado','No se aplica':'⛔ Marcado como No se aplica','Relevado':'🔄 Vuelto a Relevado'};
-  mostrarSnackbar(msgs[nuevoEstado]||'Estado actualizado');
+  mostrarSnackbar(msgs[_ceCtx.nuevoEstado]||'Estado actualizado');
+  cancelarCambioEstado();
+}
+function cancelarCambioEstado(){
+  _ceCtx=null;
+  closeModal('modal-cambiar-estado');
+  renderRelev();
 }
 function toggleAll(cb){
   const visible=getFiltrados();
@@ -2467,7 +2948,7 @@ function toggleAll(cb){
 function renderDashboard(){
   // Poblar filtros de campaña y cliente
   const sCamp=document.getElementById('rp-camp');
-  if(sCamp){const pv=sCamp.value;sCamp.innerHTML='<option value="">Todas</option>';[...new Set(DB.relevamientos.map(r=>r.campaña).filter(Boolean))].sort().reverse().forEach(v=>sCamp.innerHTML+=`<option value="${v}"${v===pv?' selected':''}>${v}</option>`);}
+  if(sCamp){const pv=sCamp.value;sCamp.innerHTML='<option value="">Todas</option>';[...(DB.campanas||[])].sort().reverse().forEach(v=>sCamp.innerHTML+=`<option value="${v}"${v===pv?' selected':''}>${v}</option>`);}
   const sCli=document.getElementById('rp-cli');
   if(sCli){const pv=sCli.value;sCli.innerHTML='<option value="">Todos</option>';DB.clientes.slice().sort((a,b)=>a.nombre.localeCompare(b.nombre)).forEach(c=>sCli.innerHTML+=`<option value="${c.id}"${c.id===pv?' selected':''}>${c.nombre}</option>`);}
 
@@ -2515,8 +2996,8 @@ function renderDashboard(){
       <td><strong>${r.clienteNombre}</strong></td>
       <td>${r.campoNombre} › ${r.loteNombre}</td>
       <td><span class="badge bg-amber">${r.cultivo||'—'}</span></td>
-      <td>${(r.malezas||[]).slice(0,2).map(m=>`<span class="mal-pill">${m.nombre}</span>`).join('')}${(r.malezas||[]).length>2?`<span class="muted" style="font-size:10px">+${r.malezas.length-2}</span>`:''}</td>
-      <td><span class="badge ${r.estado==='Aplicado'?'bg-green':'bg-gray'}">${estadoEfectivo(r)}</span></td>
+      <td>${(r.malezas||[]).slice(0,2).map(m=>`<span class="mal-pill">${diagIcono(m.categoria)} ${m.nombre}</span>`).join('')}${(r.malezas||[]).length>2?`<span class="muted" style="font-size:10px">+${r.malezas.length-2}</span>`:''}</td>
+      <td><span class="badge ${r.estado==='Aplicado'?'bg-green':'bg-gray'}">${r.estado==='Aplicado'?'✅ ':''}${estadoEfectivo(r)}</span></td>
       <td><button class="btn bb bxs ph" onclick="openOTFromRelev('${r.id}')">📋 OT</button></td>
     </tr>`).join('')}
     </tbody></table></div>`;
@@ -2740,9 +3221,10 @@ function otSortBy(col){
   renderOTList();
 }
 function deleteOT(id){
-  if(!confirm('¿Eliminar esta OT del historial?'))return;
-  DB.ots=DB.ots.filter(o=>o.id!==id);save();renderOTList();
-  document.getElementById('ot-content').innerHTML='';
+  confirmarAccion('¿Eliminar esta OT del historial?',()=>{
+    DB.ots=DB.ots.filter(o=>o.id!==id);save();renderOTList();
+    document.getElementById('ot-content').innerHTML='';
+  });
 }
 function recargarOT(id){
   const ot=DB.ots.find(o=>o.id===id);if(!ot)return;
@@ -2790,7 +3272,27 @@ function renderOT(){
   buildOTFromIds(rs.map(r=>r.id));
 }
 
+// Editar la dosis directamente desde la OT — se guarda en el/los relevamiento(s)
+// de origen (bidireccional) y la OT se reconstruye (el lote puede pasar a
+// agruparse con otro tratamiento, o separarse, según la nueva dosis).
+function actualizarDosisOT(productoId,relevIdsCsv,nuevoValor){
+  const nueva=parseFloat(nuevoValor);
+  if(isNaN(nueva)||nueva<=0){mostrarSnackbar('⚠️ Dosis inválida');buildOTFromIds(window._otCurrentIds||[]);return;}
+  const ids=relevIdsCsv.split(',').filter(Boolean);
+  let cambios=0;
+  ids.forEach(rid=>{
+    const r=DB.relevamientos.find(x=>x.id===rid);if(!r)return;
+    (r.productos||[]).forEach(p=>{if(p.productoId===productoId){p.dosis=nueva;cambios++;}});
+  });
+  if(cambios){
+    save();
+    mostrarSnackbar(`✅ Dosis actualizada en ${cambios} relevamiento(s)`);
+  }
+  buildOTFromIds(window._otCurrentIds||[]);
+}
+
 function buildOTFromIds(ids){
+  window._otCurrentIds=[...ids];
   const cont=document.getElementById('ot-content');
   const relevs=ids.map(id=>DB.relevamientos.find(r=>r.id===id)).filter(Boolean);
   if(!relevs.length){cont.innerHTML='<div class="empty"><div class="empty-icon">📋</div><div class="empty-t">Sin relevamientos</div><div class="empty-s">Seleccioná relevamientos o filtrá por campo y fecha</div></div>';return;}
@@ -2826,15 +3328,18 @@ function buildOTFromIds(ids){
   Object.values(grupos).forEach(grupo=>{
     // Agrupar lotes por tratamiento idéntico
     const loteArr=Object.values(grupo.lotes);
-    const tKey=lt=>(lt.relevs[0].cultivo||'')+'|'+(lt.relevs[0].productos||[]).map(p=>p.productoId+':'+p.dosis+':'+p.unidad).sort().join('|');
+    const tKey=lt=>(lt.relevs[0].productos||[]).map(p=>p.productoId+':'+p.dosis+':'+p.unidad).sort().join('|');
     const grpTrat={};
     loteArr.forEach(lt=>{const k=tKey(lt);if(!grpTrat[k])grpTrat[k]=[];grpTrat[k].push(lt);});
     const loteBlocks=Object.values(grpTrat).map(lts=>{
       const r=lts[0].relevs[0];
       const haG=lts.reduce((s,lt)=>s+(lt.loteHa||0),0);
       const multi=lts.length>1;
-      const nomLotes=lts.map(lt=>lt.loteNombre).join(', ');
-      const malStr=(r.malezas||[]).length?r.malezas.map(m=>{const a=calcAlerta(m.densidad,m.estadio);return`<span class="mal-pill" title="${[m.densidad,m.estadio].filter(Boolean).join(' | ')}">${a?a.icono+' ':''}<em>${m.nombre}</em>${m.pct?' '+m.pct+'%':''}</span>`;}).join(''):'—';
+      const loteLink=(lt)=>`<a href="#" onclick="event.preventDefault();editarRelevDesdeOT('${lt.relevs[0].id}')" style="color:inherit;text-decoration:underline;text-decoration-style:dotted;cursor:pointer" title="Editar el relevamiento de este lote">${lt.loteNombre}</a>`;
+      const nomLotes=lts.map(loteLink).join(', ');
+      const cultivosGrupo=[...new Set(lts.map(lt=>lt.relevs[0].cultivo).filter(Boolean))];
+      const relevIdsBlock=lts.flatMap(lt=>lt.relevs.map(rr=>rr.id));
+      const malStr=(r.malezas||[]).length?r.malezas.map(m=>{const a=calcAlerta(m.densidad,m.estadio,umbralDe(m.nombre));return`<span class="mal-pill" title="${[m.categoria,m.densidad,m.estadio].filter(Boolean).join(' | ')}">${diagIcono(m.categoria)} ${a?a.icono+' ':''}<em>${m.nombre}</em>${m.pct?' '+m.pct+'%':''}</span>`;}).join(''):'—';
       // Ordenar productos por orden de mezcla ANTES de renderizar cada lote
       const prodsOrdenados=[...(r.productos||[])].sort((a,b)=>{
         const pa=DB.productos.find(x=>x.id===a.productoId)||{};
@@ -2845,19 +3350,20 @@ function buildOTFromIds(ids){
         const esGlifB=foB===15&&(pb.nombre||'').toLowerCase().includes('glifosato');
         return (esGlifA?15.5:foA)-(esGlifB?15.5:foB);
       });
+      const relevIdsAttr=relevIdsBlock.join(',');
       const prodsRows=prodsOrdenados.map(p=>{
         const prod=DB.productos.find(x=>x.id===p.productoId);if(!prod)return'';
-        const tot=haG?(p.dosis*haG).toFixed(1)+' '+p.unidad.replace('/ha',''):'—';
         const factor=p.factor!==undefined?p.factor:1;
         const haEfectiva=haG*factor;
-        const totVal=haEfectiva?(p.dosis*haEfectiva).toFixed(1):'—';
         // Fallback: si unidad no está en el relevamiento, buscar en catálogo
         const unidadRaw=p.unidad||prod.unidad||'';
-        const unidadBase=unidadRaw.replace('/ha','').trim()||unidadRaw;
-        const totStr=totVal!=='—'?`${totVal} ${unidadBase||'?'}`:'—';
+        // Total normalizado a la unidad base (ml→L, g→kg, etc.) para no mostrar
+        // números inflados cuando la dosis se cargó en una sub-unidad.
+        const {valor:totBase,unidad:unidadBaseNombre}=totalBaseUnidad(p.dosis,haEfectiva,unidadRaw);
+        const totStr=haEfectiva?`${totBase.toFixed(3).replace(/\.?0+$/,'')||'0'} ${unidadBaseNombre}`:'—';
         const factorBadge=factor<1?`<span style="font-size:9px;color:var(--amber);margin-left:3px">(${Math.round(factor*100)}% del lote = ${haEfectiva.toFixed(1)} ha)</span>`:'';
         return `<tr><td style="font-size:12px"><span class="badge ${TC[prod.tipo]||'bg-gray'}" style="font-size:9px;margin-right:4px">${prod.tipo?prod.tipo.slice(0,3).toUpperCase():'—'}</span><strong>${prod.nombre}</strong>${factorBadge}</td>`
-          +`<td class="mono" style="font-size:12px;white-space:nowrap">${p.dosis} <strong>${p.unidad||prod.unidad||'—'}</strong></td>`
+          +`<td class="mono" style="font-size:12px;white-space:nowrap"><input type="number" step="0.01" value="${p.dosis}" class="fi" style="width:64px;padding:2px 5px;font-size:12px" title="Editar dosis — se guarda en el/los relevamiento(s) de origen" onchange="actualizarDosisOT('${p.productoId}','${relevIdsAttr}',this.value)"> <strong>${p.unidad||prod.unidad||'—'}</strong></td>`
           +`<td class="mono" style="font-size:12px;font-weight:700;color:var(--accent2);white-space:nowrap">${totStr}</td></tr>`;
       }).join('');
       const obsRows=(()=>{
@@ -2874,11 +3380,11 @@ function buildOTFromIds(ids){
       const th=(t)=>`<th style="text-align:left;padding:5px 10px;font-size:10px;font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:.05em;color:var(--text3)">${t}</th>`;
       return `<div class="ot-bloque-trat" style="border:1px solid var(--border);border-radius:var(--r);margin-bottom:10px;overflow:hidden">`
         +`<div style="background:${multi?'var(--accent-bg)':'var(--bg2)'};padding:8px 12px;display:flex;align-items:center;gap:8px;font-weight:500;font-size:13px;flex-wrap:wrap">`
-        +(multi?`<span style="color:var(--accent2)">${lts.length} lotes:</span> ${nomLotes}`:`🟩 ${lts[0].loteNombre}`)
+        +(multi?`<span style="color:var(--accent2)">${lts.length} lotes:</span> ${nomLotes}`:`🟩 ${loteLink(lts[0])}`)
         +` <span class="badge bg-green">${haG.toFixed(1)} ha</span>`
-        +` <span class="badge bg-amber">${r.cultivo||'—'}</span>`
+        +cultivosGrupo.map(c=>` <span class="badge bg-amber">${c}</span>`).join('')
         +(multi?` <span class="badge bg-blue">Tratamiento unificado</span>`:'')+`</div>`
-        +((r.malezas||[]).length?`<div style="padding:7px 12px;background:var(--purple-bg);font-size:11px;color:var(--purple)">🌿 <strong>Malezas:</strong> ${malStr}</div>`:'')
+        +((r.malezas||[]).length?`<div style="padding:7px 12px;background:var(--purple-bg);font-size:11px;color:var(--purple)">🔬 <strong>Diagnóstico:</strong> ${malStr}</div>`:'')
         +(prodsRows?`<table style="width:100%;border-collapse:collapse"><thead><tr style="background:var(--bg2)">${th('Producto')}${th('Dosis / ha')}${th('Total '+(multi?lts.length+' lotes':'lote'))}</tr></thead><tbody>${prodsRows}</tbody></table>`:'<div style="padding:8px 12px;font-size:12px;color:var(--text3)">Sin productos</div>')
         +obsRows+`</div>`;
     }).join('');
@@ -2888,11 +3394,11 @@ function buildOTFromIds(ids){
   // RESUMEN TOTAL DE PRODUCTOS (va al final)
   const resumenProds=allProds.map((ap,i)=>{
     let tot=0;let uRef='';
-    relevs.forEach(r=>{const p=(r.productos||[]).find(x=>x.productoId===ap.pid);if(p&&r.loteHa){const f=p.factor!==undefined?p.factor:1;tot+=p.dosis*r.loteHa*f;const uRaw=p.unidad||DB.productos.find(x=>x.id===ap.pid)?.unidad||'';uRef=uRaw.replace('/ha','').trim()||uRaw;}});
+    relevs.forEach(r=>{const p=(r.productos||[]).find(x=>x.productoId===ap.pid);if(p&&r.loteHa){const f=p.factor!==undefined?p.factor:1;const uRaw=p.unidad||DB.productos.find(x=>x.id===ap.pid)?.unidad||'';const {valor,unidad}=totalBaseUnidad(p.dosis,r.loteHa,uRaw);tot+=valor*f;uRef=unidad;}});
     const refP=relevs.flatMap(r=>r.productos||[]).find(p=>p.productoId===ap.pid);
     return`<tr>
       <td style="font-size:12px"><span class="badge bg-gray" style="font-size:9px;margin-right:4px">${ap.fl}</span><strong>${ap.nombre}</strong>${ap.pa?`<br><span class="mono muted" style="font-size:10px">${ap.pa}</span>`:''}</td>
-      <td class="mono" style="font-size:13px;font-weight:700;color:var(--accent2);white-space:nowrap">${tot?tot.toFixed(1)+' '+uRef:'—'}</td>
+      <td class="mono" style="font-size:13px;font-weight:700;color:var(--accent2);white-space:nowrap">${tot?tot.toFixed(3).replace(/\.?0+$/,'')+' '+uRef:'—'}</td>
     </tr>`;
   }).join('');
 
@@ -3041,7 +3547,7 @@ function renderAplicaciones(){
         +`<td class="rf ph">`
         +`<select onchange="cambiarEstadoDesdeAp('${r.id}',this.value)" style="font-size:11px;padding:3px 6px;border-radius:6px;border:1px solid var(--border);background:var(--bg);font-family:'Sora',sans-serif;cursor:pointer;color:var(--text);margin-right:4px"><option value="Aplicado" selected>✅ Aplicado</option><option value="Relevado">🔄 Volver a Relevado</option></select>`
         +`<button class="btn bs bxs" onclick="openModalRelev('${r.id}')" title="Ver/Editar">✏️</button>`
-        +`<button class="btn bd bxs" onclick="if(confirm('¿Eliminar este registro?')){deleteRelev('${r.id}');renderAplicaciones();}" title="Eliminar">✕</button>`
+        +`<button class="btn bd bxs" onclick="deleteRelev('${r.id}')" title="Eliminar">✕</button>`
         +`</td>`
         +'</tr>';
     }).join('')
@@ -3158,7 +3664,7 @@ function renderTablero(){
   const fcampSel=document.getElementById('tl-fcamp');
   if(fcampSel){const pv=fcampSel.value;fcampSel.innerHTML='<option value="">Campaña...</option>';(DB.campanas||[]).forEach(c=>fcampSel.innerHTML+=`<option value="${c}"${c===pv?' selected':''}>${c}</option>`);}
   const fmalSel=document.getElementById('tl-fmal');
-  if(fmalSel){const pv=fmalSel.value;fmalSel.innerHTML='<option value="">Maleza...</option>';[...new Set(DB.relevamientos.flatMap(r=>(r.malezas||[]).map(m=>m.nombre)).filter(Boolean))].sort().forEach(v=>fmalSel.innerHTML+=`<option value="${v}"${v===pv?' selected':''}>${v}</option>`);}
+  if(fmalSel){const pv=fmalSel.value;fmalSel.innerHTML='<option value="">Diagnóstico...</option>';[...new Set(DB.relevamientos.flatMap(r=>(r.malezas||[]).map(m=>m.nombre)).filter(Boolean))].sort().forEach(v=>fmalSel.innerHTML+=`<option value="${v}"${v===pv?' selected':''}>${v}</option>`);}
   const fprodSel=document.getElementById('tl-fprod');
   if(fprodSel){const pv=fprodSel.value;fprodSel.innerHTML='<option value="">Producto aplicado...</option>';DB.productos.forEach(p=>fprodSel.innerHTML+=`<option value="${p.id}"${p.id===pv?' selected':''}>${p.nombre}</option>`);}
   // Multiselect cultivo
@@ -3205,7 +3711,7 @@ function renderTablero(){
         const pr=DB.productos.find(x=>x.id===p.productoId);
         const precio=p.precioUSD||pr?.precio;
         const f=p.factor!==undefined?p.factor:1;
-        if(precio&&p.dosis&&lote.ha)costoAcum+=precio*p.dosis*lote.ha*f;
+        if(precio&&p.dosis&&lote.ha)costoAcum+=precio*p.dosis*convUnidad(p.unidad||pr?.unidad).f*lote.ha*f;
       });
     });
     // Estado operativo
@@ -3462,9 +3968,10 @@ function saveActividad(){
 }
 
 function deleteActividad(id,loteId,cliId,campoId){
-  if(!confirm('¿Eliminar esta actividad?'))return;
-  DB.actividades=DB.actividades.filter(a=>a.id!==id);
-  save();renderLoteDetail(loteId,cliId,campoId);
+  confirmarAccion('¿Eliminar esta actividad?',()=>{
+    DB.actividades=DB.actividades.filter(a=>a.id!==id);
+    save();renderLoteDetail(loteId,cliId,campoId);
+  });
 }
 
 function buildHistorialItems(loteId,cliId,campoId,filtroTipo='',filtroCamp=''){
@@ -3513,13 +4020,13 @@ function renderActItem(item,loteId,cliId,campoId){
   // Contenido específico según tipo
   let extra='';
   if(item.tipo==='Relevamiento'&&r){
-    const malStr=(r.malezas||[]).map(m=>{const a=calcAlerta(m.densidad,m.estadio);return`<span class="mal-pill">${a?a.icono+' ':''}<em>${m.nombre}</em>${m.pct?' '+m.pct+'%':''}</span>`;}).join('')||'Sin malezas';
+    const malStr=(r.malezas||[]).map(m=>{const a=calcAlerta(m.densidad,m.estadio,umbralDe(m.nombre));return`<span class="mal-pill">${diagIcono(m.categoria)} ${a?a.icono+' ':''}<em>${m.nombre}</em>${m.pct?' '+m.pct+'%':''}</span>`;}).join('')||'Sin diagnósticos';
     const prodStr=(r.productos||[]).map(p=>{const pr=DB.productos.find(x=>x.id===p.productoId);return pr?`<span class="badge ${TC[pr.tipo]||'bg-gray'}" style="font-size:10px">${pr.nombre}</span>`:''}).join('')||'Sin productos';
     const estEf=estadoEfectivo(r);
     extra=`<div style="margin-top:6px;font-size:11px">
       <div style="margin-bottom:3px">🌿 ${malStr}</div>
       <div>🧴 ${prodStr}</div>
-      <span class="badge ${estEf==='Aplicado'?'bg-blue':estEf==='Relevado con tratamiento'?'bg-green':'bg-gray'}" style="font-size:9px;margin-top:3px">${estEf}</span>
+      <span class="badge ${estEf==='Aplicado'?'bg-green':estEf==='Relevado con tratamiento'?'bg-green':'bg-gray'}" style="font-size:9px;margin-top:3px">${estEf==='Aplicado'?'✅ Aplicado':estEf}</span>
     </div>`;
   } else if(item.tipo==='Aplicación'&&r){
     const prodStr=(r.productos||[]).map(p=>{const pr=DB.productos.find(x=>x.id===p.productoId);const f=p.factor!==undefined?p.factor:1;return pr?`<span class="badge ${TC[pr.tipo]||'bg-gray'}" style="font-size:10px">${pr.nombre} <span class="mono">${p.dosis}${p.unidad||''}</span>${f<1?` <span style="font-size:9px;color:var(--amber)">${Math.round(f*100)}%</span>`:''}</span>`:''}).join('')||'Sin productos';
@@ -3569,23 +4076,35 @@ function renderLoteDetail(loteId,cliId,campoId){
   const filtroCamp=window._actFiltroCamp||'';
   const items=buildHistorialItems(loteId,cliId,campoId,filtroTipo,filtroCamp);
 
-  // Tabla pivot malezas
+  // Tabla pivot de diagnósticos, agrupada por categoría
   const relevsSinApl=todosRelev.filter(r=>r.estado!=='Aplicado');
+  const diagConCat=malezasVistas.map(nom=>{
+    const cat=DB.malezas.find(m=>(m.comun&&m.comun===nom)||m.cientifico===nom)?.categoria||'Otro';
+    return{nom,cat};
+  }).sort((a,b)=>a.cat.localeCompare(b.cat)||a.nom.localeCompare(b.nom));
   const malezaHistorial=malezasVistas.length&&campanias.length?`
     <div class="card">
-      <div class="ch"><span class="ct">🌿 Historial de malezas por campaña</span></div>
+      <div class="ch"><span class="ct">🔬 Historial de Diagnósticos por Campaña</span></div>
       <div class="cb"><div class="tw"><table>
-        <thead><tr><th>Maleza</th>${campanias.map(c=>`<th>${c}</th>`).join('')}</tr></thead>
-        <tbody>${malezasVistas.map(mal=>{
-          const cells=campanias.map(camp=>{
-            const r=todosRelev.find(x=>x.campaña===camp&&(x.malezas||[]).some(m=>m.nombre===mal));
-            const m=r?.malezas?.find(x=>x.nombre===mal);
-            if(!m)return'<td><span class="muted">—</span></td>';
-            const a=calcAlerta(m.densidad,m.estadio);
-            return`<td><span class="mal-pill ${a?a.css:''}">${a?a.icono+' ':''}${m.pct?m.pct+'%':'✓'}${m.densidad?`<br><span style="font-size:9px">${m.densidad}</span>`:''}</span></td>`;
-          }).join('');
-          return`<tr><td><strong>${mal}</strong></td>${cells}</tr>`;
-        }).join('')}
+        <thead><tr><th>Diagnóstico</th>${campanias.map(c=>`<th>${c}</th>`).join('')}</tr></thead>
+        <tbody>${(()=>{
+          let catAnterior=null;let out='';
+          diagConCat.forEach(({nom:mal,cat})=>{
+            if(cat!==catAnterior){
+              catAnterior=cat;
+              out+=`<tr style="background:var(--bg2,var(--bg))"><td colspan="${campanias.length+1}" style="font-size:11px;font-weight:600;color:var(--text3);padding:4px 8px">${diagIcono(cat)} ${cat}</td></tr>`;
+            }
+            const cells=campanias.map(camp=>{
+              const r=todosRelev.find(x=>x.campaña===camp&&(x.malezas||[]).some(m=>m.nombre===mal));
+              const m=r?.malezas?.find(x=>x.nombre===mal);
+              if(!m)return'<td><span class="muted">—</span></td>';
+              const a=calcAlerta(m.densidad,m.estadio,umbralDe(m.nombre));
+              return`<td><span class="mal-pill ${a?a.css:''}">${a?a.icono+' ':''}${m.pct?m.pct+'%':'✓'}${m.densidad?`<br><span style="font-size:9px">${m.densidad}</span>`:''}</span></td>`;
+            }).join('');
+            out+=`<tr><td><strong>${mal}</strong></td>${cells}</tr>`;
+          });
+          return out;
+        })()}
         </tbody></table></div></div></div>`:'';
   // Sección costos
   const costoSection=(()=>{
@@ -3599,7 +4118,7 @@ function renderLoteDetail(loteId,cliId,campoId){
         const prod=DB.productos.find(x=>x.id===p.productoId);if(!prod)return;
         const precio=p.precioUSD||prod.precio;if(!precio)return;
         const f=p.factor!==undefined?p.factor:1;
-        const costoHa=precio*p.dosis;
+        const costoHa=precio*p.dosis*convUnidad(p.unidad||prod.unidad).f;
         const costoTotal=lote.ha?costoHa*lote.ha*f:null;
         porCamp[k].filas.push({cultivo:r.cultivo||'—',producto:prod.nombre,tipo:prod.tipo||'',unidad:p.unidad||prod.unidad||'',dosis:p.dosis,precioUnit:precio,factor:f,costoHa,costoTotal,ha:lote.ha||0,estado:r.estado});
         if(costoTotal)porCamp[k].totalUSD+=costoTotal;
@@ -3882,8 +4401,9 @@ function saveCultivo(){
   if(sel){const pv=sel.value;sel.innerHTML='<option value="">Seleccioná...</option>';(DB.cultivos||[]).forEach(c=>sel.innerHTML+=`<option value="${c}"${c===pv?' selected':''}>${c}</option>`);}
 }
 function deleteCultivo(idx){
-  if(!confirm('¿Eliminar cultivo?'))return;
-  DB.cultivos.splice(idx,1);save();renderCultivos();
+  confirmarAccion('¿Eliminar cultivo?',()=>{
+    DB.cultivos.splice(idx,1);save();renderCultivos();
+  });
 }
 function renderCultivos(){
   const cont=document.getElementById('cult-body');if(!cont)return;
@@ -3925,11 +4445,12 @@ function saveCampana(){
   if(sel){const pv=sel.value;sel.innerHTML='<option value="">Seleccioná...</option>';DB.campanas.forEach(c=>sel.innerHTML+=`<option value="${c}"${c===pv?' selected':''}>${c}</option>`);}
 }
 function deleteCampana(idx){
-  if(!confirm('¿Eliminar campaña?'))return;
-  DB.campanas.splice(idx,1);save();renderCampanas();
+  confirmarAccion('¿Eliminar campaña?',()=>{
+    DB.campanas.splice(idx,1);save();renderCampanas();
+  });
 }
 let _rotSort={col:null,dir:1};
-function clearFiltrosRot(){['rot-f-cli','rot-f-cult1','rot-f-cult2','rot-f-campo','rot-f-lote'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});_rotSort={col:null,dir:1};renderCampanas();}
+function clearFiltrosRot(){['rot-f-cli','rot-f-cult1','rot-f-cult2','rot-f-campo','rot-f-lote'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});msClear('rot-f-camps');_rotSort={col:null,dir:1};renderCampanas();}
 function rotSortBy(col){if(_rotSort.col===col)_rotSort.dir*=-1;else{_rotSort.col=col;_rotSort.dir=1;}renderCampanas();}
 function initCampActSel(){
   const sel=document.getElementById('camp-activa-sel');if(!sel)return;
@@ -3940,9 +4461,12 @@ function initCampActSel(){
 function renderCampanas(){
   const cont=document.getElementById('camp-body');if(!cont)return;
   initCampActSel();
-  const camps=[...(DB.campanas||[])].sort();
+  const todasCamps=[...(DB.campanas||[])].sort();
   const campAct=getCampanaActiva();
-  if(!camps.length){cont.innerHTML='<div class="empty"><div class="empty-icon">📅</div><div class="empty-t">Sin campañas</div></div>';return;}
+  if(!todasCamps.length){cont.innerHTML='<div class="empty"><div class="empty-icon">📅</div><div class="empty-t">Sin campañas</div></div>';return;}
+  msRender('rot-f-camps',todasCamps.map(c=>({value:c,label:c})),'Campañas',()=>renderCampanas());
+  const campsSel=msValues('rot-f-camps');
+  const camps=campsSel.length?todasCamps.filter(c=>campsSel.includes(c)):todasCamps;
   const fCliSel=document.getElementById('rot-f-cli');
   if(fCliSel&&fCliSel.options.length<2)DB.clientes.sort((a,b)=>a.nombre.localeCompare(b.nombre)).forEach(cli=>fCliSel.innerHTML+=`<option value="${cli.id}">${cli.nombre}</option>`);
   const fCult1Sel=document.getElementById('rot-f-cult1');
@@ -4035,24 +4559,36 @@ function renderCampanas(){
 
 // ══ MALEZAS CATÁLOGO ══
 let _editMalId=null;
+function onCategoriaMalChange(){
+  const cat=document.getElementById('mal-categoria')?.value;
+  const wrap=document.getElementById('mal-umbral-wrap');
+  if(wrap)wrap.style.display=(cat==='Enfermedad')?'block':'none';
+}
 function openModalMaleza(editId=null){
   _editMalId=editId;
-  document.getElementById('mmal-title').textContent=editId?'Editar maleza':'Nueva maleza';
+  document.getElementById('mmal-title').textContent=editId?'Editar diagnóstico':'Nuevo diagnóstico';
+  const selCat=document.getElementById('mal-categoria');
   if(editId){const m=DB.malezas.find(x=>x.id===editId)||{};
     document.getElementById('mal-cientifico').value=m.cientifico||'';
     document.getElementById('mal-comun').value=m.comun||'';
+    if(selCat){selCat.innerHTML=opcionesCategoriasHTML(m.categoria||'Maleza');}
     if(document.getElementById('mal-dificil'))document.getElementById('mal-dificil').checked=m.dificil||false;
+    if(document.getElementById('mal-umbral'))document.getElementById('mal-umbral').value=m.umbral||'';
   } else {
     document.getElementById('mal-cientifico').value='';
     document.getElementById('mal-comun').value='';
+    if(selCat){selCat.innerHTML=opcionesCategoriasHTML('Maleza');}
     if(document.getElementById('mal-dificil'))document.getElementById('mal-dificil').checked=false;
+    if(document.getElementById('mal-umbral'))document.getElementById('mal-umbral').value='';
   }
+  onCategoriaMalChange();
   openModal('modal-maleza');
 }
 function saveMaleza(){
   const cient=document.getElementById('mal-cientifico').value.trim();
   if(!cient){alert('El nombre científico es obligatorio');return;}
-  const obj={id:_editMalId||uid(),cientifico:cient,comun:document.getElementById('mal-comun').value.trim(),dificil:document.getElementById('mal-dificil')?.checked||false};
+  const umbralVal=parseFloat(document.getElementById('mal-umbral')?.value);
+  const obj={id:_editMalId||uid(),cientifico:cient,comun:document.getElementById('mal-comun').value.trim(),categoria:document.getElementById('mal-categoria')?.value||'Maleza',dificil:document.getElementById('mal-dificil')?.checked||false,umbral:(!isNaN(umbralVal)&&umbralVal>0)?umbralVal:null};
   if(_editMalId){const i=DB.malezas.findIndex(m=>m.id===_editMalId);if(i>=0)DB.malezas[i]=obj;else DB.malezas.push(obj);}
   else DB.malezas.push(obj);
   _editMalId=null;
@@ -4069,34 +4605,86 @@ function toggleMalezaDificil(id){
   mostrarSnackbar(m.dificil?'⚠️ Maleza marcada como difícil':'Maleza desmarcada');
 }
 function deleteMaleza(id){
-  if(!confirm('¿Eliminar maleza?'))return;
-  DB.malezas=DB.malezas.filter(m=>m.id!==id);save();renderMalezas();
+  confirmarAccion('¿Eliminar este diagnóstico del catálogo?',()=>{
+    DB.malezas=DB.malezas.filter(m=>m.id!==id);save();renderMalezas();
+  });
+}
+let _malFiltroInit=false;
+function clearFiltrosMal(){
+  const el=document.getElementById('mal-search');if(el)el.value='';
+  const cat=document.getElementById('mal-fcategoria');if(cat)cat.value='';
+  const dif=document.getElementById('mal-fdificil');if(dif)dif.checked=false;
+  msClear('mal-f-camp');msClear('mal-f-cli');msClear('mal-f-campo');msClear('mal-f-lote');
+  renderMalezas();
 }
 function renderMalezas(){
   const cont=document.getElementById('mal-body');if(!cont)return;
   const q=(document.getElementById('mal-search')?.value||'').toLowerCase();
   const soloDificil=document.getElementById('mal-fdificil')?.checked||false;
+  const fcatSel=document.getElementById('mal-fcategoria');
+  if(fcatSel){const pv=fcatSel.value;fcatSel.innerHTML='<option value="">Todas las categorías</option>'+opcionesCategoriasHTML(pv);}
+  const fcat=fcatSel?.value||'';
+
+  // Por defecto, al entrar a la pantalla se filtra por la campaña actual (una sola vez)
+  if(!_malFiltroInit){
+    _malFiltroInit=true;
+    const ca=getCampanaActiva();
+    if(ca)_msState['mal-f-camp']=new Set([ca]);
+  }
+
+  // Poblar los 4 filtros multi (apilables entre sí)
+  msRender('mal-f-camp',[...(DB.campanas||[])].sort().map(c=>({value:c,label:c})),'Campaña',()=>renderMalezas());
+  const fClis=msValues('mal-f-cli');
+  msRender('mal-f-cli',DB.clientes.slice().sort((a,b)=>a.nombre.localeCompare(b.nombre)).map(c=>({value:c.id,label:c.nombre})),'Cliente',()=>renderMalezas());
+  const camposDisp=(fClis.length?DB.campos.filter(c=>fClis.includes(c.clienteId)):DB.campos).slice().sort((a,b)=>a.nombre.localeCompare(b.nombre));
+  msRender('mal-f-campo',camposDisp.map(c=>{const cli=DB.clientes.find(x=>x.id===c.clienteId);return{value:c.id,label:c.nombre+(cli?' — '+cli.nombre:'')};}),'Campo',()=>renderMalezas());
+  const fCampos=msValues('mal-f-campo');
+  let lotesDisp=DB.lotes;
+  if(fCampos.length)lotesDisp=lotesDisp.filter(l=>fCampos.includes(l.campoId));
+  else if(fClis.length)lotesDisp=lotesDisp.filter(l=>fClis.includes(l.clienteId));
+  msRender('mal-f-lote',lotesDisp.slice().sort((a,b)=>naturalCmp(a.nombre,b.nombre)).map(l=>{const cli=DB.clientes.find(x=>x.id===l.clienteId);return{value:l.id,label:l.nombre+(cli?' — '+cli.nombre:'')};}),'Lote',()=>renderMalezas());
+
+  const fCamps=msValues('mal-f-camp');
+  const fLotes=msValues('mal-f-lote');
+  const hayFiltroRelev=fCamps.length||fClis.length||fCampos.length||fLotes.length;
+  // Relevamientos que matchean campaña/cliente/campo/lote (apilable entre todos)
+  const relevsMatch=hayFiltroRelev?DB.relevamientos.filter(r=>
+    (!fCamps.length||fCamps.includes(r.campaña))&&
+    (!fClis.length||fClis.includes(r.clienteId))&&
+    (!fCampos.length||fCampos.includes(r.campoId))&&
+    (!fLotes.length||fLotes.includes(r.loteId))
+  ):null;
+  const fuente=relevsMatch||DB.relevamientos;
+
   const lista=DB.malezas.filter(m=>{
     if(soloDificil&&!m.dificil)return false;
+    if(fcat&&(m.categoria||'Maleza')!==fcat)return false;
     if(q&&!m.cientifico.toLowerCase().includes(q)&&!(m.comun||'').toLowerCase().includes(q))return false;
+    if(relevsMatch){
+      const nom=m.comun||m.cientifico;
+      if(!relevsMatch.some(r=>(r.malezas||[]).some(x=>x.nombre===nom)))return false;
+    }
     return true;
   });
   const malCt=document.getElementById('mal-ct');
-  if(malCt)malCt.textContent=q?`Catálogo de malezas — ${lista.length} de ${DB.malezas.length}`:`Catálogo de malezas (${DB.malezas.length})`;
-  if(!lista.length){cont.innerHTML='<div class="empty"><div class="empty-icon">🌿</div><div class="empty-t">Sin resultados</div><div class="empty-s">Probá con otro filtro o nombre</div></div>';
-    document.getElementById('mal-lotes-panel').innerHTML='';return;}
+  if(malCt)malCt.textContent=(q||fcat||hayFiltroRelev)?`Catálogo de Diagnósticos — ${lista.length} de ${DB.malezas.length}`:`Catálogo de Diagnósticos (${DB.malezas.length})`;
+  if(!lista.length){cont.innerHTML='<div class="empty"><div class="empty-icon">🌿</div><div class="empty-t">Sin resultados</div><div class="empty-s">Probá con otro filtro o nombre</div></div>';return;}
   cont.innerHTML=`<div class="tw"><table>
-    <thead><tr><th>Nombre científico</th><th>Nombre común</th><th>Lotes con presencia</th><th class="ph"></th></tr></thead>
+    <thead><tr><th>Diagnóstico</th><th>Nombre común</th><th>Categoría</th><th>Ha con presencia</th><th class="ph"></th></tr></thead>
     <tbody>${lista.map(m=>{
       const nom=m.comun||m.cientifico;
-      const lotesCon=DB.relevamientos.filter(r=>(r.malezas||[]).some(x=>x.nombre===nom));
-      const clientes=[...new Set(lotesCon.map(r=>r.clienteNombre))].join(', ');
+      const cat=m.categoria||'Maleza';
+      // Ha únicas por lote (evita duplicar si un lote tiene más de un relevamiento con este diagnóstico)
+      const relevsCon=fuente.filter(r=>(r.malezas||[]).some(x=>x.nombre===nom));
+      const lotesUnicos=new Map();
+      relevsCon.forEach(r=>{if(!lotesUnicos.has(r.loteId))lotesUnicos.set(r.loteId,r.loteHa||0);});
+      const haTotal=[...lotesUnicos.values()].reduce((s,h)=>s+h,0);
       return`<tr>
-        <td><em>${m.cientifico}</em>${m.dificil?' <span class="mal-dificil" title="Maleza difícil/problemática">⚠️</span>':''}</td>
+        <td><a href="#" onclick="event.preventDefault();navTo('diagnostico',{malId:'${m.id}'})" style="color:var(--accent);font-weight:500"><em>${m.cientifico}</em></a>${m.dificil?' <span class="mal-dificil" title="Maleza difícil/problemática">⚠️</span>':''}</td>
         <td>${m.comun||'—'}${m.dificil?' <span style="font-size:10px;color:#f44336">(difícil)</span>':''}</td>
-        <td style="font-size:11px">${lotesCon.length?`<span class="badge bg-purple">${lotesCon.length} relevamiento(s)</span> <span class="muted">${clientes}</span>`:'<span class="muted">—</span>'}</td>
+        <td><span class="mal-pill">${diagIcono(cat)} ${cat}</span>${m.umbral?` <span class="badge bg-amber" style="font-size:9px" title="Aplicar desde este % de incidencia">🎯 ${m.umbral}%</span>`:''}</td>
+        <td style="font-size:11px">${lotesUnicos.size?`<span class="badge bg-green">${haTotal.toFixed(1)} ha</span> <span class="muted">en ${lotesUnicos.size} lote(s)</span>`:'<span class="muted">—</span>'}</td>
         <td class="rf ph">
-          <button class="btn bs bxs" onclick="showLotesMaleza('${m.id}')" title="Ver lotes">🔍</button>
           <button class="${m.dificil?'btn bd':'btn bs'} bxs" onclick="toggleMalezaDificil('${m.id}')" title="${m.dificil?'Quitar marca difícil':'Marcar como difícil'}">⚠️</button>
           <button class="btn bs bxs" onclick="openModalMaleza('${m.id}')">✏️</button>
           <button class="btn bd bxs" onclick="deleteMaleza('${m.id}')">✕</button>
@@ -4104,149 +4692,109 @@ function renderMalezas(){
     }).join('')}
     </tbody></table></div>`;
 }
-function showLotesMaleza(malId){
+
+// ══ DETALLE DE UN DIAGNÓSTICO (drill-down, similar a detalle de Lote) ══
+function renderDiagnosticoDetail(malId){
+  const cont=document.getElementById('diag-detail-content');if(!cont)return;
+  const m=DB.malezas.find(x=>x.id===malId);
+  if(!m){cont.innerHTML='<div class="empty"><div class="empty-t">Diagnóstico no encontrado</div></div>';return;}
+  const nom=m.comun||m.cientifico;
+  const cat=m.categoria||'Maleza';
+
+  cont.innerHTML=`
+    <div class="rf mb16 ph" style="gap:8px;flex-wrap:wrap;align-items:center">
+      <button class="btn bs bsm" onclick="navTo('malezas')">← Volver al catálogo</button>
+      <span style="font-size:16px;font-weight:600"><em>${m.cientifico}</em></span>
+      ${m.comun?`<span class="muted">(${m.comun})</span>`:''}
+      <span class="mal-pill">${diagIcono(cat)} ${cat}</span>
+      ${m.dificil?'<span class="mal-dificil" title="Difícil/problemática">⚠️ Difícil</span>':''}
+    </div>
+    <div class="rf mb16 ph" style="gap:8px;flex-wrap:wrap">
+      <div class="ms-combo" style="position:relative">
+        <button type="button" class="fi" id="ms-btn-diag-f-camp" onclick="msToggle('diag-f-camp')" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:5px 8px;font-family:'Sora',sans-serif;font-size:12px;color:var(--text);cursor:pointer;text-align:left;width:130px">Campaña...</button>
+        <div class="ms-drop" id="ms-drop-diag-f-camp" style="display:none;position:absolute;top:calc(100% + 2px);left:0;z-index:50;background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:6px;max-height:220px;overflow:auto;min-width:180px;box-shadow:0 4px 12px rgba(0,0,0,.15)"></div>
+      </div>
+      <div class="ms-combo" style="position:relative">
+        <button type="button" class="fi" id="ms-btn-diag-f-cli" onclick="msToggle('diag-f-cli')" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:5px 8px;font-family:'Sora',sans-serif;font-size:12px;color:var(--text);cursor:pointer;text-align:left;width:130px">Cliente...</button>
+        <div class="ms-drop" id="ms-drop-diag-f-cli" style="display:none;position:absolute;top:calc(100% + 2px);left:0;z-index:50;background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:6px;max-height:220px;overflow:auto;min-width:180px;box-shadow:0 4px 12px rgba(0,0,0,.15)"></div>
+      </div>
+      <div class="ms-combo" style="position:relative">
+        <button type="button" class="fi" id="ms-btn-diag-f-campo" onclick="msToggle('diag-f-campo')" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:5px 8px;font-family:'Sora',sans-serif;font-size:12px;color:var(--text);cursor:pointer;text-align:left;width:130px">Campo...</button>
+        <div class="ms-drop" id="ms-drop-diag-f-campo" style="display:none;position:absolute;top:calc(100% + 2px);left:0;z-index:50;background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:6px;max-height:220px;overflow:auto;min-width:180px;box-shadow:0 4px 12px rgba(0,0,0,.15)"></div>
+      </div>
+      <div class="ms-combo" style="position:relative">
+        <button type="button" class="fi" id="ms-btn-diag-f-lote" onclick="msToggle('diag-f-lote')" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:5px 8px;font-family:'Sora',sans-serif;font-size:12px;color:var(--text);cursor:pointer;text-align:left;width:130px">Lote...</button>
+        <div class="ms-drop" id="ms-drop-diag-f-lote" style="display:none;position:absolute;top:calc(100% + 2px);left:0;z-index:50;background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:6px;max-height:220px;overflow:auto;min-width:180px;box-shadow:0 4px 12px rgba(0,0,0,.15)"></div>
+      </div>
+      <button class="btn bs bsm" onclick="msClear('diag-f-camp');msClear('diag-f-cli');msClear('diag-f-campo');msClear('diag-f-lote');renderDiagnosticoDetail('${malId}')">Limpiar</button>
+    </div>
+    <div id="diag-ha-bar" class="ph" style="font-size:12px;color:var(--accent2);margin-bottom:10px"></div>
+    <div class="card"><div class="cb" id="diag-tabla"></div></div>
+  `;
+  window._diagMalId=malId;
+  _pintarDiagnosticoTabla();
+}
+function _pintarDiagnosticoTabla(){
+  const malId=window._diagMalId;if(!malId)return;
   const m=DB.malezas.find(x=>x.id===malId);if(!m)return;
   const nom=m.comun||m.cientifico;
-  const relevs=DB.relevamientos.filter(r=>(r.malezas||[]).some(x=>x.nombre===nom));
-  const panel=document.getElementById('mal-lotes-panel');
-  if(!relevs.length){panel.innerHTML='';return;}
 
-  // Agrupar por cliente → lotes únicos con mayor % de esa campaña
-  const porCli={};
-  relevs.forEach(r=>{
-    if(!porCli[r.clienteId])porCli[r.clienteId]={nombre:r.clienteNombre,filas:[]};
-    const malData=(r.malezas||[]).find(x=>x.nombre===nom);
-    porCli[r.clienteId].filas.push({
-      loteId:r.loteId,loteNombre:r.loteNombre,
-      campoNombre:r.campoNombre,campaña:r.campaña||'—',
-      cultivo:r.cultivo||'—',pct:malData?.pct||null,
-      densidad:malData?.densidad||'',estadio:malData?.estadio||'',
-      ha:r.loteHa||0,
-      cliId:r.clienteId,campoId:r.campoId,estado:r.estado
-    });
-  });
+  msRender('diag-f-camp',[...(DB.campanas||[])].sort().map(c=>({value:c,label:c})),'Campaña',_pintarDiagnosticoTabla);
+  const fClis=msValues('diag-f-cli');
+  msRender('diag-f-cli',DB.clientes.slice().sort((a,b)=>a.nombre.localeCompare(b.nombre)).map(c=>({value:c.id,label:c.nombre})),'Cliente',_pintarDiagnosticoTabla);
+  const camposDisp=(fClis.length?DB.campos.filter(c=>fClis.includes(c.clienteId)):DB.campos).slice().sort((a,b)=>a.nombre.localeCompare(b.nombre));
+  msRender('diag-f-campo',camposDisp.map(c=>{const cli=DB.clientes.find(x=>x.id===c.clienteId);return{value:c.id,label:c.nombre+(cli?' — '+cli.nombre:'')};}),'Campo',_pintarDiagnosticoTabla);
+  const fCampos=msValues('diag-f-campo');
+  let lotesDisp=DB.lotes;
+  if(fCampos.length)lotesDisp=lotesDisp.filter(l=>fCampos.includes(l.campoId));
+  else if(fClis.length)lotesDisp=lotesDisp.filter(l=>fClis.includes(l.clienteId));
+  msRender('diag-f-lote',lotesDisp.slice().sort((a,b)=>naturalCmp(a.nombre,b.nombre)).map(l=>{const cli=DB.clientes.find(x=>x.id===l.clienteId);return{value:l.id,label:l.nombre+(cli?' — '+cli.nombre:'')};}),'Lote',_pintarDiagnosticoTabla);
 
-  // Total general: ha únicas por loteId
-  const lotesGlobales=new Map();
-  relevs.forEach(r=>{if(!lotesGlobales.has(r.loteId))lotesGlobales.set(r.loteId,r.loteHa||0);});
-  const haTotal=[...lotesGlobales.values()].reduce((s,h)=>s+h,0);
-  const nClientes=Object.keys(porCli).length;
+  const fCamps=msValues('diag-f-camp');
+  const fLotes=msValues('diag-f-lote');
+  const relevs=DB.relevamientos.filter(r=>
+    (r.malezas||[]).some(x=>x.nombre===nom)&&
+    (!fCamps.length||fCamps.includes(r.campaña))&&
+    (!fClis.length||fClis.includes(r.clienteId))&&
+    (!fCampos.length||fCampos.includes(r.campoId))&&
+    (!fLotes.length||fLotes.includes(r.loteId))
+  );
 
-  const tablasCli=Object.values(porCli).map(g=>{
-    // Ha únicas por loteId dentro de este cliente
-    const lotesUni=new Map();g.filas.forEach(f=>{if(!lotesUni.has(f.loteId))lotesUni.set(f.loteId,f.ha);});
-    const haCliente=[...lotesUni.values()].reduce((s,h)=>s+h,0);
-    // Ordenar filas por campaña luego lote
-    const filas=[...g.filas].sort((a,b)=>(a.campaña+a.loteNombre).localeCompare(b.campaña+b.loteNombre));
-    return`<div style="margin-bottom:18px">
-      <div class="rf" style="margin-bottom:6px">
-        <span style="font-weight:600;font-size:13px">👤 ${g.nombre}</span>
-        <span class="badge bg-green" style="margin-left:8px">${haCliente.toFixed(1)} ha</span>
-      </div>
-      <div class="tw"><table style="font-size:12px">
-        <thead><tr>
-          <th>Campo</th><th>Lote</th><th>Campaña</th><th>Cultivo</th>
-          <th>% peso</th><th>Densidad</th><th>Estadio</th><th>Alerta</th><th>Ha lote</th><th></th>
-        </tr></thead>
-        <tbody>${filas.map(f=>{const a=calcAlerta(f.densidad,f.estadio);return`<tr>
-          <td>${f.campoNombre}</td>
-          <td><a href="#" onclick="event.preventDefault();navTo('lote',{loteId:'${f.loteId}',cliId:'${f.cliId}',campoId:'${f.campoId}'})" style="color:var(--accent);font-weight:500">${f.loteNombre}</a></td>
-          <td><span class="badge bg-purple">${f.campaña}</span></td>
-          <td><span class="badge bg-amber">${f.cultivo}</span></td>
-          <td>${f.pct?`<span class="badge bg-amber">${f.pct}%</span>`:'<span class="muted">—</span>'}</td>
-          <td>${f.densidad?`<span class="badge bg-gray">${f.densidad}</span>`:'<span class="muted">—</span>'}</td>
-          <td>${f.estadio?`<span class="badge bg-gray">${f.estadio}</span>`:'<span class="muted">—</span>'}</td>
-          <td>${a?`<span class="${a.css}">${a.icono} ${a.texto}</span>`:'<span class="muted">—</span>'}</td>
-          <td class="mono">${f.ha?f.ha+' ha':'—'}</td>
-          <td><span class="badge ${f.estado==='Aplicado'?'bg-blue':'bg-gray'}" style="font-size:9px">${f.estado||'Relevado'}</span></td>
-        </tr>`;}).join('')}
-        <tr style="background:var(--accent-bg);font-weight:600">
-          <td colspan="5" style="font-size:11px;color:var(--accent2)">Subtotal ${g.nombre}</td>
-          <td class="mono" style="color:var(--accent2)">${haCliente.toFixed(1)} ha</td>
-          <td></td>
-        </tr>
-        </tbody>
-      </table></div>
-    </div>`;
-  }).join('');
+  const tabla=document.getElementById('diag-tabla');
+  const haBar=document.getElementById('diag-ha-bar');
+  if(!relevs.length){
+    if(tabla)tabla.innerHTML='<div class="empty"><div class="empty-icon">🔍</div><div class="empty-t">Sin presencia con estos filtros</div></div>';
+    if(haBar)haBar.textContent='';
+    return;
+  }
+  // Ha únicas por lote (evita duplicar si un lote tiene más de un relevamiento)
+  const lotesUnicos=new Map();
+  relevs.forEach(r=>{if(!lotesUnicos.has(r.loteId))lotesUnicos.set(r.loteId,r.loteHa||0);});
+  const haTotal=[...lotesUnicos.values()].reduce((s,h)=>s+h,0);
+  if(haBar)haBar.innerHTML=`<strong>${lotesUnicos.size}</strong> lote(s) · <strong>${haTotal.toFixed(1)} ha</strong> con presencia`;
 
-  panel.innerHTML=`<div class="card mb16" style="border-color:var(--accent)">
-    <div class="ch" style="background:var(--accent-bg)">
-      <span class="ct">🔍 Presencia de <em>${nom}</em> — ${nClientes} cliente(s) · <strong>${haTotal.toFixed(1)} ha totales</strong></span>
-      <button class="btn bs bxs mla" onclick="document.getElementById('mal-lotes-panel').innerHTML=''">✕</button>
-    </div>
-    <div class="cb">
-      <div class="rf ph" style="gap:8px;margin-bottom:12px;flex-wrap:wrap">
-        <select id="mzf-cli" class="fi" style="width:180px" onchange="filtrarTablasMaleza('${m.id}')">
-          <option value="">Todos los clientes</option>
-          ${Object.values(porCli).map(g=>`<option value="${g.nombre}">${g.nombre}</option>`).join('')}
-        </select>
-        <select id="mzf-camp" class="fi" style="width:150px" onchange="filtrarTablasMaleza('${m.id}')">
-          <option value="">Todas las campañas</option>
-          ${[...new Set(Object.values(porCli).flatMap(g=>g.filas.map(f=>f.campaña)))].sort().map(c=>`<option value="${c}">${c}</option>`).join('')}
-        </select>
-        <span id="mzf-resumen" style="font-size:11px;color:var(--text3);align-self:center"></span>
-      </div>
-      <div id="mzf-body">
-        ${tablasCli}
-      </div>
-      <div style="border-top:2px solid var(--border);padding-top:10px;margin-top:4px" class="rf">
-        <span style="font-size:13px;font-weight:600">Total general</span>
-        <span class="badge bg-green" style="margin-left:8px;font-size:12px">${haTotal.toFixed(1)} ha</span>
-        <span class="muted" style="font-size:11px;margin-left:8px">en ${lotesGlobales.size} lote(s) de ${nClientes} cliente(s)</span>
-      </div>
-    </div>
-  </div>`;
-  // Guardar datos para el filtro dinámico
-  window._malPanelData={malId:m.id,nom,porCli};
+  const filas=[...relevs].sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
+  if(tabla)tabla.innerHTML=`<div class="tw"><table>
+    <thead><tr><th>Fecha</th><th>Campaña</th><th>Cliente</th><th>Campo</th><th>Lote</th><th>Cultivo</th><th>% peso</th><th>Densidad</th><th>Estadio</th><th>Ha lote</th><th>Estado</th></tr></thead>
+    <tbody>${filas.map(r=>{
+      const md=(r.malezas||[]).find(x=>x.nombre===nom);
+      const a=calcAlerta(md?.densidad,md?.estadio,umbralDe(nom));
+      return`<tr>
+        <td class="mono">${r.fecha||'—'}</td>
+        <td><span class="badge bg-purple">${r.campaña||'—'}</span></td>
+        <td>${r.clienteNombre||'—'}</td>
+        <td>${r.campoNombre||'—'}</td>
+        <td><a href="#" onclick="event.preventDefault();navTo('lote',{loteId:'${r.loteId}',cliId:'${r.clienteId}',campoId:'${r.campoId}'})" style="color:var(--accent);font-weight:500">${r.loteNombre||'—'}</a></td>
+        <td><span class="badge bg-amber">${r.cultivo||'—'}</span></td>
+        <td>${md?.pct?`<span class="badge bg-amber">${md.pct}%</span>`:'<span class="muted">—</span>'}</td>
+        <td>${md?.densidad?`<span class="badge bg-gray">${md.densidad}</span>`:'<span class="muted">—</span>'}</td>
+        <td>${md?.estadio?`<span class="badge bg-gray">${md.estadio}</span>`:'<span class="muted">—</span>'}</td>
+        <td class="mono">${r.loteHa?r.loteHa+' ha':'—'}</td>
+        <td><span class="badge ${r.estado==='Aplicado'?'bg-green':'bg-gray'}" style="font-size:9px">${r.estado==='Aplicado'?'✅ Aplicado':(r.estado||'Relevado')}</span></td>
+      </tr>`;
+    }).join('')}
+    </tbody></table></div>`;
 }
-
-
-function filtrarTablasMaleza(malId){
-  const fCli=document.getElementById('mzf-cli')?.value||'';
-  const fCamp=document.getElementById('mzf-camp')?.value||'';
-  const {nom,porCli}=window._malPanelData||{};
-  if(!porCli)return;
-  let haFilt=0;let nLotesFilt=0;
-  const tablasFilt=Object.values(porCli)
-    .filter(g=>!fCli||g.nombre===fCli)
-    .map(g=>{
-      const filas=[...g.filas]
-        .filter(f=>!fCamp||f.campaña===fCamp)
-        .sort((a,b)=>(a.campaña+a.loteNombre).localeCompare(b.campaña+b.loteNombre));
-      if(!filas.length)return'';
-      const lotesUni=new Map();filas.forEach(f=>{if(!lotesUni.has(f.loteId))lotesUni.set(f.loteId,f.ha);});
-      const haCliente=[...lotesUni.values()].reduce((s,h)=>s+h,0);
-      haFilt+=haCliente;nLotesFilt+=lotesUni.size;
-      return`<div style="margin-bottom:18px">
-        <div class="rf" style="margin-bottom:6px">
-          <span style="font-weight:600;font-size:13px">👤 ${g.nombre}</span>
-          <span class="badge bg-green" style="margin-left:8px">${haCliente.toFixed(1)} ha</span>
-        </div>
-        <div class="tw"><table style="font-size:12px">
-          <thead><tr><th>Campo</th><th>Lote</th><th>Campaña</th><th>Cultivo</th><th>% peso</th><th>Densidad</th><th>Estadio</th><th>Alerta</th><th>Ha lote</th><th>Estado</th></tr></thead>
-          <tbody>${filas.map(f=>{const a=calcAlerta(f.densidad,f.estadio);return`<tr>
-            <td>${f.campoNombre}</td>
-            <td><a href="#" onclick="event.preventDefault();navTo('lote',{loteId:'${f.loteId}',cliId:'${f.cliId}',campoId:'${f.campoId}'})" style="color:var(--accent);font-weight:500">${f.loteNombre}</a></td>
-            <td><span class="badge bg-purple">${f.campaña}</span></td>
-            <td><span class="badge bg-amber">${f.cultivo}</span></td>
-            <td>${f.pct?`<span class="badge bg-amber">${f.pct}%</span>`:'<span class="muted">—</span>'}</td>
-            <td>${f.densidad?`<span class="badge bg-gray">${f.densidad}</span>`:'<span class="muted">—</span>'}</td>
-            <td>${f.estadio?`<span class="badge bg-gray">${f.estadio}</span>`:'<span class="muted">—</span>'}</td>
-            <td>${a?`<span class="${a.css}">${a.icono} ${a.texto}</span>`:'<span class="muted">—</span>'}</td>
-            <td class="mono">${f.ha?f.ha+' ha':'—'}</td>
-            <td><span class="badge ${f.estado==='Aplicado'?'bg-blue':'bg-gray'}" style="font-size:9px">${f.estado||'Relevado'}</span></td>
-          </tr>`;}).join('')}
-          </tbody></table></div>
-      </div>`;
-    }).join('');
-  const body=document.getElementById('mzf-body');
-  if(body)body.innerHTML=tablasFilt||'<div class="muted" style="padding:12px">Sin resultados para el filtro seleccionado</div>';
-  const res=document.getElementById('mzf-resumen');
-  if(res&&(fCli||fCamp))res.textContent=`Mostrando ${nLotesFilt} lote(s) · ${haFilt.toFixed(1)} ha`;
-  else if(res)res.textContent='';
-}
-
 
 function exportarExcel(){
   // Cargar SheetJS si no está disponible
@@ -4325,11 +4873,11 @@ function _doExport(){
 function exportarExcel(){
   const rs=getFiltrados();
   if(!rs.length){alert('No hay relevamientos para exportar.');return;}
-  const hayFiltro=['f-txt','f-camp','f-lote','f-mal','f-prod','f-estado','f-desde','f-hasta']
+  const hayFiltro=['f-txt','f-mal','f-prod','f-estado','f-desde','f-hasta']
     .some(id=>document.getElementById(id)?.value)
-    || _mselGet('f-cli-vals').size>0 || _mselGet('f-campo-vals').size>0 || _mselGet('f-cult-vals').size>0;
+    || _mselGet('f-cli-vals').size>0 || _mselGet('f-camp-vals').size>0 || _mselGet('f-campo-vals').size>0 || _mselGet('f-lote-vals').size>0 || _mselGet('f-cult-vals').size>0;
   const label=hayFiltro?`${rs.length} relevamientos filtrados`:`todos los relevamientos (${rs.length})`;
-  if(!confirm(`¿Exportar ${label} a Excel?`))return;
+  mostrarSnackbar('⬇️ Exportando '+label+'...');
 
   const rows=[];
   rs.forEach(r=>{
@@ -4338,7 +4886,7 @@ function exportarExcel(){
       if(m.pct)parts.push(m.pct+'%');
       if(m.densidad)parts.push('Dens:'+m.densidad);
       if(m.estadio)parts.push('Est:'+m.estadio);
-      const a=calcAlerta(m.densidad,m.estadio);
+      const a=calcAlerta(m.densidad,m.estadio,umbralDe(m.nombre));
       if(a&&a.nivel!=='verde')parts.push('['+a.texto+']');
       return parts.join(' ');
     }).join(' / ')||'—';
@@ -4356,7 +4904,7 @@ function exportarExcel(){
         'Ha lote':r.loteHa||'',
         'Cultivo':r.cultivo||'',
         'Malezas relevadas':malStr,
-        'Alerta máxima':(()=>{const alertas=(r.malezas||[]).map(m=>calcAlerta(m.densidad,m.estadio)).filter(Boolean);const ord=['critica','roja','amarilla','verde'];for(const niv of ord){const a=alertas.find(x=>x.nivel===niv);if(a)return a.icono+' '+a.texto;}return'';})(),
+        'Alerta máxima':(()=>{const alertas=(r.malezas||[]).map(m=>calcAlerta(m.densidad,m.estadio,umbralDe(m.nombre))).filter(Boolean);const ord=['critica','roja','amarilla','verde'];for(const niv of ord){const a=alertas.find(x=>x.nivel===niv);if(a)return a.icono+' '+a.texto;}return'';})(),
         'Producto':'',
         'Tipo':'',
         'Formulación':'',
@@ -4371,7 +4919,7 @@ function exportarExcel(){
       prods.forEach(p=>{
         const prod=DB.productos.find(x=>x.id===p.productoId);
         const precioUSD=p.precioUSD||prod?.precio||null;
-        const costoHa=precioUSD&&p.dosis?(precioUSD*p.dosis):null;
+        const costoHa=precioUSD&&p.dosis?(precioUSD*p.dosis*convUnidad(p.unidad||prod?.unidad).f):null;
         const costoTotal=costoHa&&r.loteHa?(costoHa*r.loteHa):null;
         rows.push({
           'Campaña':r.campaña||'—',
@@ -4420,7 +4968,7 @@ function exportarExcel(){
       const prod=DB.productos.find(x=>x.id===p.productoId);
       const precioUSD=p.precioUSD||prod?.precio||null;
       if(!precioUSD)return;
-      const costoHa=precioUSD*p.dosis;
+      const costoHa=precioUSD*p.dosis*convUnidad(p.unidad||prod?.unidad).f;
       const costoTotal=r.loteHa?costoHa*r.loteHa:null;
       const k=`${r.clienteNombre}||${r.campaña}||${prod?.nombre||''}`;
       if(!resumen[k])resumen[k]={cliente:r.clienteNombre,campaña:r.campaña||'—',producto:prod?.nombre||'',tipo:prod?.tipo||'',unidad:p.unidad||prod?.unidad||'',precioUSD,lotes:new Set(),haTotal:0,costoTotal:0};
@@ -4474,17 +5022,34 @@ function printOT(){
   if(!src||!src.querySelector('.ot-wrap')){
     alert('Primero generá una orden de trabajo para imprimir.');return;
   }
-  // Clonar el contenido al área de impresión
-  const area=document.getElementById('ot-print-area');
-  area.innerHTML=src.innerHTML;
-  // Ocultar botones dentro del área de impresión
-  area.querySelectorAll('button,.ph').forEach(el=>el.style.display='none');
-  window.print();
+  // Se imprime desde una ventana aparte (más confiable que window.print() sobre
+  // la misma página, que puede quedar bloqueado en algunos navegadores/entornos).
+  const clone=src.cloneNode(true);
+  clone.querySelectorAll('button,.ph,input').forEach(el=>{
+    if(el.tagName==='INPUT'){
+      // Reemplazar los campos de dosis editables por texto plano para imprimir
+      const span=document.createElement('span');
+      span.textContent=el.value;
+      el.replaceWith(span);
+    } else {
+      el.style.display='none';
+    }
+  });
+  const estilos=[...document.querySelectorAll('style')].map(s=>s.outerHTML).join('');
+  const win=window.open('','_blank');
+  if(!win){
+    alert('El navegador bloqueó la ventana de impresión. Habilitá las ventanas emergentes para este sitio e intentá de nuevo.');
+    return;
+  }
+  win.document.open();
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Orden de Trabajo</title>${estilos}</head><body class="ot-print-body"><div id="ot-print-area">${clone.innerHTML}</div></body></html>`);
+  win.document.close();
+  // Se dispara de inmediato (no en un setTimeout) para no perder el gesto del
+  // usuario — algunos navegadores solo abren el diálogo de impresión si print()
+  // se llama muy cerca del clic que originó todo esto.
+  win.focus();
+  win.print();
 }
-window.addEventListener('afterprint',()=>{
-  const area=document.getElementById('ot-print-area');
-  if(area)area.innerHTML='';
-});
 
 // ══ EXPORTAR EXCEL ══
 // Generador de .xlsx sin librerías externas (Open XML / SpreadsheetML)
@@ -4753,11 +5318,11 @@ function exportarJSON(){
 }
 
 function importarJSON(){
-  if(!confirm('⚠️ ATENCIÓN\n\nEsto reemplazará TODOS los datos actuales con los del archivo de backup.\n\n¿Querés continuar?'))return;
   const inp=document.getElementById('import-json-input');
   inp.value='';inp.click();
 }
 
+let _pendingImportData=null;
 function procesarImportJSON(input){
   const file=input.files[0];if(!file)return;
   const reader=new FileReader();
@@ -4773,27 +5338,40 @@ function procesarImportJSON(input){
         `Lotes: ${(parsed.lotes||[]).length}`,
         `Relevamientos: ${(parsed.relevamientos||[]).length}`,
         `Productos: ${(parsed.productos||[]).length}`,
-        `Malezas: ${(parsed.malezas||[]).length}`,
+        `Malezas/Diagnósticos: ${(parsed.malezas||[]).length}`,
         `Actividades: ${(parsed.actividades||[]).length}`,
         `OTs: ${(parsed.ots||[]).length}`,
         ``,
         `Exportado: ${parsed._exportedAt||'desconocido'}`,
       ].join('\n');
-      if(!confirm(`✅ Backup válido:\n\n${resumen}\n\n¿Confirmar importación? Esto no se puede deshacer.`))return;
-      const {_version,_exportedAt,_app,...dbData}=parsed;
-      Object.keys(DB).forEach(k=>delete DB[k]);
-      Object.assign(DB,dbData);
-      ['clientes','campos','lotes','relevamientos','productos','malezas','actividades','ots','campanas','cultivos'].forEach(k=>{
-        if(!Array.isArray(DB[k]))DB[k]=[];
-      });
-      localStorage.setItem('agrolotes_v2',JSON.stringify(DB));
-      localStorage.removeItem('agrolotes_v2_ts');
-      renderDashboard();navTo('dashboard');
-      _fbSyncPending=true;_fbSync();
-      mostrarSnackbar('✅ Backup importado — sincronizando con Firebase...');
+      _pendingImportData=parsed;
+      document.getElementById('import-resumen').textContent=resumen;
+      openModal('modal-import-confirm');
     }catch(err){console.error(err);alert('❌ Error al leer el archivo:\n'+err.message);}
   };
   reader.readAsText(file,'utf-8');
+}
+function cancelarImportacionBackup(){
+  _pendingImportData=null;
+  closeModal('modal-import-confirm');
+}
+function confirmarImportacionBackup(){
+  const parsed=_pendingImportData;
+  if(!parsed)return;
+  const {_version,_exportedAt,_app,...dbData}=parsed;
+  Object.keys(DB).forEach(k=>delete DB[k]);
+  Object.assign(DB,dbData);
+  ['clientes','campos','lotes','relevamientos','productos','malezas','actividades','ots','campanas','cultivos'].forEach(k=>{
+    if(!Array.isArray(DB[k]))DB[k]=[];
+  });
+  repararLoteHa();
+  localStorage.setItem('agrolotes_v2',JSON.stringify(DB));
+  localStorage.removeItem('agrolotes_v2_ts');
+  _pendingImportData=null;
+  closeModal('modal-import-confirm');
+  renderDashboard();navTo('dashboard');
+  _fbSyncPending=true;_fbSync();
+  mostrarSnackbar('✅ Backup importado — sincronizando con Firebase...');
 }
 </script>
 <div id="ot-print-area" style="display:none"></div>
