@@ -730,6 +730,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
         </span>
         <select id="act-m-agrupar" class="fi" style="width:150px" onchange="renderActividadesMaster()">
           <option value="urgencia">Agrupar: Vencimiento</option>
+          <option value="accionable">Agrupar: Accionable</option>
           <option value="estado">Agrupar: Estado</option>
           <option value="tipo">Agrupar: Tipo</option>
           <option value="campo">Agrupar: Campo</option>
@@ -740,6 +741,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
         <select id="act-m-agrupar2" class="fi" style="width:170px" onchange="renderActividadesMaster()">
           <option value="">+ Sub-agrupar: ninguno</option>
           <option value="urgencia">+ Sub-agrupar: Vencimiento</option>
+          <option value="accionable">+ Sub-agrupar: Accionable</option>
           <option value="estado">+ Sub-agrupar: Estado</option>
           <option value="tipo">+ Sub-agrupar: Tipo</option>
           <option value="campo">+ Sub-agrupar: Campo</option>
@@ -749,6 +751,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
         <select id="act-m-agrupar3" class="fi" style="width:190px" onchange="renderActividadesMaster()">
           <option value="">+ Sub-sub-agrupar: ninguno</option>
           <option value="urgencia">+ Sub-sub-agrupar: Vencimiento</option>
+          <option value="accionable">+ Sub-sub-agrupar: Accionable</option>
           <option value="estado">+ Sub-sub-agrupar: Estado</option>
           <option value="tipo">+ Sub-sub-agrupar: Tipo</option>
           <option value="campo">+ Sub-sub-agrupar: Campo</option>
@@ -4703,12 +4706,15 @@ function clearFiltrosActM(){
 }
 const URGENCIA_ORDEN={vencida:0,hoy:1,estasemana:2,proxsemana:3,luego:4,sinfecha:5,Realizada:6,Descartada:7};
 const URGENCIA_LABELS={vencida:'🔴 Vencida',hoy:'🟠 Vencimiento hoy',estasemana:'🟡 Vence esta semana',proxsemana:'🔵 Vence próxima semana',luego:'🟢 Vence más adelante',sinfecha:'— Sin vencimiento'};
+const ACCIONABLE_ORDEN={si:0,no:1,Realizada:2,Descartada:3};
+const ACCIONABLE_LABELS={si:'🟢 Accionable ya',no:'⏳ Todavía no'};
 // Criterio de agrupamiento, reutilizable para el primer y el segundo nivel.
 function claveDeGrupo(f,criterio){
-  // El vencimiento no aplica a lo ya Realizado/Descartado (no corren riesgo de
-  // vencer) — en vez de mezclarlos en un solo grupo, se separan por su propio
-  // estado, así no se confunde con "agrupar por Vencimiento" de verdad.
+  // El vencimiento (y lo Accionable) no aplica a lo ya Realizado/Descartado (no
+  // corren riesgo de vencer, ni hay nada que "accionar") — en vez de mezclarlos
+  // en un solo grupo, se separan por su propio estado.
   if(criterio==='urgencia'){const u=urgenciaActividad({estado:f.estado,fecha:f.fecha,fechaFin:f.fechaFin});return u?u.k:f.estado;}
+  if(criterio==='accionable'){const u=urgenciaActividad({estado:f.estado,fecha:f.fecha,fechaFin:f.fechaFin});return u?(u.accionable?'si':'no'):f.estado;}
   if(criterio==='estado')return f.estado;
   if(criterio==='campo')return f.campoNombre+' — '+f.clienteNombre;
   if(criterio==='cliente')return f.clienteNombre;
@@ -4717,6 +4723,7 @@ function claveDeGrupo(f,criterio){
 }
 function labelDeGrupo(k,criterio){
   if(criterio==='urgencia')return URGENCIA_LABELS[k]||({Pendiente:'🕒 Pendiente',Realizada:'✅ Realizada',Descartada:'🚫 Descartada'}[k]||k);
+  if(criterio==='accionable')return ACCIONABLE_LABELS[k]||({Pendiente:'🕒 Pendiente',Realizada:'✅ Realizada',Descartada:'🚫 Descartada'}[k]||k);
   if(criterio==='estado')return({Pendiente:'🕒 Pendiente',Realizada:'✅ Realizada',Descartada:'🚫 Descartada'}[k]||k);
   if(criterio==='campo')return '📍 '+k;
   if(criterio==='cliente')return '👤 '+k;
@@ -4725,6 +4732,7 @@ function labelDeGrupo(k,criterio){
 }
 function ordenarGrupos(keys,criterio){
   if(criterio==='urgencia')keys.sort((a,b)=>(URGENCIA_ORDEN[a]??9)-(URGENCIA_ORDEN[b]??9));
+  else if(criterio==='accionable')keys.sort((a,b)=>(ACCIONABLE_ORDEN[a]??9)-(ACCIONABLE_ORDEN[b]??9));
   else keys.sort();
   return keys;
 }
