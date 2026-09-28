@@ -682,6 +682,16 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
     <!-- PAPELERA -->
     <div class="page" id="page-papelera">
       <div class="ph" style="margin-bottom:10px;font-size:12px;color:var(--text3)">Lo que borrás queda acá 30 días por si hace falta recuperarlo — después se borra solo, para siempre.</div>
+      <div class="filters ph" style="gap:6px;flex-wrap:wrap;margin-bottom:10px">
+        <input type="text" id="pap-txt" placeholder="Buscar lote, cliente, campo, tipo..." oninput="renderPapelera()" style="width:210px">
+        <select id="pap-tipo" class="fi" style="width:150px" onchange="renderPapelera()"><option value="">Todos los tipos</option></select>
+        <select id="pap-cli" class="fi" style="width:150px" onchange="renderPapelera()"><option value="">Todos los clientes</option></select>
+        <span class="muted" style="font-size:11px">Borrado</span>
+        <input type="date" id="pap-desde" class="fi" style="width:130px" onchange="renderPapelera()">
+        <span class="muted" style="font-size:11px">a</span>
+        <input type="date" id="pap-hasta" class="fi" style="width:130px" onchange="renderPapelera()">
+        <button class="btn bs bsm" onclick="clearFiltrosPap()">Limpiar</button>
+      </div>
       <div class="card">
         <div class="ch"><span class="ct" id="papelera-ct">Papelera</span></div>
         <div class="cb" id="papelera-body"></div>
@@ -726,6 +736,12 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
           <option value="no">⏳ Todavía no</option>
         </select>
         <span class="rf" style="gap:3px;align-items:center;background:var(--bg2);border-radius:var(--r);padding:3px 8px">
+          <span class="muted" style="font-size:10px">Creación:</span>
+          <input type="date" id="act-m-creada-desde" class="fi" style="width:118px;font-size:11px" onchange="renderActividadesMaster()">
+          <span class="muted" style="font-size:10px">a</span>
+          <input type="date" id="act-m-creada-hasta" class="fi" style="width:118px;font-size:11px" onchange="renderActividadesMaster()">
+        </span>
+        <span class="rf" style="gap:3px;align-items:center;background:var(--bg2);border-radius:var(--r);padding:3px 8px">
           <span class="muted" style="font-size:10px">Realización (solo lo ya hecho):</span>
           <input type="date" id="act-m-real-desde" class="fi" style="width:118px;font-size:11px" onchange="renderActividadesMaster()">
           <span class="muted" style="font-size:10px">a</span>
@@ -738,6 +754,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
           <input type="date" id="act-m-plan-hasta" class="fi" style="width:118px;font-size:11px" onchange="renderActividadesMaster()">
         </span>
         <select id="act-m-agrupar" class="fi" style="width:150px" onchange="onActMGrupoChange(1)">
+          <option value="" selected>Sin agrupar</option>
           <option value="urgencia">Grupo 1: Vencimiento</option>
           <option value="accionable">Grupo 1: Accionable</option>
           <option value="estado">Grupo 1: Estado</option>
@@ -746,7 +763,6 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
           <option value="cliente">Grupo 1: Cliente</option>
           <option value="lote">Grupo 1: Lote</option>
           <option value="cultivo">Grupo 1: Cultivo</option>
-          <option value="">Sin agrupar</option>
         </select>
         <select id="act-m-agrupar2" class="fi" style="width:150px" onchange="onActMGrupoChange(2)">
           <option value="">Grupo 2: ninguno</option>
@@ -795,9 +811,11 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
         <button class="btn bs bsm" onclick="clearFiltrosActM()">Limpiar</button>
       </div>
       <div id="act-m-viajes" class="ph" style="display:none;font-size:12px;color:var(--accent2);margin-bottom:10px"></div>
+      <div id="act-m-filtro-resumen" class="ph" style="display:none;font-size:11px;color:var(--text3);margin-bottom:8px"></div>
       <div id="act-m-selbar" class="ph" style="display:none;flex-direction:column;gap:8px;background:var(--accent-bg);border:1px solid var(--accent);border-radius:var(--r);padding:8px 12px;margin-bottom:10px">
         <div class="rf" style="gap:10px;align-items:center;flex-wrap:wrap">
           <span style="font-size:12px"><strong id="act-m-selcount">0</strong> seleccionado(s)</span>
+          <button class="btn bs bxs" onclick="actMDeseleccionarTodo()">✕ Deseleccionar todos</button>
           <button class="btn bp bxs" onclick="actMGenerarOT()">📋 Generar OT unificada</button>
           <span class="muted" style="font-size:10px">La OT solo toma los seleccionados que tengan una Aplicación generada (venga o no de un relevamiento).</span>
         </div>
@@ -805,16 +823,33 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
           <span style="font-size:11px;font-weight:600">Editar en masa:</span>
           <label style="display:flex;align-items:center;gap:4px;font-size:11px">Fecha inicio <input type="date" id="act-m-bulk-inicio" class="fi" style="width:120px"></label>
           <label style="display:flex;align-items:center;gap:4px;font-size:11px">Fecha límite <input type="date" id="act-m-bulk-limite" class="fi" style="width:120px"></label>
-          <label style="display:flex;align-items:center;gap:4px;font-size:11px">Estado
-            <select id="act-m-bulk-estado" class="fi" style="width:110px">
-              <option value="">(sin cambiar)</option>
-              <option value="Pendiente">🕒 Pendiente</option>
-              <option value="Realizada">✅ Realizada</option>
-              <option value="Descartada">🚫 Descartada</option>
-            </select>
+          <label style="display:flex;align-items:center;gap:4px;font-size:11px;background:var(--accent-bg);padding:3px 6px;border-radius:var(--r)">📌 Fecha realización <input type="date" id="act-m-bulk-realizacion" class="fi" style="width:120px"></label>
+          <label style="display:flex;align-items:center;gap:5px;font-size:11px;cursor:pointer">
+            <input type="checkbox" id="act-m-bulk-descartar" style="width:14px;height:14px"> 🚫 Descartar
           </label>
           <button class="btn bp bxs" onclick="actMAplicarMasivo()">Aplicar a los seleccionados</button>
-          <span class="muted" style="font-size:10px">Dejá vacío lo que no quieras cambiar. "Descartada" no se aplica a relevamientos.</span>
+          <span class="muted" style="font-size:10px">Dejá vacío lo que no quieras cambiar. Con fecha de realización queda Realizada. "Descartar" no aplica a relevamientos.</span>
+        </div>
+        <div class="rf" style="gap:6px;align-items:center;flex-wrap:wrap;border-top:1px solid var(--accent);padding-top:8px">
+          <button class="btn bd bxs" onclick="actMEliminarMasivo()">🗑️ Eliminar seleccionados</button>
+        </div>
+        <div class="rf" style="gap:6px;align-items:center;flex-wrap:wrap;border-top:1px solid var(--accent);padding-top:8px">
+          <span style="font-size:11px;font-weight:600">+ Crear actividad para cada seleccionado:</span>
+          <select id="act-m-bulk-crear-tipo" class="fi" style="width:150px">
+            <option value="">Tipo...</option>
+            <option value="Relevamiento">🔍 Relevamiento</option>
+            <option value="Aplicación">✅ Aplicación</option>
+            <option value="Siembra">🌱 Siembra</option>
+            <option value="Cosecha">🌾 Cosecha</option>
+            <option value="Laboreo mecánico">🚜 Laboreo mecánico</option>
+            <option value="Fertilización">🧪 Fertilización</option>
+            <option value="Riego">💧 Riego</option>
+            <option value="Otro">📝 Otro</option>
+          </select>
+          <input type="date" id="act-m-bulk-crear-fecha-ini" class="fi" style="width:120px" title="Fecha inicio (opcional)">
+          <input type="date" id="act-m-bulk-crear-fecha-lim" class="fi" style="width:120px" title="Fecha límite (opcional)">
+          <button class="btn bp bxs" onclick="actMCrearParaSeleccionados()">+ Crear</button>
+          <span class="muted" style="font-size:10px">Se crea una actividad independiente por cada lote — cada una con vida propia, no una sola pegada a todos.</span>
         </div>
       </div>
       <div class="card">
@@ -902,6 +937,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
         <div class="cb" id="r-act-blocks">
           <div class="muted" style="font-size:11px">¿Qué sigue para este lote? Podés agregar más de una — por ejemplo una Aplicación en 3 días y un Relevamiento de seguimiento en 20.</div>
         </div>
+        <div id="r-act-eliminadas" style="padding:0 14px 10px"></div>
       </div>
       <div class="field"><label>Observaciones</label><textarea id="r-obs" class="fi" placeholder="Condiciones del lote, estadío de las malezas, notas..."></textarea></div>
     </div>
@@ -914,25 +950,34 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
 
 <!-- ══ MODAL ACTIVIDAD MASIVA ══ -->
 <div class="mo" id="modal-act-masiva">
-  <div class="modal" style="max-width:520px">
+  <div class="modal" style="max-width:560px">
     <div class="mh"><span class="mt">📅 Nueva actividad para varios lotes</span><button class="mx" onclick="closeModal('modal-act-masiva')">✕</button></div>
     <div class="mb">
-      <div class="field"><label>Campo <span class="muted">(opcional, para achicar la lista de lotes)</span></label>
-        <select id="tl-masiva-campo" class="fi" onchange="tlMasivaRenderLotes()"><option value="">Todos los campos...</option></select>
+      <div class="field"><label>Buscar lotes para agregar</label>
+        <div class="fg" style="grid-template-columns:1fr 1fr;gap:6px">
+          <select id="tl-masiva-cli" class="fi" onchange="tlMasivaClienteChange()"><option value="">Cliente...</option></select>
+          <select id="tl-masiva-campo" class="fi" onchange="tlMasivaCampoChange()"><option value="">Campo...</option></select>
+        </div>
+        <div class="field" style="margin-top:6px"><label style="font-size:11px">...o directo por Cultivo <span class="muted">(cruza todos los clientes y campos, según la campaña activa)</span></label>
+          <select id="tl-masiva-cultivo" class="fi" onchange="tlMasivaCultivoChange()"><option value="">Cultivo...</option></select>
+        </div>
+        <div id="tl-masiva-lote-lista" style="background:var(--bg2);border-radius:var(--r);padding:8px 10px;max-height:150px;overflow-y:auto;margin-top:6px">
+          <div class="muted" style="font-size:11px">Elegí un campo, o un cultivo, para ver lotes.</div>
+        </div>
+        <button class="btn bp bsm" style="margin-top:6px" onclick="tlMasivaAgregarLote()">+ Agregar tildados</button>
       </div>
       <div class="field">
-        <label>Lotes *</label>
-        <div class="rf" style="gap:10px;margin-bottom:4px">
-          <a href="#" onclick="event.preventDefault();tlMasivaMarcarTodos(true)" style="font-size:11px">Todos</a>
-          <a href="#" onclick="event.preventDefault();tlMasivaMarcarTodos(false)" style="font-size:11px">Ninguno</a>
+        <label>Lotes agregados (<span id="tl-masiva-carrito-n">0</span>)</label>
+        <div id="tl-masiva-carrito" style="background:var(--bg2);border-radius:var(--r);padding:8px 10px;min-height:40px;max-height:180px;overflow-y:auto">
+          <div class="muted" style="font-size:11px">Todavía no agregaste ningún lote.</div>
         </div>
-        <div id="tl-masiva-lotes" style="background:var(--bg2);border-radius:var(--r);padding:8px 10px;max-height:180px;overflow-y:auto"></div>
       </div>
       <div class="fg">
         <div class="field"><label>Tipo de actividad *</label>
           <select id="tl-act-tipo" class="fi" onchange="onTlActTipoChange()">
             <option value="">Seleccioná...</option>
             <option value="Relevamiento">🔍 Relevamiento (queda programado, sin diagnóstico todavía)</option>
+            <option value="Aplicación">✅ Aplicación</option>
             <option value="Siembra">🌱 Siembra</option>
             <option value="Cosecha">🌾 Cosecha</option>
             <option value="Laboreo mecánico">🚜 Laboreo mecánico</option>
@@ -989,6 +1034,8 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
             <option value="Otro">📝 Otro</option>
           </select>
         </div>
+        <!-- Si esta actividad viene de un relevamiento, el link + la opción de desadjuntar -->
+        <div id="act-origen-info" class="ph" style="display:none;font-size:11px;background:var(--bg2);border-radius:var(--r);padding:7px 10px;margin-bottom:10px"></div>
         <div class="fg" style="grid-template-columns:1fr 1fr">
           <div class="field"><label>Fecha inicio <span class="muted">(opcional)</span></label><input type="date" id="act-fecha" class="fi"></div>
           <div class="field"><label>Fecha límite <span class="muted">(opcional)</span></label><input type="date" id="act-fecha-fin" class="fi"></div>
@@ -1332,6 +1379,12 @@ function ddb(){return{clientes:[],campos:[],lotes:[],productos:[],relevamientos:
 // Fecha de HOY en horario LOCAL — nunca usar toISOString() solo para esto,
 // porque esa función siempre da la fecha en UTC (en Argentina, de noche ya
 // "cree" que es mañana).
+// Fecha (YYYY-MM-DD) en horario LOCAL a partir de un timestamp en milisegundos.
+function fechaLocalDeTs(ts){
+  if(!ts)return'';
+  const d=new Date(ts);
+  return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10);
+}
 function hoyLocal(){
   const d=new Date();
   const off=d.getTimezoneOffset()*60000;
@@ -1446,12 +1499,23 @@ function diasRestantesPapelera(fechaBorrado){
   const transcurridos=Math.floor((Date.now()-new Date(y,m-1,d).getTime())/864e5);
   return Math.max(0,30-transcurridos);
 }
+let _papSort={col:'borrado',dir:-1};
+function papSortBy(col){
+  if(_papSort.col===col)_papSort.dir*=-1;
+  else _papSort={col,dir:(col==='borrado'||col==='creada'||col==='restan')?-1:1};
+  renderPapelera();
+}
+function clearFiltrosPap(){
+  ['pap-txt','pap-tipo','pap-cli','pap-desde','pap-hasta'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  _papSort={col:'borrado',dir:-1};
+  renderPapelera();
+}
 function renderPapelera(){
   const cont=document.getElementById('papelera-body');if(!cont)return;
   const relevs=(DB.relevamientos||[]).filter(r=>r.borrado).map(r=>({
     tipo:'Relevamiento',icono:'🔬',id:r.id,esRelev:true,
-    loteNombre:r.loteNombre,clienteNombre:r.clienteNombre,campoNombre:r.campoNombre,
-    fechaBorrado:r.fechaBorrado
+    loteNombre:r.loteNombre||'',clienteNombre:r.clienteNombre||'—',campoNombre:r.campoNombre||'—',
+    fechaBorrado:r.fechaBorrado,borradoTs:r.borradoTs||0,creadaTs:r.createdAt||0,relevId:null
   }));
   const acts=(DB.actividades||[]).filter(a=>a.borrado).map(a=>{
     const l=DB.lotes.find(x=>x.id===a.loteId);
@@ -1459,26 +1523,78 @@ function renderPapelera(){
     const campo=DB.campos.find(x=>x.id===a.campoId);
     return{
       tipo:a.tipo,icono:(ACT_TIPOS[a.tipo]||{}).icono||'📝',id:a.id,esRelev:false,
-      loteNombre:l?.nombre||a.loteId,clienteNombre:cli?.nombre||'—',campoNombre:campo?.nombre||'—',
-      fechaBorrado:a.fechaBorrado
+      loteNombre:l?.nombre||a.loteId||'',clienteNombre:cli?.nombre||'—',campoNombre:campo?.nombre||'—',
+      fechaBorrado:a.fechaBorrado,borradoTs:a.borradoTs||0,creadaTs:a.createdAt||0,relevId:a.relevId||null
     };
   });
-  const items=[...relevs,...acts].sort((a,b)=>(b.fechaBorrado||'').localeCompare(a.fechaBorrado||''));
+  let items=[...relevs,...acts];
+  // Para los que se borraron antes de guardar la hora exacta, se aproxima con la fecha
+  items.forEach(it=>{
+    if(!it.borradoTs&&it.fechaBorrado){const[y,m,d]=it.fechaBorrado.split('-').map(Number);it.borradoTs=new Date(y,m-1,d,12).getTime();}
+    it.restan=diasRestantesPapelera(it.fechaBorrado);
+  });
+
+  // Opciones de los filtros: solo lo que realmente hay en la papelera
+  const tiposEn=[...new Set(items.map(i=>i.tipo))].sort();
+  const cliEn=[...new Set(items.map(i=>i.clienteNombre))].sort();
+  const selTipo=document.getElementById('pap-tipo'),selCli=document.getElementById('pap-cli');
+  if(selTipo){const pv=selTipo.value;selTipo.innerHTML='<option value="">Todos los tipos</option>'+tiposEn.map(t=>`<option value="${t}"${t===pv?' selected':''}>${t}</option>`).join('');}
+  if(selCli){const pv=selCli.value;selCli.innerHTML='<option value="">Todos los clientes</option>'+cliEn.map(t=>`<option value="${t}"${t===pv?' selected':''}>${t}</option>`).join('');}
+
+  // Filtros
+  const q=(document.getElementById('pap-txt')?.value||'').toLowerCase();
+  const fTipo=selTipo?.value||'',fCli=selCli?.value||'';
+  const fDesde=document.getElementById('pap-desde')?.value||'',fHasta=document.getElementById('pap-hasta')?.value||'';
+  const totalSinFiltrar=items.length;
+  items=items.filter(it=>{
+    if(fTipo&&it.tipo!==fTipo)return false;
+    if(fCli&&it.clienteNombre!==fCli)return false;
+    if(fDesde&&(it.fechaBorrado||'')<fDesde)return false;
+    if(fHasta&&(it.fechaBorrado||'')>fHasta)return false;
+    if(q&&![it.tipo,it.loteNombre,it.clienteNombre,it.campoNombre].join(' ').toLowerCase().includes(q))return false;
+    return true;
+  });
+
+  // Orden (por defecto: lo último borrado, primero)
+  const claves={
+    tipo:i=>i.tipo,lote:i=>i.loteNombre,cliente:i=>i.clienteNombre+' '+i.campoNombre,
+    origen:i=>i.relevId?1:0,creada:i=>i.creadaTs||0,borrado:i=>i.borradoTs||0,restan:i=>i.restan
+  };
+  const kf=claves[_papSort.col]||claves.borrado;
+  items.sort((a,b)=>{
+    const ka=kf(a),kb=kf(b);
+    if(ka<kb)return -1*_papSort.dir;if(ka>kb)return 1*_papSort.dir;
+    return (b.borradoTs||0)-(a.borradoTs||0);
+  });
+
   const ct=document.getElementById('papelera-ct');
-  if(ct)ct.textContent=`Papelera (${items.length})`;
-  if(!items.length){cont.innerHTML='<div class="empty"><div class="empty-icon">🗑️</div><div class="empty-t">La papelera está vacía</div></div>';return;}
+  if(ct)ct.textContent=items.length===totalSinFiltrar?`Papelera (${items.length})`:`Papelera (${items.length} de ${totalSinFiltrar})`;
+  if(!items.length){
+    cont.innerHTML=totalSinFiltrar
+      ?'<div class="empty"><div class="empty-icon">🔎</div><div class="empty-t">Nada coincide con esos filtros</div></div>'
+      :'<div class="empty"><div class="empty-icon">🗑️</div><div class="empty-t">La papelera está vacía</div></div>';
+    return;
+  }
+  const th=(t,col)=>{const flecha=_papSort.col===col?(_papSort.dir>0?' ▲':' ▼'):'';return`<th onclick="papSortBy('${col}')" style="text-align:left;padding:6px 8px;cursor:pointer;user-select:none" title="Ordenar">${t}${flecha}</th>`;};
   cont.innerHTML=`<div class="tw"><table style="width:100%"><thead><tr>
-    <th style="text-align:left;padding:6px 8px">Tipo</th><th style="text-align:left;padding:6px 8px">Lote</th>
-    <th style="text-align:left;padding:6px 8px">Cliente / Campo</th><th style="text-align:left;padding:6px 8px">Borrado el</th>
-    <th style="text-align:left;padding:6px 8px">Se borra en</th><th></th></tr></thead><tbody>
+    ${th('Tipo','tipo')}${th('Lote','lote')}${th('Cliente / Campo','cliente')}${th('Viene de','origen')}
+    ${th('Creada','creada')}${th('Borrado el','borrado')}${th('Se borra en','restan')}<th></th></tr></thead><tbody>
     ${items.map(it=>{
-      const dias=diasRestantesPapelera(it.fechaBorrado);
+      let origen='<span class="muted">—</span>';
+      if(it.relevId){
+        const madre=DB.relevamientos.find(x=>x.id===it.relevId);
+        origen=madre
+          ?`<a href="#" onclick="event.preventDefault();openModalRelev('${madre.id}')" style="color:var(--accent);font-size:11px" title="Abrir el relevamiento de origen">🔗 Relevamiento ${madre.fecha||'(programado)'}${madre.borrado?' (también eliminado)':''}</a>`
+          :'<span class="muted" style="font-size:11px">relevamiento ya purgado</span>';
+      }
       return`<tr>
         <td style="padding:6px 8px">${it.icono} ${it.tipo}</td>
         <td style="padding:6px 8px">${it.loteNombre}</td>
         <td style="padding:6px 8px">${it.clienteNombre} <span class="muted">— ${it.campoNombre}</span></td>
+        <td style="padding:6px 8px">${origen}</td>
+        <td class="mono muted" style="padding:6px 8px;font-size:11px">${fechaLocalDeTs(it.creadaTs)||'—'}</td>
         <td class="mono muted" style="padding:6px 8px;font-size:11px">${it.fechaBorrado||'—'}</td>
-        <td style="padding:6px 8px;font-size:11px">${dias} día(s)</td>
+        <td style="padding:6px 8px;font-size:11px">${it.restan} día(s)</td>
         <td class="rf ph" style="padding:6px 8px">
           <button class="btn bp bxs" onclick="restaurarDePapelera('${it.id}',${it.esRelev})">↩️ Restaurar</button>
           <button class="btn bd bxs" onclick="eliminarDefinitivoDePapelera('${it.id}',${it.esRelev})">✕ Eliminar ya</button>
@@ -1489,9 +1605,9 @@ function renderPapelera(){
 }
 function restaurarDePapelera(id,esRelev){
   if(esRelev){
-    const r=DB.relevamientos.find(x=>x.id===id);if(r){delete r.borrado;delete r.fechaBorrado;}
+    const r=DB.relevamientos.find(x=>x.id===id);if(r){delete r.borrado;delete r.fechaBorrado;delete r.borradoTs;}
   } else {
-    const a=DB.actividades.find(x=>x.id===id);if(a){delete a.borrado;delete a.fechaBorrado;}
+    const a=DB.actividades.find(x=>x.id===id);if(a){delete a.borrado;delete a.fechaBorrado;delete a.borradoTs;}
   }
   save();
   mostrarSnackbar('✅ Restaurado');
@@ -1648,10 +1764,30 @@ function editarAplicacionDesdeOT(actId){
 }
 function cancelModalActividad(){
   closeModal('modal-actividad');
+  if(window._volverARelev){
+    window._volverARelev=false;
+    openModal('modal-relev');
+    refrescarRActBlocksExistentes();
+    renderRActEliminadas();
+    return;
+  }
   if(window._otEditReturnActividad){
     window._otEditReturnActividad=false;
     navTo('ot',{ids:window._otCurrentIds||[]});
   }
+}
+// Desadjuntar desde el lado de la Actividad — mismo mecanismo que ya existe
+// del lado del Relevamiento, ahora también en el sentido contrario.
+function desprenderActDelRelev(){
+  if(!_editActId)return;
+  const a=DB.actividades.find(x=>x.id===_editActId);if(!a||!a.relevId)return;
+  confirmarAccion('¿Desadjuntar esta actividad del relevamiento? Sigue existiendo con vida propia, solo deja de estar vinculada.',()=>{
+    a.relevId=null;
+    save();
+    document.getElementById('act-origen-info').style.display='none';
+    mostrarSnackbar('✅ Actividad desadjuntada — sigue viva, ya no ligada a ese relevamiento');
+    if(document.getElementById('act-m-body'))renderActividadesMaster();
+  });
 }
 function cancelModalRelev(){
   closeModal('modal-relev');
@@ -2278,7 +2414,7 @@ function renderClientes(){
             <td>${cultCell}</td>
             <td>${nRel?`<span class="badge bg-blue">${nRel}</span>`:'—'}</td>
             <td onclick="event.stopPropagation()" style="white-space:nowrap">
-              <button class="btn bp bxs" onclick="openModalActividad('${l.id}','${cli.id}','${campo.id}')">+ Activ.</button>
+              <button class="btn bp bxs" onclick="abrirModalActividadMasiva(['${l.id}'])">+ Activ.</button>
               <button class="btn bs bxs" onclick="editLote('${cli.id}','${campo.id}','${l.id}')">✏️</button>
               <button class="btn bd bxs" onclick="deleteLote('${cli.id}','${campo.id}','${l.id}')">✕</button>
             </td>
@@ -2656,6 +2792,7 @@ function openModalRelev(editId=null){
   document.getElementById('r-obs').value='';
   document.getElementById('r-act-blocks').innerHTML='<div class="muted" style="font-size:11px">¿Qué sigue para este lote? Podés agregar más de una — por ejemplo una Aplicación en 3 días y un Relevamiento de seguimiento en 20.</div>';
   _rActBlockN=0;
+  const _eliminadasBox=document.getElementById('r-act-eliminadas');if(_eliminadasBox)_eliminadasBox.innerHTML='';
   document.getElementById('r-origen-info').style.display='none';
   // Poblar campañas dinámicamente, con la campaña activa preseleccionada para
   // un relevamiento nuevo (si no, el lote aparece "sin cultivo" hasta elegirla a mano)
@@ -2694,8 +2831,9 @@ function openModalRelev(editId=null){
     document.getElementById('prod-rows').innerHTML='';_prodRowN=0;
     (r.productos||[]).forEach(p=>addProdRow(p));
     // Actividades ya derivadas de este relevamiento, si existen — una por bloque
-    const ligadas=(DB.actividades||[]).filter(a=>a.relevId===r.id);
+    const ligadas=(DB.actividades||[]).filter(a=>a.relevId===r.id&&!a.borrado);
     ligadas.forEach(a=>addRActBlock(a,a.id));
+    renderRActEliminadas();
     // Si este relevamiento viene como seguimiento de otro, mostrar el link al
     // de origen + la opción de traer su diagnóstico como punto de partida.
     if(r.origenRelevId){
@@ -3127,7 +3265,7 @@ function duplicarRelev(id){
 function deleteRelev(id){
   confirmarAccion('¿Eliminar relevamiento? Queda 30 días en la papelera por si te arrepentís.',()=>{
     const r=DB.relevamientos.find(x=>x.id===id);
-    if(r){r.borrado=true;r.fechaBorrado=hoyLocal();}
+    if(r){r.borrado=true;r.fechaBorrado=hoyLocal();r.borradoTs=Date.now();}
     _seleccionados.delete(id);
     save();renderRelev();renderDashboard();updateSelBar();
     if(document.getElementById('act-m-body'))renderActividadesMaster();
@@ -3160,7 +3298,7 @@ function generarOTDesdeSeleccion(){
   // a su Aplicación vinculada; los que todavía no tienen, quedan afuera con aviso.
   const conApl=[];const sinApl=[];
   ids.forEach(rid=>{
-    const act=(DB.actividades||[]).find(a=>a.relevId===rid&&a.tipo==='Aplicación');
+    const act=(DB.actividades||[]).find(a=>a.relevId===rid&&a.tipo==='Aplicación'&&!a.borrado);
     if(act)conApl.push(act.id);else sinApl.push(rid);
   });
   if(!conApl.length){mostrarSnackbar('⚠️ Ninguno de los seleccionados tiene una Aplicación generada todavía','amber');return;}
@@ -3189,11 +3327,11 @@ function estadoEfectivo(r){
 // Reemplaza al viejo estado=Aplicado del relevamiento, que ahora vive en la Actividad.
 function estaAplicado(r){
   if(!r)return false;
-  return (DB.actividades||[]).some(a=>a.relevId===r.id&&a.tipo==='Aplicación'&&estadoDe(a)==='Realizada');
+  return (DB.actividades||[]).some(a=>a.relevId===r.id&&a.tipo==='Aplicación'&&!a.borrado&&estadoDe(a)==='Realizada');
 }
 function fechaAplicacionDe(r){
   if(!r)return null;
-  const a=(DB.actividades||[]).find(a=>a.relevId===r.id&&a.tipo==='Aplicación'&&estadoDe(a)==='Realizada');
+  const a=(DB.actividades||[]).find(a=>a.relevId===r.id&&a.tipo==='Aplicación'&&!a.borrado&&estadoDe(a)==='Realizada');
   return a?a.fechaRealizacion:null;
 }
 function relevSortBy(col){if(_rSort.col===col)_rSort.dir*=-1;else{_rSort.col=col;_rSort.dir=1;}renderRelev();}
@@ -3329,7 +3467,7 @@ function getFiltrados(){
     if(mal){const ms=(r.malezas||[]).map(m=>m.nombre.toLowerCase()).join(' ');if(!ms.includes(mal))return false;}
     // Filtro por Actividad vinculada a ESTE relevamiento puntual (no al lote en general)
     if(factiv){
-      const ligadas=(DB.actividades||[]).filter(a=>a.relevId===r.id);
+      const ligadas=(DB.actividades||[]).filter(a=>a.relevId===r.id&&!a.borrado);
       if(factiv==='CON:'&&!ligadas.length)return false;
       else if(factiv==='SIN:'&&ligadas.length)return false;
       else if(factiv.includes(':')&&factiv!=='CON:'&&factiv!=='SIN:'){
@@ -3439,7 +3577,7 @@ function renderRelev(){
     // El relevamiento ahora tiene solo dos estados: Realizado (tiene fecha) o
     // Programado (todavía no). Si ya tiene una Actividad vinculada (ej. una
     // Aplicación), se muestra como link para identificarlo e ir directo a ella.
-    const actLigada=(DB.actividades||[]).find(a=>a.relevId===r.id);
+    const actLigada=(DB.actividades||[]).find(a=>a.relevId===r.id&&!a.borrado);
     const ligadaLink=actLigada?` <a href="#" onclick="event.preventDefault();openModalActividad(null,null,null,'${actLigada.id}')" title="Ir a la actividad vinculada"><span class="badge ${estadoDe(actLigada)==='Realizada'?'bg-green':'bg-blue'}" style="font-size:9px">${(ACT_TIPOS[actLigada.tipo]||{}).icono||'📌'} ${actLigada.tipo}</span></a>`:'';
     const estadoBadge=eb?'<span class="badge bg-red">⚠ Borrador</span>'
       :`<select class="estado-sel" onchange="actMEditarEstado('${r.id}',true,this.value)" style="font-size:11px;padding:3px 6px;border-radius:6px;border:1px solid var(--border);background:var(--bg);font-family:'Sora',sans-serif;cursor:pointer;color:var(--text)">`
@@ -3855,7 +3993,7 @@ function openOTFromRelev(relevId){
   // La OT se arma desde la Aplicación, no desde el relevamiento directo. Si
   // este relevamiento ya tiene una Aplicación generada, se usa esa; si no,
   // se manda a generarla primero (ahí mismo, sin ir y volver).
-  const act=(DB.actividades||[]).find(a=>a.relevId===relevId&&a.tipo==='Aplicación');
+  const act=(DB.actividades||[]).find(a=>a.relevId===relevId&&a.tipo==='Aplicación'&&!a.borrado);
   if(act){navTo('ot',{ids:[act.id]});return;}
   mostrarSnackbar('⚠️ Este relevamiento todavía no tiene una Aplicación — generala primero, ahí abajo del diagnóstico','amber');
   openModalRelev(relevId);
@@ -4206,53 +4344,98 @@ function tlUpdateActionBar(){
 // actividad (Relevamiento es una más, sin trato especial) → fechas. Sirve
 // tanto si venís con lotes ya tildados en la grilla como si arrancás de cero
 // eligiendo el campo acá mismo.
-function tlAbrirModalActividad(){
-  const preseleccion=new Set(_tlSel);
+let _tlMasivaCarrito=new Set();
+// Punto de entrada único para "crear actividad" desde cualquier lugar de la
+// app — Tablero (con o sin selección previa), ficha de Lote, Clientes/Lotes.
+// El carrito arranca con los lotes que le pases (puede ser uno solo, o varios).
+function abrirModalActividadMasiva(lotesIniciales=[]){
+  _tlMasivaCarrito=new Set(lotesIniciales);
   const cs=document.getElementById('tl-act-camp');
   if(cs){cs.innerHTML='<option value="">Seleccioná...</option>';(DB.campanas||[]).forEach(c=>cs.innerHTML+=`<option value="${c}">${c}</option>`);}
-  const fcampo=document.getElementById('tl-masiva-campo');
-  if(fcampo){
-    // Si los lotes preseleccionados son todos de un mismo campo, arrancar filtrado por ese campo
-    let campoUnico='';
-    if(preseleccion.size){
-      const campos=new Set([...preseleccion].map(id=>DB.lotes.find(l=>l.id===id)?.campoId).filter(Boolean));
-      if(campos.size===1)campoUnico=[...campos][0];
-    }
-    fcampo.innerHTML='<option value="">Todos los campos...</option>'+DB.campos.slice().sort((a,b)=>a.nombre.localeCompare(b.nombre)).map(c=>{
-      const cli=DB.clientes.find(x=>x.id===c.clienteId);
-      return`<option value="${c.id}"${c.id===campoUnico?' selected':''}>${c.nombre}${cli?' — '+cli.nombre:''}</option>`;
-    }).join('');
+  const cliSel=document.getElementById('tl-masiva-cli');
+  if(cliSel)cliSel.innerHTML='<option value="">Cliente...</option>'+DB.clientes.slice().sort((a,b)=>a.nombre.localeCompare(b.nombre)).map(c=>`<option value="${c.id}">${c.nombre}</option>`).join('');
+  document.getElementById('tl-masiva-campo').innerHTML='<option value="">Campo...</option>';
+  const cultSel=document.getElementById('tl-masiva-cultivo');
+  if(cultSel){
+    const campañaActiva=getCampanaActiva();
+    const cultivos=[...new Set(DB.lotes.map(l=>baseCultivo(getCultivoDeLote(l.id,campañaActiva))).filter(Boolean))].sort();
+    cultSel.innerHTML='<option value="">Cultivo...</option>'+cultivos.map(c=>`<option value="${c}">${c}</option>`).join('');
   }
-  window._tlMasivaPreseleccion=preseleccion;
+  document.getElementById('tl-masiva-lote-lista').innerHTML='<div class="muted" style="font-size:11px">Elegí un campo, o un cultivo, para ver lotes.</div>';
   document.getElementById('tl-act-tipo').value='';
   document.getElementById('tl-act-fecha').value='';
   document.getElementById('tl-act-fecha-fin').value='';
   document.getElementById('tl-act-obs').value='';
   document.getElementById('tl-act-extra').innerHTML='';
-  tlMasivaRenderLotes();
+  tlMasivaRenderCarrito();
   openModal('modal-act-masiva');
 }
-function tlMasivaRenderLotes(){
-  const cont=document.getElementById('tl-masiva-lotes');if(!cont)return;
-  const campoId=document.getElementById('tl-masiva-campo')?.value||'';
-  const preseleccion=window._tlMasivaPreseleccion||new Set();
-  let lotes=campoId?DB.lotes.filter(l=>l.campoId===campoId):DB.lotes;
-  lotes=lotes.slice().sort((a,b)=>naturalCmp(a.nombre,b.nombre));
-  if(!lotes.length){cont.innerHTML='<div class="muted" style="font-size:11px">Sin lotes</div>';return;}
+function tlAbrirModalActividad(){
+  abrirModalActividadMasiva([..._tlSel]);
+}
+// Cascada Cliente → Campo → Lote: cada búsqueda achica a la siguiente, y "+
+// Agregar" va sumando al carrito sin perder lo que ya habías puesto antes de
+// otro cliente/campo — así podés juntar lotes de varios lados en una sola tanda.
+function tlMasivaClienteChange(){
+  const cliId=document.getElementById('tl-masiva-cli').value;
+  const campos=(cliId?DB.campos.filter(c=>c.clienteId===cliId):DB.campos).slice().sort((a,b)=>a.nombre.localeCompare(b.nombre));
+  document.getElementById('tl-masiva-campo').innerHTML='<option value="">Campo...</option>'+campos.map(c=>`<option value="${c.id}">${c.nombre}</option>`).join('');
+  document.getElementById('tl-masiva-cultivo').value=''; // los dos caminos son alternativos
+  document.getElementById('tl-masiva-lote-lista').innerHTML='<div class="muted" style="font-size:11px">Elegí un campo, o un cultivo, para ver lotes.</div>';
+}
+function tlMasivaCampoChange(){
+  const campoId=document.getElementById('tl-masiva-campo').value;
+  document.getElementById('tl-masiva-cultivo').value='';
+  const cont=document.getElementById('tl-masiva-lote-lista');
+  const lotes=(campoId?DB.lotes.filter(l=>l.campoId===campoId):[]).slice().sort((a,b)=>naturalCmp(a.nombre,b.nombre));
+  if(!lotes.length){cont.innerHTML='<div class="muted" style="font-size:11px">Elegí un campo, o un cultivo, para ver lotes.</div>';return;}
+  cont.innerHTML=lotes.map(l=>`<label style="display:flex;gap:6px;align-items:center;padding:2px 0;font-size:12px;cursor:pointer">
+    <input type="checkbox" value="${l.id}" class="tl-masiva-lote-chk"> ${l.nombre}
+  </label>`).join('');
+}
+// Camino alternativo: en vez de ir por Cliente/Campo, elegir directo el
+// cultivo y traer TODOS los lotes que lo tienen, crucen o no de cliente/campo —
+// útil para programar siembras/cosechas masivas de un mismo cultivo.
+function tlMasivaCultivoChange(){
+  const cultivo=document.getElementById('tl-masiva-cultivo').value;
+  const cont=document.getElementById('tl-masiva-lote-lista');
+  if(!cultivo){cont.innerHTML='<div class="muted" style="font-size:11px">Elegí un campo, o un cultivo, para ver lotes.</div>';return;}
+  document.getElementById('tl-masiva-cli').value='';
+  document.getElementById('tl-masiva-campo').innerHTML='<option value="">Campo...</option>';
+  const campañaActiva=getCampanaActiva();
+  const lotes=DB.lotes.filter(l=>baseCultivo(getCultivoDeLote(l.id,campañaActiva))===cultivo).sort((a,b)=>naturalCmp(a.nombre,b.nombre));
+  if(!lotes.length){cont.innerHTML='<div class="muted" style="font-size:11px">Ningún lote con ese cultivo en la campaña activa.</div>';return;}
   cont.innerHTML=lotes.map(l=>{
     const cli=DB.clientes.find(c=>c.id===l.clienteId);
     const campo=DB.campos.find(c=>c.id===l.campoId);
-    const marcado=campoId?true:preseleccion.has(l.id); // si ya elegiste un campo puntual, arranca todo tildado
     return`<label style="display:flex;gap:6px;align-items:center;padding:2px 0;font-size:12px;cursor:pointer">
-      <input type="checkbox" value="${l.id}" ${marcado?'checked':''}> ${l.nombre} <span class="muted">— ${campo?.nombre||'?'}${cli?' — '+cli.nombre:''}</span>
+      <input type="checkbox" value="${l.id}" class="tl-masiva-lote-chk"> ${l.nombre} <span class="muted">— ${campo?.nombre||'?'}${cli?' — '+cli.nombre:''}</span>
     </label>`;
   }).join('');
 }
-function tlMasivaMarcarTodos(marcar){
-  document.querySelectorAll('#tl-masiva-lotes input[type="checkbox"]').forEach(cb=>cb.checked=marcar);
+function tlMasivaAgregarLote(){
+  const chks=[...document.querySelectorAll('.tl-masiva-lote-chk:checked')];
+  if(!chks.length){mostrarSnackbar('⚠️ Tildá uno o más lotes primero','amber');return;}
+  chks.forEach(cb=>{_tlMasivaCarrito.add(cb.value);cb.checked=false;});
+  tlMasivaRenderCarrito();
 }
-function tlMasivaLotesElegidos(){
-  return[...document.querySelectorAll('#tl-masiva-lotes input[type="checkbox"]:checked')].map(cb=>cb.value);
+function tlMasivaQuitarDelCarrito(loteId){
+  _tlMasivaCarrito.delete(loteId);
+  tlMasivaRenderCarrito();
+}
+function tlMasivaRenderCarrito(){
+  const cont=document.getElementById('tl-masiva-carrito');if(!cont)return;
+  const n=document.getElementById('tl-masiva-carrito-n');if(n)n.textContent=_tlMasivaCarrito.size;
+  if(!_tlMasivaCarrito.size){cont.innerHTML='<div class="muted" style="font-size:11px">Todavía no agregaste ningún lote.</div>';return;}
+  cont.innerHTML=[..._tlMasivaCarrito].map(id=>{
+    const l=DB.lotes.find(x=>x.id===id);if(!l)return'';
+    const cli=DB.clientes.find(c=>c.id===l.clienteId);
+    const campo=DB.campos.find(c=>c.id===l.campoId);
+    return`<div class="rf" style="justify-content:space-between;align-items:center;padding:3px 0;font-size:12px">
+      <span>${l.nombre} <span class="muted">— ${campo?.nombre||'?'}${cli?' — '+cli.nombre:''}</span></span>
+      <button class="btn bd bxs" onclick="tlMasivaQuitarDelCarrito('${id}')" title="Quitar">✕</button>
+    </div>`;
+  }).join('');
 }
 function onTlActTipoChange(){
   const tipo=document.getElementById('tl-act-tipo').value;
@@ -4261,8 +4444,8 @@ function onTlActTipoChange(){
 function tlGuardarActividadMasiva(){
   const tipo=document.getElementById('tl-act-tipo').value;
   if(!tipo){alert('Seleccioná el tipo de actividad');return;}
-  const loteIds=tlMasivaLotesElegidos();
-  if(!loteIds.length){alert('Tildá al menos un lote');return;}
+  const loteIds=[..._tlMasivaCarrito];
+  if(!loteIds.length){alert('Agregá al menos un lote al carrito');return;}
   const fechaA=document.getElementById('tl-act-fecha').value||null;
   const fechaFinA=document.getElementById('tl-act-fecha-fin')?.value||'';
   const campaña=document.getElementById('tl-act-camp').value||'';
@@ -4292,17 +4475,20 @@ function tlGuardarActividadMasiva(){
     });
     loteIds.forEach(loteId=>{
       const lote=DB.lotes.find(l=>l.id===loteId);if(!lote)return;
-      DB.actividades.push({
+      const actObj={
         id:uid(),loteId,clienteId:lote.clienteId,campoId:lote.campoId,
         tipo,fecha:fechaA,fechaFin:fechaFinA||null,campaña,obs,datos,
         estado:fechaA?'Realizada':'Pendiente',fechaRealizacion:fechaA,
         createdAt:Date.now()
-      });
+      };
+      if(tipo==='Aplicación'){actObj.diagnostico=[];actObj.cultivoSnapshot='';actObj.productos=[];actObj.historial=[];}
+      DB.actividades.push(actObj);
       count++;
     });
     save();closeModal('modal-act-masiva');
     mostrarSnackbar(`✅ Actividad "${tipo}" creada en ${count} lote(s)`);
   }
+  _tlMasivaCarrito=new Set();
   tlLimpiarSeleccion();
   renderTablero();
 }
@@ -4497,7 +4683,7 @@ function renderTablero(){
         +`<td style="text-align:right" class="mono">${costoAcum?`<span class="badge bg-green">USD ${costoAcum.toFixed(0)}</span>`:'<span class="muted">—</span>'}</td>`
         +`<td class="rf ph" style="gap:3px">
             <button class="btn bs bxs" title="Ver lote" onclick="navTo('lote',{loteId:'${lote.id}',cliId:'${lote.clienteId}',campoId:'${lote.campoId}'})">🔍</button>
-            <button class="btn bp bxs" title="Nueva actividad" onclick="openModalActividad('${lote.id}','${lote.clienteId}','${lote.campoId}')">📋</button>
+            <button class="btn bp bxs" title="Nueva actividad" onclick="abrirModalActividadMasiva(['${lote.id}'])">📋</button>
           </td>`
         +'</tr>';
     }).join('')
@@ -4565,17 +4751,19 @@ function onRActTipoChange(idx){
 // representa una actividad YA generada — se puede desadjuntar sin borrarla.
 function addRActBlock(data=null,actId=null){
   const cont=document.getElementById('r-act-blocks');if(!cont)return;
-  const ph=cont.querySelector('.muted');if(ph)ph.remove();
+  const ph=cont.querySelector(':scope > .muted');if(ph)ph.remove();
   const idx=_rActBlockN++;
   const d=document.createElement('div');
   d.id='ractb-'+idx;
   d.dataset.actId=actId||'';
   d.style.cssText='border:1px solid var(--border);border-radius:var(--r);padding:10px;margin-bottom:10px';
   d.innerHTML=`
-    <div class="rf" style="justify-content:space-between;gap:6px;margin-bottom:6px">
-      <select id="r-act-tipo-${idx}" class="fi" onchange="onRActTipoChange(${idx})" style="flex:1">${R_ACT_TIPO_OPTS}</select>
-      ${actId?`<button class="btn bs bxs" onclick="desprenderRActBlock(${idx})" title="Sigue existiendo con vida propia (la ves en Actividades), pero se saca de esta lista">🔓 Desadjuntar</button>`:''}
-      <button class="btn bd bxs" onclick="document.getElementById('ractb-${idx}').remove()" title="Quitar de esta lista">✕</button>
+    <div class="rf" style="justify-content:space-between;gap:6px;margin-bottom:6px;flex-wrap:wrap">
+      <select id="r-act-tipo-${idx}" class="fi" onchange="onRActTipoChange(${idx})" style="flex:1;min-width:160px">${R_ACT_TIPO_OPTS}</select>
+      ${actId?`<button class="btn bb bxs" onclick="abrirActividadDesdeRelev('${actId}')" title="Ir a esta actividad (después volvés acá)">🔗 Abrir</button>
+      <button class="btn bs bxs" onclick="desprenderRActBlock(${idx})" title="Sigue existiendo con vida propia (la ves en Actividades), pero se saca de esta lista">🔓 Desadjuntar</button>
+      <button class="btn bd bxs" onclick="eliminarActDesdeRelev(${idx})" title="La manda a la Papelera, pero queda marcada como asociada a este relevamiento">🗑️ Eliminar</button>`
+      :`<button class="btn bd bxs" onclick="document.getElementById('ractb-${idx}').remove()" title="Quitar de esta lista">✕</button>`}
     </div>
     <div id="r-act-body-${idx}" style="display:none">
       <div class="fg" style="grid-template-columns:1fr 1fr;margin-top:4px">
@@ -4597,6 +4785,71 @@ function addRActBlock(data=null,actId=null){
     }
   }
   return idx;
+}
+// Ir a una actividad ya generada desde adentro del relevamiento y volver: el
+// formulario del relevamiento queda oculto (con todo lo que ya tipeaste), se
+// abre la actividad, y al cerrarla (guardando o cancelando) se vuelve acá.
+function abrirActividadDesdeRelev(actId){
+  window._volverARelev=true;
+  document.getElementById('modal-relev').classList.remove('open');
+  openModalActividad(null,null,null,actId);
+}
+// Eliminar desde adentro del relevamiento: va a la Papelera pero CONSERVA el
+// vínculo (relevId), así queda a la vista que este relevamiento tuvo una
+// actividad que se eliminó — y se puede crear una nueva acá mismo sin salir.
+function eliminarActDesdeRelev(idx){
+  const block=document.getElementById('ractb-'+idx);if(!block)return;
+  const actId=block.dataset.actId;
+  if(!actId){block.remove();return;}
+  confirmarAccion('¿Eliminar esta actividad? Va a la Papelera 30 días y queda marcada como asociada a este relevamiento (vas a poder restaurarla).',()=>{
+    const a=DB.actividades.find(x=>x.id===actId);
+    if(a){a.borrado=true;a.fechaBorrado=hoyLocal();a.borradoTs=Date.now();}
+    save();
+    block.remove();
+    renderRActEliminadas();
+    mostrarSnackbar('🗑️ Actividad eliminada — queda en la Papelera, asociada a este relevamiento');
+    if(document.getElementById('act-m-body'))renderActividadesMaster();
+  });
+}
+// Aviso visible dentro del relevamiento: actividades suyas que fueron eliminadas
+// (siguen asociadas hasta que se desadjunten o se purguen a los 30 días).
+function renderRActEliminadas(){
+  const cont=document.getElementById('r-act-eliminadas');if(!cont)return;
+  const relevId=_editRelevId;
+  if(!relevId){cont.innerHTML='';return;}
+  const elim=(DB.actividades||[]).filter(a=>a.relevId===relevId&&a.borrado);
+  if(!elim.length){cont.innerHTML='';return;}
+  cont.innerHTML=`<div style="margin-top:8px;padding:8px 10px;background:var(--bg2);border-radius:var(--r);font-size:11px;color:var(--text3)">
+    🗑️ <strong>Actividades eliminadas de este relevamiento:</strong>
+    ${elim.map(a=>`<div style="margin-top:3px">${(ACT_TIPOS[a.tipo]||{}).icono||'📝'} ${a.tipo} — eliminada el ${a.fechaBorrado||'?'}
+      <a href="#" onclick="event.preventDefault();restaurarActDesdeRelev('${a.id}')" style="margin-left:6px">↩️ Restaurar</a></div>`).join('')}
+  </div>`;
+}
+// Al volver de editar una actividad desde adentro del relevamiento, los bloques
+// de actividades ya existentes se recargan con lo que quedó guardado — si no,
+// quedarían mostrando valores viejos y al guardar el relevamiento los pisarían.
+function refrescarRActBlocksExistentes(){
+  document.querySelectorAll('#r-act-blocks [id^="ractb-"]').forEach(block=>{
+    const actId=block.dataset.actId;if(!actId)return;
+    const idx=block.id.split('ractb-')[1];
+    const a=DB.actividades.find(x=>x.id===actId);
+    // Si la eliminaron o la desadjuntaron mientras estaba abierta, sale de la lista
+    if(!a||a.borrado||a.relevId!==_editRelevId){block.remove();return;}
+    document.getElementById('r-act-tipo-'+idx).value=a.tipo||'';
+    onRActTipoChange(idx);
+    document.getElementById('r-act-fecha-'+idx).value=a.fecha||'';
+    document.getElementById('r-act-fecha-fin-'+idx).value=a.fechaFin||'';
+    if(a.datos)setTimeout(()=>Object.entries(a.datos).forEach(([k,v])=>{const el=document.getElementById(`r-act-extra-${idx}-${k}`);if(el)el.value=v;}),30);
+  });
+}
+function restaurarActDesdeRelev(actId){
+  const a=DB.actividades.find(x=>x.id===actId);if(!a)return;
+  delete a.borrado;delete a.fechaBorrado;delete a.borradoTs;
+  save();
+  addRActBlock(a,a.id);
+  renderRActEliminadas();
+  mostrarSnackbar('✅ Actividad restaurada');
+  if(document.getElementById('act-m-body'))renderActividadesMaster();
 }
 // Desadjuntar: la actividad sigue existiendo (con su propia vida) pero deja de
 // estar vinculada a este relevamiento — útil, por ejemplo, si duplicás el
@@ -4633,6 +4886,7 @@ function openModalActividad(loteId,cliId,campoId,editId=null){
   document.getElementById('act-apl-historial').style.display='none';
   document.getElementById('act-fecha-real').value='';
   document.getElementById('act-descartada').checked=false;
+  document.getElementById('act-origen-info').style.display='none';
   // Lote: se pide arriba solo si se abre desde la pantalla maestra (sin lote ya sabido)
   const loteWrap=document.getElementById('act-lote-wrap');
   if(loteWrap)loteWrap.style.display=_actLoteCtx?'none':'block';
@@ -4652,6 +4906,15 @@ function openModalActividad(loteId,cliId,campoId,editId=null){
       document.getElementById('act-obs').value=a.obs||'';
       document.getElementById('act-fecha-real').value=a.fechaRealizacion||'';
       document.getElementById('act-descartada').checked=a.estado==='Descartada';
+      // Si viene de un relevamiento, mostrar el link + la opción de desadjuntar
+      if(a.relevId){
+        const origen=DB.relevamientos.find(x=>x.id===a.relevId);
+        if(origen){
+          document.getElementById('act-origen-info').style.display='block';
+          document.getElementById('act-origen-info').innerHTML=`🔗 Viene del relevamiento <a href="#" onclick="event.preventDefault();closeModal('modal-actividad');openModalRelev('${origen.id}')" style="color:var(--accent);font-weight:500">del ${origen.fecha||'(programado)'}</a>
+            <button class="btn bs bxs" style="margin-left:8px" onclick="desprenderActDelRelev()" title="La actividad sigue existiendo, pero deja de estar ligada a ese relevamiento">🔓 Desadjuntar</button>`;
+        }
+      }
       onActTipoChange();
       if(!_actLoteCtx){
         _actLoteCtx={loteId:a.loteId,cliId:a.clienteId,campoId:a.campoId};
@@ -4886,6 +5149,16 @@ function saveActividad(){
   mostrarSnackbar('✅ Actividad guardada');
   if(document.getElementById('lote-detail-content')&&_actLoteCtx)renderLoteDetail(_actLoteCtx.loteId,_actLoteCtx.cliId,_actLoteCtx.campoId);
   if(document.getElementById('act-m-body'))renderActividadesMaster();
+  // Si se abrió desde adentro de un relevamiento, volver a ese relevamiento
+  // con los datos de la actividad ya refrescados (si no, al guardar el
+  // relevamiento se pisarían con los valores viejos que mostraba el bloque).
+  if(window._volverARelev){
+    window._volverARelev=false;
+    openModal('modal-relev');
+    refrescarRActBlocksExistentes();
+    renderRActEliminadas();
+    return;
+  }
   // Si se editó desde la Orden de Trabajo, volver a esa OT ya actualizada
   if(window._otEditReturnActividad){
     window._otEditReturnActividad=false;
@@ -4909,7 +5182,7 @@ function duplicarActividad(id){
 function deleteActividad(id,loteId,cliId,campoId){
   confirmarAccion('¿Eliminar esta actividad? Queda 30 días en la papelera por si te arrepentís.',()=>{
     const a=DB.actividades.find(x=>x.id===id);
-    if(a){a.borrado=true;a.fechaBorrado=hoyLocal();}
+    if(a){a.borrado=true;a.fechaBorrado=hoyLocal();a.borradoTs=Date.now();}
     save();
     if(loteId)renderLoteDetail(loteId,cliId,campoId);
     if(document.getElementById('act-m-body'))renderActividadesMaster();
@@ -4925,7 +5198,7 @@ function cambiarEstadoActividad(id,nuevoEstado){
   if(document.getElementById('lote-detail-content')&&_loteDetailCtx)renderLoteDetail(_loteDetailCtx.loteId,_loteDetailCtx.cliId,_loteDetailCtx.campoId);
 }
 function abrirNuevaActividadMaster(){
-  openModalActividad(null,null,null,null);
+  abrirModalActividadMasiva([]);
 }
 function abrirRelevProgramado(){
   openModalRelev(null);
@@ -4968,12 +5241,12 @@ function urgenciaActividad(a){
   }
   return{...cat,accionable};
 }
-let _actMSort={col:'urgencia',dir:1};
+let _actMSort={col:'creada',dir:-1};
 function actMSortBy(col){if(_actMSort.col===col)_actMSort.dir*=-1;else{_actMSort={col,dir:1};}renderActividadesMaster();}
 function clearFiltrosActM(){
   const s=document.getElementById('act-m-search');if(s)s.value='';
   const acc=document.getElementById('act-m-accionable');if(acc)acc.value='';
-  ['act-m-real-desde','act-m-real-hasta','act-m-plan-desde','act-m-plan-hasta'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['act-m-creada-desde','act-m-creada-hasta','act-m-real-desde','act-m-real-hasta','act-m-plan-desde','act-m-plan-hasta'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   msClear('act-m-cli');msClear('act-m-campo');msClear('act-m-lote');msClear('act-m-cult');msClear('act-m-tipo');
   msClear('act-m-estado');msClear('act-m-urgencia');
   // "Limpiar" también vuelve el agrupamiento al default (Vencimiento solo,
@@ -5027,17 +5300,11 @@ function ordenarGrupos(keys,criterio){
 let _actMFiltroInit=false;
 function renderActividadesMaster(){
   const cont=document.getElementById('act-m-body');if(!cont)return;
-  // Por defecto, al entrar a la pantalla se muestra solo lo Pendiente y ya
-  // accionable — para no encontrarse con una lista interminable. Si después
-  // el usuario limpia filtros o los cambia, queda como los deje.
-  if(!_actMFiltroInit){
-    _actMFiltroInit=true;
-    _msState['act-m-estado']=new Set(['Pendiente']);
-    const accSel=document.getElementById('act-m-accionable');
-    if(accSel)accSel.value='si';
-  }
+  _actMFiltroInit=true;
   const q=(document.getElementById('act-m-search')?.value||'').toLowerCase();
   const fAccionable=document.getElementById('act-m-accionable')?.value||'';
+  const fCreadaDesde=document.getElementById('act-m-creada-desde')?.value||'';
+  const fCreadaHasta=document.getElementById('act-m-creada-hasta')?.value||'';
   const fRealDesde=document.getElementById('act-m-real-desde')?.value||'';
   const fRealHasta=document.getElementById('act-m-real-hasta')?.value||'';
   const fPlanDesde=document.getElementById('act-m-plan-desde')?.value||'';
@@ -5062,7 +5329,11 @@ function renderActividadesMaster(){
   DB.relevamientos.forEach(r=>{if(r.cultivo)cultSet.add(baseCultivo(r.cultivo));});
   msRender('act-m-cult',[...cultSet].filter(Boolean).sort().map(c=>({value:c,label:c})),'Cultivo',()=>renderActividadesMaster());
   const fCults=msValues('act-m-cult');
-  const tipoOpts=[...Object.keys(ACT_TIPOS)].map(t=>({value:t,label:t}));
+  // Aplicación y Relevamiento primero (son las más usadas) — y sin los tipos de
+  // evento climático viejos (Incendio/Granizo/Inundación/Helada), que ya no se
+  // pueden crear desde ningún lado; si aparecen en datos viejos igual se ven bien.
+  const TIPO_ORDEN=['Aplicación','Relevamiento','Siembra','Cosecha','Laboreo mecánico','Fertilización','Riego','Otro'];
+  const tipoOpts=TIPO_ORDEN.filter(t=>ACT_TIPOS[t]).map(t=>({value:t,label:t}));
   msRender('act-m-tipo',tipoOpts,'Tipo',()=>renderActividadesMaster());
   const fTipos=msValues('act-m-tipo');
   msRender('act-m-estado',[{value:'Pendiente',label:'🕒 Pendiente'},{value:'Realizada',label:'✅ Realizada'},{value:'Descartada',label:'🚫 Descartada'}],'Estado',()=>renderActividadesMaster());
@@ -5073,6 +5344,28 @@ function renderActividadesMaster(){
   // en los hechos, lo más urgente de la semana, así que conviene que aparezcan
   // juntos sin tener que tildar los tres a mano.
   const fUrgsExpandido=fUrgs.includes('estasemana')?[...new Set([...fUrgs,'vencida','hoy'])]:fUrgs;
+
+  // Referencia corta de qué hay filtrado — así no hace falta adivinar qué
+  // significa el número de resultados.
+  const resumenBar=document.getElementById('act-m-filtro-resumen');
+  if(resumenBar){
+    const corto=(arr,nombres)=>{const a=arr.slice(0,2).map(v=>nombres?nombres(v):v);return a.join(', ')+(arr.length>2?` (+${arr.length-2})`:'');};
+    const partes=[];
+    if(q)partes.push(`"${q}"`);
+    if(fClis.length)partes.push('Cliente: '+corto(fClis,id=>DB.clientes.find(c=>c.id===id)?.nombre||'?'));
+    if(fCampos.length)partes.push('Campo: '+corto(fCampos,id=>DB.campos.find(c=>c.id===id)?.nombre||'?'));
+    if(fLotes.length)partes.push('Lote: '+corto(fLotes,id=>DB.lotes.find(l=>l.id===id)?.nombre||'?'));
+    if(fCults.length)partes.push('Cultivo: '+corto(fCults));
+    if(fTipos.length)partes.push('Tipo: '+corto(fTipos));
+    if(fEstados.length)partes.push('Estado: '+corto(fEstados));
+    if(fUrgs.length)partes.push('Vencimiento: '+corto(fUrgs,k=>URGENCIA_LABELS[k]||k));
+    if(fAccionable)partes.push('Accionable: '+(fAccionable==='si'?'Sí':'No'));
+    if(fCreadaDesde||fCreadaHasta)partes.push(`Creación: ${fCreadaDesde||'…'} a ${fCreadaHasta||'…'}`);
+    if(fRealDesde||fRealHasta)partes.push(`Realización: ${fRealDesde||'…'} a ${fRealHasta||'…'}`);
+    if(fPlanDesde||fPlanHasta)partes.push(`Inicio/límite: ${fPlanDesde||'…'} a ${fPlanHasta||'…'}`);
+    if(partes.length){resumenBar.style.display='block';resumenBar.innerHTML='🔎 '+partes.join(' · ');}
+    else resumenBar.style.display='none';
+  }
 
   // Unificar actividades reales + relevamientos (con o sin realizar) como renglones de una sola lista
   let filas=(DB.actividades||[]).filter(a=>a.tipo!=='Relevamiento'&&!a.borrado).map(a=>{
@@ -5085,7 +5378,7 @@ function renderActividadesMaster(){
       loteId:a.loteId,loteNombre:l?.nombre||a.loteId,campoNombre:campo?.nombre||'—',clienteNombre:cli?.nombre||'—',
       clienteId:a.clienteId,campoId:a.campoId,cultivo:a.campaña?getCultivoDeLote(a.loteId,a.campaña):'',
       campaña:a.campaña,obs:a.obs,relevId:a.relevId,sort:a.fecha||a.fechaFin||'0000',
-      creada:a.createdAt?new Date(a.createdAt).toISOString().slice(0,10):''
+      creada:fechaLocalDeTs(a.createdAt),creadaTs:a.createdAt||0
     };
   });
   const filasRelev=DB.relevamientos.filter(r=>r.estado!=='Borrador'&&!r.borrado).map(r=>{
@@ -5102,7 +5395,7 @@ function renderActividadesMaster(){
       // se completa en vivo con el cultivo que el lote tiene cargado ahora mismo.
       cultivo:baseCultivo(r.cultivo||getCultivoDeLote(r.loteId,r.campaña)||''),
       campaña:r.campaña,obs:'',relevId:r.id,sort:r.fecha||r.fechaInicio||r.fechaLimite||'0000',
-      creada:r.createdAt?new Date(r.createdAt).toISOString().slice(0,10):'',
+      creada:fechaLocalDeTs(r.createdAt),creadaTs:r.createdAt||0,
       actividadLigada:tieneAplic?{id:tieneAplic.id,tipo:tieneAplic.tipo,estado:estadoDe(tieneAplic)}:null
     };
   });
@@ -5122,6 +5415,8 @@ function renderActividadesMaster(){
     if(u&&fUrgsExpandido.length&&!fUrgsExpandido.includes(u.k))return false;
     if(fAccionable==='si'&&(!u||!u.accionable))return false;
     if(fAccionable==='no'&&(!u||u.accionable))return false;
+    if(fCreadaDesde&&(f.creada||'')<fCreadaDesde)return false;
+    if(fCreadaHasta&&(f.creada||'')>fCreadaHasta)return false;
     if(fRealDesde||fRealHasta){
       // Sin fecha de realización = todavía no se hizo = "gris", no matchea nunca
       // este filtro (antes caía en la fecha de creación, que no es lo mismo).
@@ -5147,7 +5442,7 @@ function renderActividadesMaster(){
   // Orden dentro de cada grupo (o de toda la tabla si no hay agrupamiento)
   const colKey={
     tipo:f=>f.tipo,lote:f=>f.loteNombre,cliente:f=>f.clienteNombre,cultivo:f=>f.cultivo||'',
-    creada:f=>f.creada||'',inicio:f=>f.fecha||'',limite:f=>f.fechaFin||'',realizacion:f=>f.fechaRealizacion||'',
+    creada:f=>f.creadaTs||0,inicio:f=>f.fecha||'',limite:f=>f.fechaFin||'',realizacion:f=>f.fechaRealizacion||'',
     estado:f=>f.estado,urgencia:f=>{const u=urgenciaActividad({estado:f.estado,fecha:f.fecha,fechaFin:f.fechaFin});return u?URGENCIA_ORDEN[u.k]:9;}
   };
   const getKey=colKey[_actMSort.col]||(f=>f.sort);
@@ -5191,7 +5486,7 @@ function renderActividadesMaster(){
     const estadoBadge=f.estado==='Realizada'?'<span class="badge bg-green">✅ Realizada</span>'
       :f.estado==='Descartada'?'<span class="badge bg-gray">🚫 Descartada</span>'
       :'<span class="badge bg-blue">🕒 Pendiente</span>';
-    const fechaRealCell=`<input type="date" class="fi" style="font-size:10px;padding:2px 3px;width:100px" value="${f.fechaRealizacion||''}" onchange="${f.esRelev?`actMEditarFechaRealizacion('${f.id}',true,this.value)`:`actMEditarFechaRealizacion('${f.id}',false,this.value)`}">`;
+    const fechaRealCell=`<input type="date" class="fi" style="font-size:10px;padding:2px 3px;width:86px" value="${f.fechaRealizacion||''}" onchange="${f.esRelev?`actMEditarFechaRealizacion('${f.id}',true,this.value)`:`actMEditarFechaRealizacion('${f.id}',false,this.value)`}">`;
     const loteLink=`<a href="#" onclick="event.preventDefault();navTo('lote',{loteId:'${f.loteId}',cliId:'${f.clienteId}',campoId:'${f.campoId}'})" style="color:var(--accent);font-weight:500">${f.loteNombre}</a>`;
     // Indicador: este relevamiento ¿ya tiene una actividad (ej. Aplicación) vinculada y viva?
     const ligadaBadge=(f.esRelev&&f.actividadLigada)?` <a href="#" onclick="event.preventDefault();openModalActividad(null,null,null,'${f.actividadLigada.id}')" title="Ir a la actividad vinculada"><span class="badge ${f.actividadLigada.estado==='Realizada'?'bg-green':'bg-blue'}" style="font-size:9px">${(ACT_TIPOS[f.actividadLigada.tipo]||{}).icono||'📌'} ${f.actividadLigada.tipo}</span></a>`:'';
@@ -5213,33 +5508,33 @@ function renderActividadesMaster(){
     const chk=`<input type="checkbox" ${_actMSelected.has(f.id)?'checked':''} onchange="actMToggleSel('${f.id}',${f.esRelev},this.checked)">`;
     const celdas=[
       {k:'chk',w:28,html:`<td class="ph">${chk}</td>`},
-      {k:'tipo',w:125,html:`<td style="font-size:12px">${f.icono} ${f.tipo}${ligadaBadge}${f.relevId&&!f.esRelev?` <a href="#" onclick="event.preventDefault();editRelevFromMaster('${f.relevId}')" title="Ver relevamiento de origen" style="font-size:10px">🔗</a>`:''}</td>`},
-      {k:'lote',w:105,html:`<td>${loteLink}</td>`},
-      {k:'cliente',w:140,html:`<td style="font-size:12px">${f.clienteNombre} <span class="muted">— ${f.campoNombre}</span></td>`},
-      {k:'creada',w:70,html:`<td class="mono muted" style="font-size:10px">${f.creada||'—'}</td>`},
-      {k:'cultivo',w:78,html:`<td>${f.cultivo?`<span class="badge bg-amber">${f.cultivo}</span>`:'<span class="muted">—</span>'}</td>`},
-      {k:'inicio',w:100,html:`<td><input type="date" class="fi" style="font-size:10px;padding:2px 3px;width:95px" value="${f.fecha||''}" onchange="actMEditarFecha('${f.id}',${f.esRelev},'inicio',this.value)"></td>`},
-      {k:'limite',w:100,html:`<td><input type="date" class="fi" style="font-size:10px;padding:2px 3px;width:95px" value="${f.fechaFin||''}" onchange="actMEditarFecha('${f.id}',${f.esRelev},'limite',this.value)"></td>`},
-      {k:'realizacion',w:100,html:`<td style="background:var(--accent-bg)">${fechaRealCell}</td>`},
-      {k:'urgencia',w:110,html:`<td style="font-size:11px">${u?`<span class="${u.accionable?'':'muted'}">${u.icono} ${u.texto}</span>`:'—'}</td>`},
-      {k:'estado',w:95,html:`<td>${estadoBadge}</td>`},
-      {k:'acciones',w:120,html:`<td class="rf ph">${acciones}</td>`},
+      {k:'tipo',w:115,html:`<td style="font-size:12px">${f.icono} ${f.tipo}${ligadaBadge}${f.relevId&&!f.esRelev?` <a href="#" onclick="event.preventDefault();editRelevFromMaster('${f.relevId}')" title="Ver relevamiento de origen" style="font-size:10px">🔗</a>`:''}</td>`},
+      {k:'lote',w:95,html:`<td>${loteLink}</td>`},
+      {k:'cliente',w:125,html:`<td style="font-size:12px">${f.clienteNombre} <span class="muted">— ${f.campoNombre}</span></td>`},
+      {k:'creada',w:68,html:`<td class="mono muted" style="font-size:10px">${f.creada||'—'}</td>`},
+      {k:'cultivo',w:72,html:`<td>${f.cultivo?`<span class="badge bg-amber">${f.cultivo}</span>`:'<span class="muted">—</span>'}</td>`},
+      {k:'inicio',w:92,html:`<td><input type="date" class="fi" style="font-size:10px;padding:2px 3px;width:86px" value="${f.fecha||''}" onchange="actMEditarFecha('${f.id}',${f.esRelev},'inicio',this.value)"></td>`},
+      {k:'limite',w:92,html:`<td><input type="date" class="fi" style="font-size:10px;padding:2px 3px;width:86px" value="${f.fechaFin||''}" onchange="actMEditarFecha('${f.id}',${f.esRelev},'limite',this.value)"></td>`},
+      {k:'realizacion',w:92,html:`<td style="background:var(--accent-bg)">${fechaRealCell}</td>`},
+      {k:'urgencia',w:100,html:`<td style="font-size:11px">${u?`<span class="${u.accionable?'':'muted'}">${u.icono} ${u.texto}</span>`:'—'}</td>`},
+      {k:'estado',w:90,html:`<td>${estadoBadge}</td>`},
+      {k:'acciones',w:115,html:`<td class="rf ph">${acciones}</td>`},
     ];
     return`<tr>${celdas.filter(c=>!ocultarCol[c.k]).map(c=>c.html).join('')}</tr>`;
   };
   const columnasHead=[
     {k:'chk',w:28,html:'<th class="ph"></th>'},
-    {k:'tipo',w:125,html:thS('Tipo','tipo')},
-    {k:'lote',w:105,html:thS('Lote','lote')},
-    {k:'cliente',w:140,html:thS('Cliente / Campo','cliente')},
-    {k:'creada',w:70,html:thS('Creada','creada')},
-    {k:'cultivo',w:78,html:thS('Cultivo','cultivo')},
-    {k:'inicio',w:100,html:thS('Fecha inicio','inicio')},
-    {k:'limite',w:100,html:thS('Fecha límite','limite')},
-    {k:'realizacion',w:100,html:thS('Realización','realizacion')},
-    {k:'urgencia',w:110,html:thS('Vencimiento','urgencia')},
-    {k:'estado',w:95,html:thS('Estado','estado')},
-    {k:'acciones',w:120,html:'<th class="ph"></th>'},
+    {k:'tipo',w:115,html:thS('Tipo','tipo')},
+    {k:'lote',w:95,html:thS('Lote','lote')},
+    {k:'cliente',w:125,html:thS('Cliente / Campo','cliente')},
+    {k:'creada',w:68,html:thS('Creada','creada')},
+    {k:'cultivo',w:72,html:thS('Cultivo','cultivo')},
+    {k:'inicio',w:92,html:thS('Fecha inicio','inicio')},
+    {k:'limite',w:92,html:thS('Fecha límite','limite')},
+    {k:'realizacion',w:92,html:thS('Realización','realizacion')},
+    {k:'urgencia',w:100,html:thS('Vencimiento','urgencia')},
+    {k:'estado',w:90,html:thS('Estado','estado')},
+    {k:'acciones',w:115,html:'<th class="ph"></th>'},
   ].filter(c=>!ocultarCol[c.k]);
   const colsHTML=columnasHead.map(c=>`<col style="width:${c.w}px">`).join('');
   const headRow=`<tr>${columnasHead.map(c=>c.html).join('')}</tr>`;
@@ -5271,13 +5566,25 @@ function renderActividadesMaster(){
       const label=labelDeGrupo(k,criterio);
       const lotesDelGrupo=new Set(itemsGrupo.map(f=>f.loteId)).size;
       const subtxt=(criterio==='campo'||criterio==='cliente')?` — ${lotesDelGrupo} lote(s)`:'';
+      const idsGrupo=itemsGrupo.map(f=>f.id+':'+(f.esRelev?1:0)).join(',');
+      const todosSel=itemsGrupo.every(f=>_actMSelected.has(f.id));
       return `<details open style="margin-left:${margen}px;${profundidad>0?'border-left:2px solid var(--border);padding-left:8px':''}">
-        <summary style="font-size:${tam}px;font-weight:600;color:${profundidad===0?'var(--text2)':'var(--text3)'};margin:${profundidad===0?14:8}px 0 6px;cursor:pointer;list-style:revert">${label} <span class="muted" style="font-weight:400">(${itemsGrupo.length})${subtxt}</span></summary>
+        <summary style="font-size:${tam}px;font-weight:600;color:${profundidad===0?'var(--text2)':'var(--text3)'};margin:${profundidad===0?14:8}px 0 6px;cursor:pointer;list-style:revert">
+          <input type="checkbox" ${todosSel?'checked':''} style="margin-right:4px;vertical-align:middle" onclick="event.stopPropagation()" onchange="actMToggleGrupo('${idsGrupo}',this.checked)" title="Tildar/destildar todos los de este grupo">
+          ${label} <span class="muted" style="font-weight:400">(${itemsGrupo.length})${subtxt}</span>
+        </summary>
         ${renderNivel(itemsGrupo,resto,profundidad+1)}
       </details>`;
     }).join('');
   };
   cont.innerHTML=renderNivel(filas,niveles,0);
+  // La barra de selección se sincroniza acá, una sola vez, para que quede bien
+  // sea cual sea el camino que cambió la selección (fila suelta, o el checkbox
+  // del encabezado de un grupo entero).
+  const bar=document.getElementById('act-m-selbar');
+  if(bar)bar.style.display=_actMSelected.size?'flex':'none';
+  const cnt=document.getElementById('act-m-selcount');
+  if(cnt)cnt.textContent=_actMSelected.size;
 }
 function editRelevFromMaster(relevId){
   openModalRelev(relevId);
@@ -5291,6 +5598,20 @@ function actMToggleSel(id,esRelev,checked){
   if(bar)bar.style.display=_actMSelected.size?'flex':'none';
   const cnt=document.getElementById('act-m-selcount');
   if(cnt)cnt.textContent=_actMSelected.size;
+}
+function actMDeseleccionarTodo(){
+  _actMSelected.clear();
+  const bar=document.getElementById('act-m-selbar');if(bar)bar.style.display='none';
+  renderActividadesMaster();
+}
+function actMToggleGrupo(str,checked){
+  str.split(',').forEach(pair=>{
+    const[id,esRelev]=pair.split(':');
+    if(!id)return;
+    if(checked)_actMSelected.set(id,esRelev==='1');
+    else _actMSelected.delete(id);
+  });
+  renderActividadesMaster();
 }
 function actMGenerarOT(){
   if(!_actMSelected.size)return;
@@ -5314,30 +5635,114 @@ function actMAplicarMasivo(){
   if(!_actMSelected.size)return;
   const nIni=document.getElementById('act-m-bulk-inicio')?.value||'';
   const nLim=document.getElementById('act-m-bulk-limite')?.value||'';
-  const nEst=document.getElementById('act-m-bulk-estado')?.value||'';
-  if(!nIni&&!nLim&&!nEst){mostrarSnackbar('⚠️ Elegí al menos un campo para aplicar','amber');return;}
+  const nReal=document.getElementById('act-m-bulk-realizacion')?.value||'';
+  const nDescartar=document.getElementById('act-m-bulk-descartar')?.checked||false;
+  if(!nIni&&!nLim&&!nReal&&!nDescartar){mostrarSnackbar('⚠️ Elegí al menos un campo para aplicar','amber');return;}
   let cambios=0;
   _actMSelected.forEach((esRelev,id)=>{
     if(esRelev){
       const r=DB.relevamientos.find(x=>x.id===id);if(!r)return;
       if(nIni)r.fechaInicio=nIni;
       if(nLim)r.fechaLimite=nLim;
-      if(nEst==='Realizada'&&!r.fecha)r.fecha=nIni||hoyLocal();
-      if(nEst==='Pendiente')r.fecha=null;
+      if(nReal)r.fecha=nReal;
       cambios++;
     } else {
       const a=DB.actividades.find(x=>x.id===id);if(!a)return;
       if(nIni)a.fecha=nIni;
       if(nLim)a.fechaFin=nLim;
-      if(nEst){a.estado=nEst;a.fechaRealizacion=nEst==='Realizada'?(a.fechaRealizacion||hoyLocal()):null;}
+      if(nReal){a.fechaRealizacion=nReal;a.estado='Realizada';}
+      if(nDescartar){a.estado='Descartada';a.fechaRealizacion=null;}
       cambios++;
     }
   });
   save();
   document.getElementById('act-m-bulk-inicio').value='';
   document.getElementById('act-m-bulk-limite').value='';
-  document.getElementById('act-m-bulk-estado').value='';
-  mostrarSnackbar(`✅ ${cambios} actividad(es) actualizada(s)`);
+  document.getElementById('act-m-bulk-realizacion').value='';
+  document.getElementById('act-m-bulk-descartar').checked=false;
+  mostrarSnackbar(`✅ ${cambios} actualizada(s)`);
+  renderActividadesMaster();
+}
+function actMEliminarMasivo(){
+  if(!_actMSelected.size)return;
+  const n=_actMSelected.size;
+  confirmarAccion(`¿Eliminar ${n} seleccionado(s)? Quedan 30 días en la Papelera por si hace falta recuperarlos.`,()=>{
+    let cambios=0;
+    _actMSelected.forEach((esRelev,id)=>{
+      if(esRelev){const r=DB.relevamientos.find(x=>x.id===id);if(r){r.borrado=true;r.fechaBorrado=hoyLocal();r.borradoTs=Date.now();cambios++;}}
+      else{const a=DB.actividades.find(x=>x.id===id);if(a){a.borrado=true;a.fechaBorrado=hoyLocal();a.borradoTs=Date.now();cambios++;}}
+    });
+    save();
+    _actMSelected.clear();
+    const bar=document.getElementById('act-m-selbar');if(bar)bar.style.display='none';
+    mostrarSnackbar(`✅ ${cambios} eliminado(s) — quedan en la Papelera`);
+    renderActividadesMaster();
+  });
+}
+// Una actividad independiente por cada LOTE distinto entre los seleccionados —
+// nunca una sola pegada a todos, porque cada una tiene que poder quedar
+// Pendiente o Realizada por su cuenta (ej: se aplicó en 2 lotes, no en los otros 2).
+function actMCrearParaSeleccionados(){
+  if(!_actMSelected.size)return;
+  const tipo=document.getElementById('act-m-bulk-crear-tipo').value;
+  if(!tipo){mostrarSnackbar('⚠️ Elegí un tipo de actividad','amber');return;}
+  const fIni=document.getElementById('act-m-bulk-crear-fecha-ini')?.value||null;
+  const fLim=document.getElementById('act-m-bulk-crear-fecha-lim')?.value||null;
+  // Por lote: si alguno de los seleccionados para ese lote es un Relevamiento,
+  // se guarda su id — así la actividad nueva queda vinculada de verdad (se ve
+  // el link en los dos sentidos, y si es Aplicación se lleva la foto del diagnóstico).
+  const lotesUnicos=new Map(); // loteId -> {clienteId,campoId,relevId}
+  _actMSelected.forEach((esRelev,id)=>{
+    let loteId,clienteId,campoId,relevId=null;
+    if(esRelev){
+      const r=DB.relevamientos.find(x=>x.id===id);if(!r)return;
+      loteId=r.loteId;clienteId=r.clienteId;campoId=r.campoId;relevId=r.id;
+    } else {
+      const a=DB.actividades.find(x=>x.id===id);if(!a)return;
+      loteId=a.loteId;clienteId=a.clienteId;campoId=a.campoId;relevId=a.relevId||null;
+    }
+    if(!loteId)return;
+    const previo=lotesUnicos.get(loteId);
+    // Si ya había un registro de este lote sin relevId y este sí trae uno, priorizarlo
+    if(!previo||(!previo.relevId&&relevId))lotesUnicos.set(loteId,{clienteId,campoId,relevId});
+  });
+  let count=0;
+  lotesUnicos.forEach(({clienteId,campoId,relevId},loteId)=>{
+    const lote=DB.lotes.find(l=>l.id===loteId);if(!lote)return;
+    const origen=relevId?DB.relevamientos.find(x=>x.id===relevId):null;
+    if(tipo==='Relevamiento'){
+      const cli=DB.clientes.find(c=>c.id===clienteId);
+      const campo=DB.campos.find(c=>c.id===campoId);
+      DB.relevamientos.push({
+        id:uid(),fecha:null,fechaInicio:fIni,fechaLimite:fLim,campaña:origen?.campaña||getCampanaActiva(),
+        cultivo:'',clienteId,campoId,loteId,
+        clienteNombre:cli?.nombre||'',campoNombre:campo?.nombre||'',loteNombre:lote.nombre,loteHa:lote.ha||0,
+        malezas:[],productos:[],obs:'',estado:'Relevado',createdAt:Date.now(),
+        origenRelevId:relevId||undefined
+      });
+    } else {
+      const actObj={
+        id:uid(),loteId,clienteId,campoId,
+        tipo,fecha:fIni,fechaFin:fLim,campaña:origen?.campaña||getCampanaActiva(),obs:'',datos:{},
+        estado:'Pendiente',fechaRealizacion:null,relevId:relevId||null,createdAt:Date.now()
+      };
+      if(tipo==='Aplicación'){
+        // Vinculada a un relevamiento real: se lleva su foto de diagnóstico y
+        // productos, igual que al generarla desde adentro de ese relevamiento.
+        actObj.diagnostico=origen?(origen.malezas||[]).map(m=>({...m})):[];
+        actObj.cultivoSnapshot=origen?.cultivo||'';
+        actObj.productos=origen?(origen.productos||[]).map(p=>({...p})):[];
+        actObj.historial=[];
+      }
+      DB.actividades.push(actObj);
+    }
+    count++;
+  });
+  save();
+  document.getElementById('act-m-bulk-crear-tipo').value='';
+  document.getElementById('act-m-bulk-crear-fecha-ini').value='';
+  document.getElementById('act-m-bulk-crear-fecha-lim').value='';
+  mostrarSnackbar(`✅ ${count} actividad(es) "${tipo}" creada(s), una por lote`);
   renderActividadesMaster();
 }
 // Edición directa desde la tabla maestra (celdas de fecha y de estado)
@@ -5414,7 +5819,7 @@ function renderActItem(item,loteId,cliId,campoId){
     const malStr=(r.malezas||[]).map(m=>{const a=calcAlerta(m.densidad,m.estadio,umbralDe(m.nombre));return`<span class="mal-pill">${diagIcono(catDeM(m))} ${a?a.icono+' ':''}<em>${m.nombre}</em>${m.pct?' '+m.pct+'%':''}</span>`;}).join('')||'Sin diagnósticos';
     const prodStr=(r.productos||[]).map(p=>{const pr=DB.productos.find(x=>x.id===p.productoId);return pr?`<span class="badge ${TC[pr.tipo]||'bg-gray'}" style="font-size:10px">${pr.nombre}</span>`:''}).join('')||'Sin productos';
     const estEf=estadoEfectivo(r);
-    const actLigada=(DB.actividades||[]).find(a=>a.relevId===r.id);
+    const actLigada=(DB.actividades||[]).find(a=>a.relevId===r.id&&!a.borrado);
     const ligadaLink=actLigada?` <a href="#" onclick="event.preventDefault();openModalActividad(null,null,null,'${actLigada.id}')" title="Ir a la actividad vinculada"><span class="badge ${estadoDe(actLigada)==='Realizada'?'bg-green':'bg-blue'}" style="font-size:9px">${(ACT_TIPOS[actLigada.tipo]||{}).icono||'📌'} ${actLigada.tipo}</span></a>`:'';
     extra=`<div style="margin-top:6px;font-size:11px">
       <div style="margin-bottom:3px">🌿 ${malStr}</div>
@@ -5590,7 +5995,7 @@ function renderLoteDetail(loteId,cliId,campoId){
             </div>`;
           })()}
         </div>
-        <button class="btn bsm ph" style="background:#fff;color:var(--accent);font-weight:700;border:none" onclick="openModalActividad('${loteId}','${cliId}','${campoId}')">+ Actividad</button>
+        <button class="btn bsm ph" style="background:#fff;color:var(--accent);font-weight:700;border:none" onclick="abrirModalActividadMasiva(['${loteId}'])">+ Actividad</button>
         <button class="btn bsm mla ph" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.3)" onclick="window._actFiltroTipo='';window._actFiltroCamp='';navTo('${_prevPage}')">← Volver</button>
       </div>
     </div>
@@ -5601,7 +6006,7 @@ function renderLoteDetail(loteId,cliId,campoId){
       <div class="ch">
         <span class="ct">📅 Historial del lote</span>
         <div class="rf ph" style="gap:6px">
-          <button class="btn bs bsm" onclick="openModalActividad('${loteId}','${cliId}','${campoId}')">+ Actividad</button>
+          <button class="btn bs bsm" onclick="abrirModalActividadMasiva(['${loteId}'])">+ Actividad</button>
         </div>
       </div>
       <div class="cb">
