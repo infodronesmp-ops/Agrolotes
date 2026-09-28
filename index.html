@@ -312,6 +312,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
     <button class="nb" onclick="navTo('tablero')"><span>🗺</span> Tablero de Lotes</button>
     <button class="nb" onclick="navTo('relevamientos')"><span>🔍</span> Relevamientos</button>
     <button class="nb" onclick="navTo('actividades')"><span>🗓️</span> Actividades</button>
+    <button class="nb" onclick="navTo('planificacion')"><span>📊</span> Planificación</button>
     <button class="nb" onclick="navTo('papelera')"><span>🗑️</span> Papelera</button>
     <button class="nb" onclick="navTo('ot')"><span>📋</span> Órdenes de trabajo</button>
   </div>
@@ -679,6 +680,21 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
     </div>
 
     <!-- ACTIVIDADES (maestra: actividades + relevamientos) -->
+    <!-- PLANIFICACIÓN -->
+    <div class="page" id="page-planificacion">
+      <div class="filters ph" style="gap:6px;flex-wrap:wrap;margin-bottom:10px;align-items:center">
+        <span class="muted" style="font-size:11px">Campaña</span>
+        <select id="plan-camp" class="fi" style="width:130px" onchange="_planCamp=this.value;renderPlanificacion()"></select>
+        <select id="plan-cli" class="fi" style="width:160px" onchange="renderPlanificacion()"><option value="">Todos los clientes</option></select>
+        <select id="plan-cult" class="fi" style="width:150px" onchange="renderPlanificacion()"><option value="">Todos los cultivos</option></select>
+        <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer"><input type="checkbox" id="plan-falt" onchange="renderPlanificacion()"> Solo lotes con casilleros vacíos</label>
+        <button class="btn bs bsm" onclick="planLimpiar()">Limpiar</button>
+      </div>
+      <div id="plan-aviso" class="ph" style="display:none;font-size:12px;background:var(--bg2);border-radius:var(--r);padding:8px 12px;margin-bottom:10px"></div>
+      <div class="ph" style="font-size:11px;color:var(--text3);margin-bottom:8px">🟢 realizada · 🔵 pendiente · 🔴 pendiente y vencida · cada pastilla es una actividad (clic para abrirla) · "+ crear" en un casillero vacío la genera con el lote y la campaña ya cargados</div>
+      <div class="card"><div class="cb" id="plan-body"></div></div>
+    </div>
+
     <!-- PAPELERA -->
     <div class="page" id="page-papelera">
       <div class="ph" style="margin-bottom:10px;font-size:12px;color:var(--text3)">Lo que borrás queda acá 30 días por si hace falta recuperarlo — después se borra solo, para siempre.</div>
@@ -824,11 +840,11 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
           <label style="display:flex;align-items:center;gap:4px;font-size:11px">Fecha inicio <input type="date" id="act-m-bulk-inicio" class="fi" style="width:120px"></label>
           <label style="display:flex;align-items:center;gap:4px;font-size:11px">Fecha límite <input type="date" id="act-m-bulk-limite" class="fi" style="width:120px"></label>
           <label style="display:flex;align-items:center;gap:4px;font-size:11px;background:var(--accent-bg);padding:3px 6px;border-radius:var(--r)">📌 Fecha realización <input type="date" id="act-m-bulk-realizacion" class="fi" style="width:120px"></label>
-          <label style="display:flex;align-items:center;gap:5px;font-size:11px;cursor:pointer">
-            <input type="checkbox" id="act-m-bulk-descartar" style="width:14px;height:14px"> 🚫 Descartar
+          <label style="display:flex;align-items:center;gap:5px;font-size:11px;cursor:pointer" title="Solo actividades (no relevamientos)">
+            <input type="checkbox" id="act-m-bulk-quitar-real" style="width:14px;height:14px"> ↩ Volver a Pendiente
           </label>
           <button class="btn bp bxs" onclick="actMAplicarMasivo()">Aplicar a los seleccionados</button>
-          <span class="muted" style="font-size:10px">Dejá vacío lo que no quieras cambiar. Con fecha de realización queda Realizada. "Descartar" no aplica a relevamientos.</span>
+          <span class="muted" style="font-size:10px">Dejá vacío lo que no quieras cambiar. Con fecha de realización queda Realizada. "Volver a Pendiente" quita la fecha de realización (solo actividades, no relevamientos).</span>
         </div>
         <div class="rf" style="gap:6px;align-items:center;flex-wrap:wrap;border-top:1px solid var(--accent);padding-top:8px">
           <button class="btn bd bxs" onclick="actMEliminarMasivo()">🗑️ Eliminar seleccionados</button>
@@ -990,6 +1006,11 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
           <div class="field"><label id="tl-act-fecha-lbl">Fecha inicio <span class="muted">(opcional)</span></label><input type="date" id="tl-act-fecha" class="fi"></div>
           <div class="field"><label id="tl-act-fecha-fin-lbl">Fecha límite <span class="muted">(opcional)</span></label><input type="date" id="tl-act-fecha-fin" class="fi"></div>
         </div>
+        <div class="field" style="background:var(--accent-bg);border:1px solid var(--accent);border-radius:var(--r);padding:8px 10px">
+          <label style="color:var(--accent2);font-weight:700">📌 Fecha de realización <span class="muted" style="font-weight:400">(solo si ya se hizo)</span></label>
+          <input type="date" id="tl-act-fecha-real" class="fi">
+          <span class="muted" style="font-size:10px;display:block;margin-top:2px">Sin fecha queda Pendiente — lo normal cuando estás planificando.</span>
+        </div>
         <div class="field"><label>Campaña</label>
           <select id="tl-act-camp" class="fi"><option value="">Seleccioná...</option></select>
         </div>
@@ -1069,14 +1090,8 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
         </div>
         <div class="field" style="background:var(--accent-bg);border:1px solid var(--accent);border-radius:var(--r);padding:10px">
           <label style="color:var(--accent2);font-weight:700">📌 Fecha de realización</label>
-          <input type="date" id="act-fecha-real" class="fi" onchange="onActFechaRealChange()">
+          <input type="date" id="act-fecha-real" class="fi">
           <span class="muted" style="font-size:10px;display:block;margin-top:3px">La fecha real en la que se hizo — puede ser cualquier fecha para atrás. <strong>Con fecha cargada queda Realizada; sin fecha, Pendiente.</strong></span>
-        </div>
-        <div class="field">
-          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:500">
-            <input type="checkbox" id="act-descartada" onchange="onActDescartadaChange()" style="width:16px;height:16px">
-            🚫 Esta actividad no se va a hacer (Descartada)
-          </label>
         </div>
       </div>
     </div>
@@ -1181,7 +1196,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
     <div class="mb"><p id="confirm-generico-msg" style="font-size:13px;color:var(--text)"></p></div>
     <div class="mf">
       <button class="btn bs" onclick="_confirmGenericoNo()">Cancelar</button>
-      <button class="btn bd" onclick="_confirmGenericoSi()">Eliminar</button>
+      <button class="btn bd" id="confirm-generico-btn-si" onclick="_confirmGenericoSi()">Eliminar</button>
     </div>
   </div>
 </div>
@@ -1472,6 +1487,8 @@ function migrarAplicadosAActividades(){
     r.estado='Relevado';
     cambio=true;
   });
+  // El estado Descartada ya no existe: si quedara alguna, vuelve a Pendiente
+  (DB.actividades||[]).forEach(a=>{if(a.estado==='Descartada'){a.estado='Pendiente';a.fechaRealizacion=null;cambio=true;}});
   return cambio;
 }
 // Papelera: lo borrado queda 30 días por si hace falta restaurarlo, y después
@@ -1498,6 +1515,169 @@ function diasRestantesPapelera(fechaBorrado){
   const[y,m,d]=fechaBorrado.split('-').map(Number);
   const transcurridos=Math.floor((Date.now()-new Date(y,m-1,d).getTime())/864e5);
   return Math.max(0,30-transcurridos);
+}
+// ══ PLANIFICACIÓN ══
+// Una fila por lote, una columna por etapa del ciclo. No guarda nada propio:
+// calcula en vivo qué actividades existen en la campaña elegida y cuáles faltan.
+let _planCamp='',_planFilasCache=[];
+const PLAN_COLS=[
+  {k:'relPre',t:'Relev. pre-siembra',crear:'Relevamiento'},
+  {k:'apPre',t:'Aplic. pre-siembra',crear:'Aplicación'},
+  {k:'siembra',t:'Siembra',crear:'Siembra'},
+  {k:'relPost',t:'Relev. post-siembra',crear:'Relevamiento'},
+  {k:'apPost',t:'Aplic. post-siembra',crear:'Aplicación'},
+  {k:'cosecha',t:'Cosecha',crear:'Cosecha'},
+  {k:'otras',t:'Otras',crear:''}
+];
+// Todo lo del lote en esa campaña, con una fecha de referencia para ubicarlo
+// antes o después de la siembra (realizada > inicio > límite).
+function planItemsDeLote(loteId,camp){
+  const items=[];
+  (DB.relevamientos||[]).forEach(r=>{
+    if(r.loteId!==loteId||r.borrado||r.estado==='Borrador'||r.campaña!==camp)return;
+    items.push({esRelev:true,id:r.id,tipo:'Relevamiento',estado:r.fecha?'Realizada':'Pendiente',fecha:r.fechaInicio||null,fechaFin:r.fechaLimite||null,real:r.fecha||null});
+  });
+  (DB.actividades||[]).forEach(a=>{
+    if(a.loteId!==loteId||a.borrado||a.tipo==='Relevamiento'||a.campaña!==camp)return;
+    items.push({esRelev:false,id:a.id,tipo:a.tipo,estado:estadoDe(a),fecha:a.fecha||null,fechaFin:a.fechaFin||null,real:a.fechaRealizacion||null});
+  });
+  items.forEach(i=>{i.ref=i.real||i.fecha||i.fechaFin||'';});
+  return items;
+}
+// Relevamientos y Aplicaciones son "post" si su fecha es posterior a la primera
+// siembra del lote; sin siembra, o sin fecha, cuentan como "pre".
+function planColumnaDe(it,siembraRef){
+  if(it.tipo==='Siembra')return'siembra';
+  if(it.tipo==='Cosecha')return'cosecha';
+  if(it.tipo==='Relevamiento'||it.tipo==='Aplicación'){
+    const post=!!(siembraRef&&it.ref&&it.ref>siembraRef);
+    return(it.tipo==='Relevamiento'?'rel':'ap')+(post?'Post':'Pre');
+  }
+  return'otras';
+}
+function planPill(it){
+  let cls='bg-blue';
+  if(it.estado==='Realizada')cls='bg-green';
+  else{const u=urgenciaActividad({estado:it.estado,fecha:it.fecha,fechaFin:it.fechaFin});if(u&&u.k==='vencida')cls='bg-red';}
+  const f=it.real||it.fecha||it.fechaFin;
+  const txt=f?f.slice(8,10)+'/'+f.slice(5,7):'s/f';
+  const ico=it.tipo==='Relevamiento'||it.tipo==='Aplicación'||it.tipo==='Siembra'||it.tipo==='Cosecha'?'':((ACT_TIPOS[it.tipo]||{}).icono||'')+' ';
+  const abrir=it.esRelev?`openModalRelev('${it.id}')`:`openModalActividad(null,null,null,'${it.id}')`;
+  const tit=`${it.tipo} — ${it.estado}${it.fecha?' · inicio '+it.fecha:''}${it.fechaFin?' · límite '+it.fechaFin:''}${it.real?' · realizada '+it.real:''}`;
+  return`<a href="#" onclick="event.preventDefault();${abrir}" title="${tit}"><span class="badge ${cls}" style="font-size:10px;margin:1px">${ico}${txt}</span></a>`;
+}
+function planCrear(loteId,tipo){abrirModalActividadMasiva([loteId],tipo,_planCamp);}
+// Crear en todos los lotes visibles que tienen ese casillero vacío
+function planCrearMasivo(k){
+  const col=PLAN_COLS.find(c=>c.k===k);if(!col)return;
+  const ids=_planFilasCache.filter(f=>!f.cells[k].length).map(f=>f.l.id);
+  if(!ids.length)return;
+  abrirModalActividadMasiva(ids,col.crear,_planCamp);
+}
+function planLimpiar(){
+  ['plan-cli','plan-cult'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  const f=document.getElementById('plan-falt');if(f)f.checked=false;
+  _planCamp=getCampanaActiva();
+  renderPlanificacion();
+}
+// Actividades/relevamientos viejos que quedaron sin campaña: no aparecerían en
+// ninguna campaña, así que se avisa y se pueden asignar a la activa con un clic.
+function planSinCampana(){
+  const acts=(DB.actividades||[]).filter(a=>!a.borrado&&a.tipo!=='Relevamiento'&&!a.campaña);
+  const rels=(DB.relevamientos||[]).filter(r=>!r.borrado&&r.estado!=='Borrador'&&!r.campaña);
+  return{acts,rels,n:acts.length+rels.length};
+}
+function planAsignarCampanaActiva(){
+  const {acts,rels,n}=planSinCampana();if(!n)return;
+  const activa=getCampanaActiva();
+  confirmarAccion(`¿Asignar la campaña ${activa} a las ${n} actividad(es)/relevamiento(s) que no tienen ninguna?`,()=>{
+    acts.forEach(a=>{a.campaña=activa;});
+    rels.forEach(r=>{r.campaña=activa;});
+    save();
+    mostrarSnackbar(`✅ ${n} asignada(s) a la campaña ${activa}`);
+    renderPlanificacion();
+  },'Asignar');
+}
+// Antes de asignar a ciegas, mostrar cuál es cada una — para poder abrirla y
+// decidir a mano si corresponde, en vez de forzar la campaña activa siempre.
+function planListaSinCampana(){
+  const {acts,rels}=planSinCampana();
+  const items=[
+    ...rels.map(r=>({tipo:'Relevamiento',icono:'🔬',id:r.id,esRelev:true,lote:r.loteNombre||'?',cli:r.clienteNombre||'?',fecha:r.fecha||r.fechaInicio||r.fechaLimite||'sin fecha',creada:fechaLocalDeTs(r.createdAt)})),
+    ...acts.map(a=>{
+      const l=DB.lotes.find(x=>x.id===a.loteId),cli=DB.clientes.find(x=>x.id===a.clienteId);
+      return{tipo:a.tipo,icono:(ACT_TIPOS[a.tipo]||{}).icono||'📝',id:a.id,esRelev:false,lote:l?.nombre||'?',cli:cli?.nombre||'?',fecha:a.fechaRealizacion||a.fecha||a.fechaFin||'sin fecha',creada:fechaLocalDeTs(a.createdAt)};
+    })
+  ];
+  return`<div style="margin-top:6px">${items.map(it=>{
+    const abrir=it.esRelev?`openModalRelev('${it.id}')`:`openModalActividad(null,null,null,'${it.id}')`;
+    return`<div style="margin-top:3px"><a href="#" onclick="event.preventDefault();${abrir}" style="color:var(--accent)">${it.icono} ${it.tipo}</a> — ${it.lote} (${it.cli}) — ${it.fecha} <span class="muted">· creada ${it.creada||'?'}</span></div>`;
+  }).join('')}</div>`;
+}
+function renderPlanificacion(){
+  const cont=document.getElementById('plan-body');if(!cont)return;
+  if(!_planCamp)_planCamp=getCampanaActiva();
+  const campSel=document.getElementById('plan-camp');
+  if(campSel)campSel.innerHTML=[...(DB.campanas||[])].map(x=>`<option value="${x}"${x===_planCamp?' selected':''}>${x}</option>`).join('');
+  const selCli=document.getElementById('plan-cli'),selCult=document.getElementById('plan-cult');
+  if(selCli){const pv=selCli.value;selCli.innerHTML='<option value="">Todos los clientes</option>'+DB.clientes.slice().sort((a,b)=>a.nombre.localeCompare(b.nombre)).map(x=>`<option value="${x.id}"${x.id===pv?' selected':''}>${x.nombre}</option>`).join('');}
+  const cultDe=l=>baseCultivo(getCultivoDeLote(l.id,_planCamp))||'';
+  if(selCult){const pv=selCult.value;const cs=[...new Set(DB.lotes.map(cultDe).filter(Boolean))].sort();selCult.innerHTML='<option value="">Todos los cultivos</option>'+cs.map(x=>`<option value="${x}"${x===pv?' selected':''}>${x}</option>`).join('');}
+  const fCli=selCli?.value||'',fCult=selCult?.value||'',soloFalt=!!document.getElementById('plan-falt')?.checked;
+
+  // Aviso de lo que quedó sin campaña
+  const av=document.getElementById('plan-aviso'),sc=planSinCampana();
+  if(av){
+    if(sc.n){av.style.display='block';av.innerHTML=`⚠️ Hay <strong>${sc.n}</strong> actividad(es)/relevamiento(s) <strong>sin campaña</strong>, por eso no aparecen acá. <button class="btn bp bxs" style="margin-left:6px" onclick="planAsignarCampanaActiva()">Asignarles la campaña activa (${getCampanaActiva()})</button>${planListaSinCampana()}`;}
+    else av.style.display='none';
+  }
+
+  const filas=[];
+  DB.lotes.forEach(l=>{
+    if(fCli&&l.clienteId!==fCli)return;
+    const cult=cultDe(l);
+    if(fCult&&cult!==fCult)return;
+    const items=planItemsDeLote(l.id,_planCamp);
+    const sieRefs=items.filter(i=>i.tipo==='Siembra'&&i.ref).map(i=>i.ref).sort();
+    const siembraRef=sieRefs[0]||'';
+    const cells={};PLAN_COLS.forEach(x=>cells[x.k]=[]);
+    items.forEach(it=>cells[planColumnaDe(it,siembraRef)].push(it));
+    Object.values(cells).forEach(a=>a.sort((x,y)=>(x.ref||'9999').localeCompare(y.ref||'9999')));
+    const vacios=PLAN_COLS.filter(x=>x.k!=='otras'&&!cells[x.k].length).length;
+    if(soloFalt&&!vacios)return;
+    filas.push({l,cli:DB.clientes.find(x=>x.id===l.clienteId),campo:DB.campos.find(x=>x.id===l.campoId),cult,cells});
+  });
+  filas.sort((a,b)=>(a.cli?.nombre||'').localeCompare(b.cli?.nombre||'')||(a.campo?.nombre||'').localeCompare(b.campo?.nombre||'')||naturalCmp(a.l.nombre,b.l.nombre));
+  _planFilasCache=filas;
+  if(!filas.length){cont.innerHTML='<div class="empty"><div class="empty-icon">📊</div><div class="empty-t">No hay lotes con esos filtros</div></div>';return;}
+
+  const celda=(f,col)=>{
+    const arr=f.cells[col.k];
+    const add=`<a href="#" onclick="event.preventDefault();planCrear('${f.l.id}','${col.crear}')" title="${arr.length?'Agregar otra':'Crear'}" style="font-size:11px;color:var(--accent)">${arr.length?'＋':'+ crear'}</a>`;
+    if(!arr.length)return`<td style="padding:5px 6px;${col.k==='otras'?'':'background:var(--bg2)'}">${add}</td>`;
+    const mas=arr.length>3?` <a href="#" onclick="event.preventDefault();navTo('lote',{loteId:'${f.l.id}',cliId:'${f.l.clienteId}',campoId:'${f.l.campoId}'})" style="font-size:10px" title="Ver todas en la ficha del lote">+${arr.length-3} más</a>`:'';
+    return`<td style="padding:5px 6px">${arr.slice(0,3).map(planPill).join('')}${mas} ${add}</td>`;
+  };
+  const th=`<th style="text-align:left;padding:6px 8px;min-width:120px">Lote</th><th style="text-align:left;padding:6px 8px">Cultivo</th>`
+    +PLAN_COLS.map(col=>{
+      const faltan=col.k==='otras'?0:filas.filter(f=>!f.cells[col.k].length).length;
+      return`<th style="text-align:left;padding:6px 8px;min-width:118px;vertical-align:top">${col.t}${faltan?`<div><button class="btn bs bxs" style="margin-top:3px;font-size:10px" onclick="planCrearMasivo('${col.k}')" title="Abre el alta con los ${faltan} lotes que tienen este casillero vacío">+ crear en ${faltan}</button></div>`:''}</th>`;
+    }).join('');
+  let ultimo='',cuerpo='';
+  filas.forEach(f=>{
+    const g=`${f.cli?.nombre||'—'} › ${f.campo?.nombre||'—'}`;
+    if(g!==ultimo){ultimo=g;cuerpo+=`<tr><td colspan="${PLAN_COLS.length+2}" style="padding:8px 8px 4px;font-weight:600;font-size:12px;color:var(--text2);border-top:1px solid var(--border)">👤 ${f.cli?.nombre||'—'} <span class="muted" style="font-weight:400">›</span> 📍 ${f.campo?.nombre||'—'}</td></tr>`;}
+    cuerpo+=`<tr><td style="padding:5px 8px"><a href="#" onclick="event.preventDefault();navTo('lote',{loteId:'${f.l.id}',cliId:'${f.l.clienteId}',campoId:'${f.l.campoId}'})" style="color:var(--accent);font-weight:500">${f.l.nombre}</a></td>`
+      +`<td style="padding:5px 8px">${f.cult?`<span class="badge bg-amber">${f.cult}</span>`:'<span class="muted">—</span>'}</td>`
+      +PLAN_COLS.map(col=>celda(f,col)).join('')+`</tr>`;
+  });
+  const tot=`<tr style="border-top:2px solid var(--border);background:var(--bg2)"><td style="padding:6px 8px;font-weight:600" colspan="2">Totales (${filas.length} lotes)</td>`
+    +PLAN_COLS.map(col=>{
+      const con=filas.filter(f=>f.cells[col.k].length).length;
+      const real=filas.reduce((s,f)=>s+f.cells[col.k].filter(i=>i.estado==='Realizada').length,0);
+      return`<td style="padding:6px 8px;font-size:11px">${con}/${filas.length} lotes${real?` · ${real} ✅`:''}</td>`;
+    }).join('')+`</tr>`;
+  cont.innerHTML=`<div class="tw"><table style="width:100%;border-collapse:collapse"><thead><tr>${th}</tr></thead><tbody>${cuerpo}${tot}</tbody></table></div>`;
 }
 let _papSort={col:'borrado',dir:-1};
 function papSortBy(col){
@@ -1709,6 +1889,7 @@ const PM={
   malezas:{t:'Diagnósticos',s:'Catálogo de diagnósticos: malezas, enfermedades, plagas y más'},
   diagnostico:{t:'Diagnóstico',s:'Presencia por campaña, cliente, campo y lote'},
   actividades:{t:'Actividades',s:'Relevamientos y actividades de todos los lotes — realizadas y programadas'},
+  planificacion:{t:'Planificación',s:'Qué tiene cada lote en la campaña — y qué falta cargar'},
   papelera:{t:'Papelera',s:'Relevamientos y actividades eliminados — se guardan 30 días por si hace falta restaurarlos'},
 };
 let _prevPage='dashboard';
@@ -1736,6 +1917,7 @@ function navTo(id,params={}){
   if(id==='lote')         renderLoteDetail(params.loteId,params.cliId,params.campoId);
   if(id==='diagnostico')  renderDiagnosticoDetail(params.malId);
   if(id==='actividades')  renderActividadesMaster();
+  if(id==='planificacion')renderPlanificacion();
   if(id==='papelera')     renderPapelera();
 }
 
@@ -1787,7 +1969,7 @@ function desprenderActDelRelev(){
     document.getElementById('act-origen-info').style.display='none';
     mostrarSnackbar('✅ Actividad desadjuntada — sigue viva, ya no ligada a ese relevamiento');
     if(document.getElementById('act-m-body'))renderActividadesMaster();
-  });
+  },'Desadjuntar');
 }
 function cancelModalRelev(){
   closeModal('modal-relev');
@@ -1842,7 +2024,7 @@ function guardarComoBorrador(){
     const fecha=programado?'':(document.getElementById('r-fecha')?.value||hoyLocal());
     const fechaInicio=programado?(document.getElementById('r-fecha-inicio')?.value||null):null;
     const fechaLimite=programado?(document.getElementById('r-fecha-limite')?.value||null):null;
-    const campaña=document.getElementById('r-camp')?.value||'';
+    const campaña=document.getElementById('r-camp')?.value||getCampanaActiva();
     const cliId=document.getElementById('r-cli')?.value||'';
     const campoId=document.getElementById('r-campo')?.value||'';
     const loteId=document.getElementById('r-lote')?.value||'';
@@ -2101,9 +2283,14 @@ function fl(v){return v&&FO[parseInt(v)]?FO[parseInt(v)]:'—';}
 // ══ CONFIRMACIÓN GENÉRICA (reemplaza confirm() del navegador, que queda bloqueado
 // silenciosamente al probar la app como link publicado) ══
 let _confirmCb=null;
-function confirmarAccion(msg,cb){
+function confirmarAccion(msg,cb,labelSi){
   const el=document.getElementById('confirm-generico-msg');
   if(el)el.textContent=msg;
+  const btn=document.getElementById('confirm-generico-btn-si');
+  if(btn){
+    btn.textContent=labelSi||'Eliminar';
+    btn.className=labelSi?'btn bp':'btn bd';
+  }
   _confirmCb=cb;
   openModal('modal-confirm-generico');
 }
@@ -3112,7 +3299,7 @@ function saveRelev(){
   const fecha=programado?'':document.getElementById('r-fecha').value;
   const fechaInicio=programado?(document.getElementById('r-fecha-inicio').value||null):null;
   const fechaLimite=programado?(document.getElementById('r-fecha-limite').value||null):null;
-  const campaña=document.getElementById('r-camp').value;
+  const campaña=document.getElementById('r-camp').value||getCampanaActiva();
   const cliId=document.getElementById('r-cli').value;
   const campoId=document.getElementById('r-campo').value;
   const loteId=document.getElementById('r-lote').value;
@@ -3234,6 +3421,7 @@ function saveRelev(){
   if(tiposCreados.length)mensajeExtra+=(mensajeExtra?' · ':' — ')+tiposCreados.join(', ');
   save();closeModal('modal-relev');renderRelev();renderDashboard();
   if(document.getElementById('act-m-body'))renderActividadesMaster();
+  if(document.getElementById('plan-body'))renderPlanificacion();
   sessionStorage.removeItem(DRAFT_KEY);
   mostrarSnackbar('✅ Relevamiento guardado correctamente'+mensajeExtra);
   // Si se editó desde la Orden de Trabajo, volver a esa OT ya actualizada
@@ -3268,6 +3456,7 @@ function deleteRelev(id){
     if(r){r.borrado=true;r.fechaBorrado=hoyLocal();r.borradoTs=Date.now();}
     _seleccionados.delete(id);
     save();renderRelev();renderDashboard();updateSelBar();
+    if(document.getElementById('plan-body'))renderPlanificacion();
     if(document.getElementById('act-m-body'))renderActividadesMaster();
     if(document.getElementById('lote-detail-content')&&_loteDetailCtx)renderLoteDetail(_loteDetailCtx.loteId,_loteDetailCtx.cliId,_loteDetailCtx.campoId);
   });
@@ -3701,8 +3890,8 @@ function renderDashboard(){
       <div class="ss">${DB.lotes.length} lotes en total</div></div>
     <div class="stat"><div class="sl">Relevamientos${fCamp||fCli?' (filtrado)':''}</div><div class="sv">${relevsBase.length}</div>
       <div class="ss">${DB.relevamientos.filter(r=>r.fecha>=last30).length} en últimos 30 días (global)</div></div>
-    <div class="stat"><div class="sl">Pendientes de decisión</div><div class="sv">${relevsValidos.filter(r=>estadoEfectivo(r)==='Relevado con tratamiento').length}</div>
-      <div class="ss">con tratamiento, sin aplicar ni descartar</div></div>
+    <div class="stat"><div class="sl">Pendientes de decisión</div><div class="sv">${relevsValidos.filter(r=>estadoEfectivo(r)==='Relevado con tratamiento'&&!(DB.actividades||[]).some(a=>a.relevId===r.id&&a.tipo==='Aplicación'&&!a.borrado)).length}</div>
+      <div class="ss">con tratamiento, todavía sin Aplicación generada</div></div>
     <div class="stat"><div class="sl">Hectáreas relevadas</div><div class="sv">${haConRelevFiltrado.toLocaleString('es-AR')}</div>
       <div class="ss">de ${totalHa.toLocaleString('es-AR')} ha totales</div></div>`;
 
@@ -4052,7 +4241,7 @@ function eliminarProductoOT(productoId,relevIdsCsv){
     });
     if(cambios){save();mostrarSnackbar(`✅ Producto quitado de ${cambios} aplicación(es)`);}
     buildOTFromIds(window._otCurrentIds||[]);
-  });
+  },'Quitar');
 }
 // Mostrar/ocultar el mini-formulario para sumar un producto nuevo a un bloque de la OT
 function toggleAgregarProductoOT(blockKey){
@@ -4348,10 +4537,11 @@ let _tlMasivaCarrito=new Set();
 // Punto de entrada único para "crear actividad" desde cualquier lugar de la
 // app — Tablero (con o sin selección previa), ficha de Lote, Clientes/Lotes.
 // El carrito arranca con los lotes que le pases (puede ser uno solo, o varios).
-function abrirModalActividadMasiva(lotesIniciales=[]){
+function abrirModalActividadMasiva(lotesIniciales=[],tipoInicial='',campInicial=''){
   _tlMasivaCarrito=new Set(lotesIniciales);
+  const campDef=campInicial||getCampanaActiva();
   const cs=document.getElementById('tl-act-camp');
-  if(cs){cs.innerHTML='<option value="">Seleccioná...</option>';(DB.campanas||[]).forEach(c=>cs.innerHTML+=`<option value="${c}">${c}</option>`);}
+  if(cs){cs.innerHTML='<option value="">Seleccioná...</option>';(DB.campanas||[]).forEach(c=>cs.innerHTML+=`<option value="${c}"${c===campDef?' selected':''}>${c}</option>`);}
   const cliSel=document.getElementById('tl-masiva-cli');
   if(cliSel)cliSel.innerHTML='<option value="">Cliente...</option>'+DB.clientes.slice().sort((a,b)=>a.nombre.localeCompare(b.nombre)).map(c=>`<option value="${c.id}">${c.nombre}</option>`).join('');
   document.getElementById('tl-masiva-campo').innerHTML='<option value="">Campo...</option>';
@@ -4362,11 +4552,13 @@ function abrirModalActividadMasiva(lotesIniciales=[]){
     cultSel.innerHTML='<option value="">Cultivo...</option>'+cultivos.map(c=>`<option value="${c}">${c}</option>`).join('');
   }
   document.getElementById('tl-masiva-lote-lista').innerHTML='<div class="muted" style="font-size:11px">Elegí un campo, o un cultivo, para ver lotes.</div>';
-  document.getElementById('tl-act-tipo').value='';
+  document.getElementById('tl-act-tipo').value=tipoInicial||'';
   document.getElementById('tl-act-fecha').value='';
   document.getElementById('tl-act-fecha-fin').value='';
+  document.getElementById('tl-act-fecha-real').value='';
   document.getElementById('tl-act-obs').value='';
   document.getElementById('tl-act-extra').innerHTML='';
+  if(tipoInicial)onTlActTipoChange();
   tlMasivaRenderCarrito();
   openModal('modal-act-masiva');
 }
@@ -4448,8 +4640,9 @@ function tlGuardarActividadMasiva(){
   if(!loteIds.length){alert('Agregá al menos un lote al carrito');return;}
   const fechaA=document.getElementById('tl-act-fecha').value||null;
   const fechaFinA=document.getElementById('tl-act-fecha-fin')?.value||'';
-  const campaña=document.getElementById('tl-act-camp').value||'';
+  const campaña=document.getElementById('tl-act-camp').value||getCampanaActiva();
   const obs=document.getElementById('tl-act-obs').value.trim();
+  const fechaReal=document.getElementById('tl-act-fecha-real')?.value||null;
   let count=0;
   if(tipo==='Relevamiento'){
     // Un relevamiento programado por lote — mismas fechas/campaña para todos,
@@ -4459,7 +4652,7 @@ function tlGuardarActividadMasiva(){
       const cli=DB.clientes.find(c=>c.id===lote.clienteId);
       const campo=DB.campos.find(c=>c.id===lote.campoId);
       DB.relevamientos.push({
-        id:uid(),fecha:null,fechaInicio:fechaA,fechaLimite:fechaFinA||null,campaña:campaña||getCampanaActiva(),
+        id:uid(),fecha:fechaReal,fechaInicio:fechaA,fechaLimite:fechaFinA||null,campaña:campaña||getCampanaActiva(),
         cultivo:'',clienteId:lote.clienteId,campoId:lote.campoId,loteId:lote.id,
         clienteNombre:cli?.nombre||'',campoNombre:campo?.nombre||'',loteNombre:lote.nombre,loteHa:lote.ha||0,
         malezas:[],productos:[],obs,estado:'Relevado',createdAt:Date.now()
@@ -4478,7 +4671,7 @@ function tlGuardarActividadMasiva(){
       const actObj={
         id:uid(),loteId,clienteId:lote.clienteId,campoId:lote.campoId,
         tipo,fecha:fechaA,fechaFin:fechaFinA||null,campaña,obs,datos,
-        estado:fechaA?'Realizada':'Pendiente',fechaRealizacion:fechaA,
+        estado:calcularEstadoActividad(fechaReal),fechaRealizacion:fechaReal,
         createdAt:Date.now()
       };
       if(tipo==='Aplicación'){actObj.diagnostico=[];actObj.cultivoSnapshot='';actObj.productos=[];actObj.historial=[];}
@@ -4491,6 +4684,8 @@ function tlGuardarActividadMasiva(){
   _tlMasivaCarrito=new Set();
   tlLimpiarSeleccion();
   renderTablero();
+  if(document.getElementById('plan-body'))renderPlanificacion();
+  if(document.getElementById('act-m-body'))renderActividadesMaster();
 }
 
 function renderTablero(){
@@ -4865,7 +5060,7 @@ function desprenderRActBlock(idx){
     block.remove();
     mostrarSnackbar('✅ Actividad desadjuntada — sigue viva en Actividades');
     if(document.getElementById('act-m-body'))renderActividadesMaster();
-  });
+  },'Desadjuntar');
 }
 
 let _editActId=null,_actLoteCtx=null;
@@ -4885,7 +5080,6 @@ function openModalActividad(loteId,cliId,campoId,editId=null){
   window._aplResyncDiag=null;
   document.getElementById('act-apl-historial').style.display='none';
   document.getElementById('act-fecha-real').value='';
-  document.getElementById('act-descartada').checked=false;
   document.getElementById('act-origen-info').style.display='none';
   // Lote: se pide arriba solo si se abre desde la pantalla maestra (sin lote ya sabido)
   const loteWrap=document.getElementById('act-lote-wrap');
@@ -4905,7 +5099,6 @@ function openModalActividad(loteId,cliId,campoId,editId=null){
       document.getElementById('act-camp').value=a.campaña||'';
       document.getElementById('act-obs').value=a.obs||'';
       document.getElementById('act-fecha-real').value=a.fechaRealizacion||'';
-      document.getElementById('act-descartada').checked=a.estado==='Descartada';
       // Si viene de un relevamiento, mostrar el link + la opción de desadjuntar
       if(a.relevId){
         const origen=DB.relevamientos.find(x=>x.id===a.relevId);
@@ -4956,21 +5149,10 @@ function openModalActividad(loteId,cliId,campoId,editId=null){
   }
   openModal('modal-actividad');
 }
-// El estado ya no se elige directo — se calcula solo, a partir de si hay
-// fecha de realización cargada y de si se marcó Descartada.
-function calcularEstadoActividad(fechaRealizacion,descartada){
-  if(descartada)return'Descartada';
-  if(fechaRealizacion)return'Realizada';
-  return'Pendiente';
-}
-function onActFechaRealChange(){
-  const tieneFecha=!!document.getElementById('act-fecha-real')?.value;
-  const chk=document.getElementById('act-descartada');
-  if(tieneFecha&&chk)chk.checked=false; // no puede estar Realizada y Descartada a la vez
-}
-function onActDescartadaChange(){
-  const descartada=document.getElementById('act-descartada')?.checked;
-  if(descartada){const f=document.getElementById('act-fecha-real');if(f)f.value='';}
+// El estado no se elige: se calcula solo. Con fecha de realización → Realizada;
+// sin fecha → Pendiente. (Si algo no se va a hacer, se elimina.)
+function calcularEstadoActividad(fechaRealizacion){
+  return fechaRealizacion?'Realizada':'Pendiente';
 }
 // Buscador de lote dentro del modal de actividad (cuando se crea sin lote ya elegido)
 function actLoteComboOpen(){document.getElementById('act-lote-drop')?.classList.add('open');actLoteComboRender();}
@@ -5027,7 +5209,7 @@ function resincronizarAplicacionDesdeRelev(){
     } else diagBox.style.display='none';
     window._aplResyncDiag={diagnostico:(r.malezas||[]).map(m=>({...m})),cultivo:r.cultivo||''};
     mostrarSnackbar('✅ Productos traídos del relevamiento — no te olvides de Guardar');
-  });
+  },'Traer productos');
 }
 function addProdRowApl(data=null){
   const cont=document.getElementById('act-apl-prod-rows');if(!cont)return;
@@ -5092,8 +5274,7 @@ function saveActividad(){
     const el=document.getElementById('act-'+k);if(el&&el.value.trim())datos[k]=el.value.trim();
   });
   const fechaRealizacion=document.getElementById('act-fecha-real')?.value||null;
-  const descartada=document.getElementById('act-descartada')?.checked||false;
-  const estado=calcularEstadoActividad(fechaRealizacion,descartada);
+  const estado=calcularEstadoActividad(fechaRealizacion);
   const fechaFin=document.getElementById('act-fecha-fin')?.value||'';
   const existente=_editActId?DB.actividades.find(a=>a.id===_editActId):null;
   const relevIdPrevio=existente?existente.relevId:(window._actNuevaRelevId||null);
@@ -5105,7 +5286,7 @@ function saveActividad(){
     tipo,
     fecha:document.getElementById('act-fecha').value||null,
     fechaFin:fechaFin||null,
-    campaña:document.getElementById('act-camp').value||'',
+    campaña:document.getElementById('act-camp').value||getCampanaActiva(),
     obs:document.getElementById('act-obs').value.trim(),
     datos,
     estado,
@@ -5149,6 +5330,7 @@ function saveActividad(){
   mostrarSnackbar('✅ Actividad guardada');
   if(document.getElementById('lote-detail-content')&&_actLoteCtx)renderLoteDetail(_actLoteCtx.loteId,_actLoteCtx.cliId,_actLoteCtx.campoId);
   if(document.getElementById('act-m-body'))renderActividadesMaster();
+  if(document.getElementById('plan-body'))renderPlanificacion();
   // Si se abrió desde adentro de un relevamiento, volver a ese relevamiento
   // con los datos de la actividad ya refrescados (si no, al guardar el
   // relevamiento se pisarían con los valores viejos que mostraba el bloque).
@@ -5186,9 +5368,10 @@ function deleteActividad(id,loteId,cliId,campoId){
     save();
     if(loteId)renderLoteDetail(loteId,cliId,campoId);
     if(document.getElementById('act-m-body'))renderActividadesMaster();
+    if(document.getElementById('plan-body'))renderPlanificacion();
   });
 }
-// Cambiar estado rápido desde la tabla maestra (tildar Realizada / Descartar / reabrir)
+// Cambiar estado rápido (ej. el ✅ de "marcar realizada")
 function cambiarEstadoActividad(id,nuevoEstado){
   const a=DB.actividades.find(x=>x.id===id);if(!a)return;
   a.estado=nuevoEstado;
@@ -5255,13 +5438,13 @@ function clearFiltrosActM(){
   ['act-m-agrupar2','act-m-agrupar3','act-m-agrupar4','act-m-agrupar5'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   renderActividadesMaster();
 }
-const URGENCIA_ORDEN={vencida:0,hoy:1,estasemana:2,proxsemana:3,luego:4,sinfecha:5,Realizada:6,Descartada:7};
+const URGENCIA_ORDEN={vencida:0,hoy:1,estasemana:2,proxsemana:3,luego:4,sinfecha:5,Realizada:6};
 const URGENCIA_LABELS={vencida:'🔴 Vencida',hoy:'🟠 Vencimiento hoy',estasemana:'🟡 Vence esta semana',proxsemana:'🔵 Vence próxima semana',luego:'🟢 Vence más adelante',sinfecha:'— Sin vencimiento'};
-const ACCIONABLE_ORDEN={si:0,no:1,Realizada:2,Descartada:3};
+const ACCIONABLE_ORDEN={si:0,no:1,Realizada:2};
 const ACCIONABLE_LABELS={si:'🟢 Accionable ya',no:'⏳ Todavía no'};
 // Criterio de agrupamiento, reutilizable para el primer y el segundo nivel.
 function claveDeGrupo(f,criterio){
-  // El vencimiento (y lo Accionable) no aplica a lo ya Realizado/Descartado (no
+  // El vencimiento (y lo Accionable) no aplica a lo ya Realizado (no
   // corren riesgo de vencer, ni hay nada que "accionar") — en vez de mezclarlos
   // en un solo grupo, se separan por su propio estado.
   if(criterio==='urgencia'){const u=urgenciaActividad({estado:f.estado,fecha:f.fecha,fechaFin:f.fechaFin});return u?u.k:f.estado;}
@@ -5274,9 +5457,9 @@ function claveDeGrupo(f,criterio){
   return f.tipo;
 }
 function labelDeGrupo(k,criterio){
-  if(criterio==='urgencia')return URGENCIA_LABELS[k]||({Pendiente:'🕒 Pendiente',Realizada:'✅ Realizada',Descartada:'🚫 Descartada'}[k]||k);
-  if(criterio==='accionable')return ACCIONABLE_LABELS[k]||({Pendiente:'🕒 Pendiente',Realizada:'✅ Realizada',Descartada:'🚫 Descartada'}[k]||k);
-  if(criterio==='estado')return({Pendiente:'🕒 Pendiente',Realizada:'✅ Realizada',Descartada:'🚫 Descartada'}[k]||k);
+  if(criterio==='urgencia')return URGENCIA_LABELS[k]||({Pendiente:'🕒 Pendiente',Realizada:'✅ Realizada'}[k]||k);
+  if(criterio==='accionable')return ACCIONABLE_LABELS[k]||({Pendiente:'🕒 Pendiente',Realizada:'✅ Realizada'}[k]||k);
+  if(criterio==='estado')return({Pendiente:'🕒 Pendiente',Realizada:'✅ Realizada'}[k]||k);
   if(criterio==='campo')return '📍 '+k;
   if(criterio==='cliente')return '👤 '+k;
   if(criterio==='lote')return '🟩 '+k;
@@ -5336,7 +5519,7 @@ function renderActividadesMaster(){
   const tipoOpts=TIPO_ORDEN.filter(t=>ACT_TIPOS[t]).map(t=>({value:t,label:t}));
   msRender('act-m-tipo',tipoOpts,'Tipo',()=>renderActividadesMaster());
   const fTipos=msValues('act-m-tipo');
-  msRender('act-m-estado',[{value:'Pendiente',label:'🕒 Pendiente'},{value:'Realizada',label:'✅ Realizada'},{value:'Descartada',label:'🚫 Descartada'}],'Estado',()=>renderActividadesMaster());
+  msRender('act-m-estado',[{value:'Pendiente',label:'🕒 Pendiente'},{value:'Realizada',label:'✅ Realizada'}],'Estado',()=>renderActividadesMaster());
   const fEstados=msValues('act-m-estado');
   msRender('act-m-urgencia',[{value:'vencida',label:'🔴 Vencida'},{value:'hoy',label:'🟠 Vencimiento hoy'},{value:'estasemana',label:'🟡 Vence esta semana'},{value:'proxsemana',label:'🔵 Vence próxima semana'},{value:'luego',label:'🟢 Vence más adelante'},{value:'sinfecha',label:'— Sin vencimiento'}],'Vencimiento',()=>renderActividadesMaster());
   const fUrgs=msValues('act-m-urgencia');
@@ -5396,6 +5579,7 @@ function renderActividadesMaster(){
       cultivo:baseCultivo(r.cultivo||getCultivoDeLote(r.loteId,r.campaña)||''),
       campaña:r.campaña,obs:'',relevId:r.id,sort:r.fecha||r.fechaInicio||r.fechaLimite||'0000',
       creada:fechaLocalDeTs(r.createdAt),creadaTs:r.createdAt||0,
+      origenRelevId:(r.origenRelevId&&DB.relevamientos.some(x=>x.id===r.origenRelevId))?r.origenRelevId:null,
       actividadLigada:tieneAplic?{id:tieneAplic.id,tipo:tieneAplic.tipo,estado:estadoDe(tieneAplic)}:null
     };
   });
@@ -5482,9 +5666,8 @@ function renderActividadesMaster(){
   const filaHTML=(f)=>{
     const u=urgenciaActividad({estado:f.estado,fecha:f.fecha,fechaFin:f.fechaFin});
     // El estado ya no se elige — se ve como insignia de solo lectura (se deriva de
-    // si hay o no fecha de realización), y Descartar/Reabrir es una acción aparte.
+    // si hay o no fecha de realización).
     const estadoBadge=f.estado==='Realizada'?'<span class="badge bg-green">✅ Realizada</span>'
-      :f.estado==='Descartada'?'<span class="badge bg-gray">🚫 Descartada</span>'
       :'<span class="badge bg-blue">🕒 Pendiente</span>';
     const fechaRealCell=`<input type="date" class="fi" style="font-size:10px;padding:2px 3px;width:86px" value="${f.fechaRealizacion||''}" onchange="${f.esRelev?`actMEditarFechaRealizacion('${f.id}',true,this.value)`:`actMEditarFechaRealizacion('${f.id}',false,this.value)`}">`;
     const loteLink=`<a href="#" onclick="event.preventDefault();navTo('lote',{loteId:'${f.loteId}',cliId:'${f.clienteId}',campoId:'${f.campoId}'})" style="color:var(--accent);font-weight:500">${f.loteNombre}</a>`;
@@ -5495,20 +5678,22 @@ function renderActividadesMaster(){
     // la OT directo con sus propios datos — ya no depende del relevamiento.
     const otBtn=f.esRelev?`<button class="btn bb bxs" onclick="openOTFromRelev('${f.id}')" title="Descargar Orden de Trabajo">📋</button>`
       :(f.tipo==='Aplicación'?`<button class="btn bb bxs" onclick="navTo('ot',{ids:['${f.id}']})" title="Descargar Orden de Trabajo">📋</button>`:'');
-    const descartarBtn=(!f.esRelev)?(f.estado==='Descartada'
-      ?`<button class="btn bs bxs" onclick="actMToggleDescartada('${f.id}')" title="Reabrir (quitar descarte)">↩️</button>`
-      :`<button class="btn bs bxs" onclick="actMToggleDescartada('${f.id}')" title="Descartar">🚫</button>`):'';
     const acciones=f.esRelev
       ?`${otBtn}<button class="btn bs bxs" onclick="duplicarRelev('${f.id}')" title="Duplicar (útil para varios lotes con el mismo tratamiento/fechas)">📄</button>
          <button class="btn bs bxs" onclick="editRelevFromMaster('${f.id}')" title="${f.estado==='Pendiente'?'Completar relevamiento':'Editar'}">✏️</button>
          <button class="btn bd bxs" onclick="deleteRelev('${f.id}')" title="Eliminar">✕</button>`
-      :`${otBtn}${descartarBtn}<button class="btn bs bxs" onclick="duplicarActividad('${f.id}')" title="Duplicar">📄</button>
+      :`${otBtn}<button class="btn bs bxs" onclick="duplicarActividad('${f.id}')" title="Duplicar">📄</button>
          <button class="btn bs bxs" onclick="openModalActividad(null,null,null,'${f.id}')" title="Editar">✏️</button>
          <button class="btn bd bxs" onclick="deleteActividad('${f.id}',null,null,null)" title="Eliminar">✕</button>`;
+    // El nombre del tipo abre la ficha directo (sin pasar por el lápiz)
+    const abrirJs=f.esRelev?`editRelevFromMaster('${f.id}')`:`openModalActividad(null,null,null,'${f.id}')`;
+    const tipoLink=`<a href="#" onclick="event.preventDefault();${abrirJs}" style="color:inherit;text-decoration:underline;text-decoration-style:dotted;cursor:pointer" title="Abrir">${f.icono} ${f.tipo}</a>`;
+    // Relevamiento que es seguimiento de otro: link al de origen
+    const origenLink=(f.esRelev&&f.origenRelevId)?` <a href="#" onclick="event.preventDefault();editRelevFromMaster('${f.origenRelevId}')" title="Es seguimiento de otro relevamiento — ir al de origen"><span class="badge bg-purple" style="font-size:9px">↩ origen</span></a>`:'';
     const chk=`<input type="checkbox" ${_actMSelected.has(f.id)?'checked':''} onchange="actMToggleSel('${f.id}',${f.esRelev},this.checked)">`;
     const celdas=[
       {k:'chk',w:28,html:`<td class="ph">${chk}</td>`},
-      {k:'tipo',w:115,html:`<td style="font-size:12px">${f.icono} ${f.tipo}${ligadaBadge}${f.relevId&&!f.esRelev?` <a href="#" onclick="event.preventDefault();editRelevFromMaster('${f.relevId}')" title="Ver relevamiento de origen" style="font-size:10px">🔗</a>`:''}</td>`},
+      {k:'tipo',w:115,html:`<td style="font-size:12px">${tipoLink}${origenLink}${ligadaBadge}${f.relevId&&!f.esRelev?` <a href="#" onclick="event.preventDefault();editRelevFromMaster('${f.relevId}')" title="Ver relevamiento de origen" style="font-size:10px">🔗</a>`:''}</td>`},
       {k:'lote',w:95,html:`<td>${loteLink}</td>`},
       {k:'cliente',w:125,html:`<td style="font-size:12px">${f.clienteNombre} <span class="muted">— ${f.campoNombre}</span></td>`},
       {k:'creada',w:68,html:`<td class="mono muted" style="font-size:10px">${f.creada||'—'}</td>`},
@@ -5636,8 +5821,8 @@ function actMAplicarMasivo(){
   const nIni=document.getElementById('act-m-bulk-inicio')?.value||'';
   const nLim=document.getElementById('act-m-bulk-limite')?.value||'';
   const nReal=document.getElementById('act-m-bulk-realizacion')?.value||'';
-  const nDescartar=document.getElementById('act-m-bulk-descartar')?.checked||false;
-  if(!nIni&&!nLim&&!nReal&&!nDescartar){mostrarSnackbar('⚠️ Elegí al menos un campo para aplicar','amber');return;}
+  const nQuitar=document.getElementById('act-m-bulk-quitar-real')?.checked||false;
+  if(!nIni&&!nLim&&!nReal&&!nQuitar){mostrarSnackbar('⚠️ Elegí al menos un campo para aplicar','amber');return;}
   let cambios=0;
   _actMSelected.forEach((esRelev,id)=>{
     if(esRelev){
@@ -5651,7 +5836,7 @@ function actMAplicarMasivo(){
       if(nIni)a.fecha=nIni;
       if(nLim)a.fechaFin=nLim;
       if(nReal){a.fechaRealizacion=nReal;a.estado='Realizada';}
-      if(nDescartar){a.estado='Descartada';a.fechaRealizacion=null;}
+      else if(nQuitar){a.fechaRealizacion=null;a.estado='Pendiente';}
       cambios++;
     }
   });
@@ -5659,7 +5844,7 @@ function actMAplicarMasivo(){
   document.getElementById('act-m-bulk-inicio').value='';
   document.getElementById('act-m-bulk-limite').value='';
   document.getElementById('act-m-bulk-realizacion').value='';
-  document.getElementById('act-m-bulk-descartar').checked=false;
+  document.getElementById('act-m-bulk-quitar-real').checked=false;
   mostrarSnackbar(`✅ ${cambios} actualizada(s)`);
   renderActividadesMaster();
 }
@@ -5757,8 +5942,7 @@ function actMEditarFecha(id,esRelev,cual,valor){
   save();renderActividadesMaster();
 }
 // La Fecha de realización es la que manda: con fecha, queda Realizada (o el
-// relevamiento, directamente "hecho"); sin fecha, vuelve a Pendiente (salvo que
-// ya estuviera Descartada, eso se mantiene aparte hasta que se reabra a mano).
+// relevamiento, directamente "hecho"); sin fecha, vuelve a Pendiente.
 function actMEditarFechaRealizacion(id,esRelev,valor){
   if(esRelev){
     const r=DB.relevamientos.find(x=>x.id===id);if(!r)return;
@@ -5766,15 +5950,8 @@ function actMEditarFechaRealizacion(id,esRelev,valor){
   } else {
     const a=DB.actividades.find(x=>x.id===id);if(!a)return;
     a.fechaRealizacion=valor||null;
-    a.estado=valor?'Realizada':(a.estado==='Descartada'?'Descartada':'Pendiente');
+    a.estado=valor?'Realizada':'Pendiente';
   }
-  save();renderActividadesMaster();
-  if(_loteDetailCtx&&document.getElementById('lote-detail-content'))renderLoteDetail(_loteDetailCtx.loteId,_loteDetailCtx.cliId,_loteDetailCtx.campoId);
-}
-function actMToggleDescartada(id){
-  const a=DB.actividades.find(x=>x.id===id);if(!a)return;
-  if(a.estado==='Descartada'){a.estado='Pendiente';}
-  else{a.estado='Descartada';a.fechaRealizacion=null;}
   save();renderActividadesMaster();
   if(_loteDetailCtx&&document.getElementById('lote-detail-content'))renderLoteDetail(_loteDetailCtx.loteId,_loteDetailCtx.cliId,_loteDetailCtx.campoId);
 }
@@ -5833,10 +6010,13 @@ function renderActItem(item,loteId,cliId,campoId){
     extra=`<div style="margin-top:5px">${dataStr}</div>`;
   }
   // Actividad derivada de un relevamiento: link directo a su origen
+  const origenDeRelev=(item._esRelev&&item._relev?.origenRelevId&&DB.relevamientos.some(x=>x.id===item._relev.origenRelevId))?item._relev.origenRelevId:null;
+  const linkOrigenRelev=origenDeRelev?` <a href="#" onclick="event.preventDefault();openModalRelev('${origenDeRelev}')" title="Es seguimiento de otro relevamiento — ir al de origen"><span class="badge bg-purple" style="font-size:9px">↩ origen</span></a>`:'';
+  const abrirItemJs=item._esRelev?`openModalRelev('${item._relev.id}')`:`openModalActividad('${loteId}','${cliId}','${campoId}','${item.id}')`;
   const linkOrigen=(!item._esRelev&&item.relevId)?` <a href="#" onclick="event.preventDefault();openModalRelev('${item.relevId}')" title="Ver relevamiento de origen" style="font-size:10px">🔗</a>`:'';
   const obsStr=item.obs?`<div class="act-obs">💬 ${item.obs}</div>`:'';
   const estadoBadgeAct=item.estado&&item.estado!=='Realizada'?
-    `<span class="badge ${item.estado==='Descartada'?'bg-gray':'bg-blue'}" style="font-size:10px">${item.estado==='Descartada'?'🚫 Descartada':'🕒 Pendiente'}</span>`:'';
+    `<span class="badge bg-blue" style="font-size:10px">🕒 Pendiente</span>`:'';
   const urgBadge=(u&&item.estado==='Pendiente')?`<span style="font-size:10px" class="${u.accionable?'':'muted'}">${u.icono} ${u.texto}</span>`:'';
   const acciones=item._esRelev
     ?`<button class="btn bb bxs" onclick="openOTFromRelev('${item._relev.id}')" title="OT">📋</button>
@@ -5855,7 +6035,7 @@ function renderActItem(item,loteId,cliId,campoId){
     <div class="act-dot ${meta.dot}"></div>
     <div class="act-card">
       <div class="act-hdr">
-        <span class="act-tipo">${meta.icono} ${item.tipo}</span>${linkOrigen}
+        <span class="act-tipo"><a href="#" onclick="event.preventDefault();${abrirItemJs}" style="color:inherit;text-decoration:underline;text-decoration-style:dotted" title="Abrir">${meta.icono} ${item.tipo}</a></span>${linkOrigen}${linkOrigenRelev}
         <span class="mono muted" style="font-size:11px">${item.fechaDisplay||(item.fecha?'desde '+item.fecha:'')||'sin fecha'}${item.fechaFin?' · hasta '+item.fechaFin:''}</span>
         ${item.campaña?`<span class="badge bg-purple" style="font-size:10px">${item.campaña}</span>`:''}
         ${(r?.cultivo||(r?getCultivoDeLote(r.loteId,r.campaña):''))?`<span class="badge bg-amber" style="font-size:10px">${r.cultivo||getCultivoDeLote(r.loteId,r.campaña)}</span>`:''}
