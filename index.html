@@ -974,11 +974,11 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
           <select id="tl-masiva-cli" class="fi" onchange="tlMasivaClienteChange()"><option value="">Cliente...</option></select>
           <select id="tl-masiva-campo" class="fi" onchange="tlMasivaCampoChange()"><option value="">Campo...</option></select>
         </div>
-        <div class="field" style="margin-top:6px"><label style="font-size:11px">...o directo por Cultivo <span class="muted">(cruza todos los clientes y campos, según la campaña activa)</span></label>
+        <div class="field" style="margin-top:6px"><label style="font-size:11px">...y/o por Cultivo <span class="muted">(se combina con Cliente/Campo; si lo dejás solo, cruza todos)</span></label>
           <select id="tl-masiva-cultivo" class="fi" onchange="tlMasivaCultivoChange()"><option value="">Cultivo...</option></select>
         </div>
         <div id="tl-masiva-lote-lista" style="background:var(--bg2);border-radius:var(--r);padding:8px 10px;max-height:150px;overflow-y:auto;margin-top:6px">
-          <div class="muted" style="font-size:11px">Elegí un campo, o un cultivo, para ver lotes.</div>
+          <div class="muted" style="font-size:11px">Elegí Cliente, Campo y/o Cultivo para ver lotes — se combinan entre sí.</div>
         </div>
         <button class="btn bp bsm" style="margin-top:6px" onclick="tlMasivaAgregarLote()">+ Agregar tildados</button>
       </div>
@@ -4551,7 +4551,7 @@ function abrirModalActividadMasiva(lotesIniciales=[],tipoInicial='',campInicial=
     const cultivos=[...new Set(DB.lotes.map(l=>baseCultivo(getCultivoDeLote(l.id,campañaActiva))).filter(Boolean))].sort();
     cultSel.innerHTML='<option value="">Cultivo...</option>'+cultivos.map(c=>`<option value="${c}">${c}</option>`).join('');
   }
-  document.getElementById('tl-masiva-lote-lista').innerHTML='<div class="muted" style="font-size:11px">Elegí un campo, o un cultivo, para ver lotes.</div>';
+  document.getElementById('tl-masiva-lote-lista').innerHTML='<div class="muted" style="font-size:11px">Elegí Cliente, Campo y/o Cultivo para ver lotes — se combinan entre sí.</div>';
   document.getElementById('tl-act-tipo').value=tipoInicial||'';
   document.getElementById('tl-act-fecha').value='';
   document.getElementById('tl-act-fecha-fin').value='';
@@ -4565,38 +4565,35 @@ function abrirModalActividadMasiva(lotesIniciales=[],tipoInicial='',campInicial=
 function tlAbrirModalActividad(){
   abrirModalActividadMasiva([..._tlSel]);
 }
-// Cascada Cliente → Campo → Lote: cada búsqueda achica a la siguiente, y "+
-// Agregar" va sumando al carrito sin perder lo que ya habías puesto antes de
-// otro cliente/campo — así podés juntar lotes de varios lados en una sola tanda.
+// Cliente, Campo y Cultivo son filtros que se COMBINAN entre sí (no se pisan):
+// elegís Campo y después Cliente, y te quedan los lotes que cumplen los dos —
+// así podés ir sumando lotes de distintas combinaciones en una sola tanda.
 function tlMasivaClienteChange(){
   const cliId=document.getElementById('tl-masiva-cli').value;
+  const campoSel=document.getElementById('tl-masiva-campo');
+  const campoPrevio=campoSel.value;
   const campos=(cliId?DB.campos.filter(c=>c.clienteId===cliId):DB.campos).slice().sort((a,b)=>a.nombre.localeCompare(b.nombre));
-  document.getElementById('tl-masiva-campo').innerHTML='<option value="">Campo...</option>'+campos.map(c=>`<option value="${c.id}">${c.nombre}</option>`).join('');
-  document.getElementById('tl-masiva-cultivo').value=''; // los dos caminos son alternativos
-  document.getElementById('tl-masiva-lote-lista').innerHTML='<div class="muted" style="font-size:11px">Elegí un campo, o un cultivo, para ver lotes.</div>';
+  campoSel.innerHTML='<option value="">Campo...</option>'+campos.map(c=>`<option value="${c.id}"${c.id===campoPrevio?' selected':''}>${c.nombre}</option>`).join('');
+  if(campoPrevio&&!campos.some(c=>c.id===campoPrevio))campoSel.value=''; // el campo elegido ya no es de este cliente
+  tlMasivaActualizarLotes();
 }
-function tlMasivaCampoChange(){
+function tlMasivaCampoChange(){tlMasivaActualizarLotes();}
+function tlMasivaCultivoChange(){tlMasivaActualizarLotes();}
+function tlMasivaActualizarLotes(){
+  const cliId=document.getElementById('tl-masiva-cli').value;
   const campoId=document.getElementById('tl-masiva-campo').value;
-  document.getElementById('tl-masiva-cultivo').value='';
-  const cont=document.getElementById('tl-masiva-lote-lista');
-  const lotes=(campoId?DB.lotes.filter(l=>l.campoId===campoId):[]).slice().sort((a,b)=>naturalCmp(a.nombre,b.nombre));
-  if(!lotes.length){cont.innerHTML='<div class="muted" style="font-size:11px">Elegí un campo, o un cultivo, para ver lotes.</div>';return;}
-  cont.innerHTML=lotes.map(l=>`<label style="display:flex;gap:6px;align-items:center;padding:2px 0;font-size:12px;cursor:pointer">
-    <input type="checkbox" value="${l.id}" class="tl-masiva-lote-chk"> ${l.nombre}
-  </label>`).join('');
-}
-// Camino alternativo: en vez de ir por Cliente/Campo, elegir directo el
-// cultivo y traer TODOS los lotes que lo tienen, crucen o no de cliente/campo —
-// útil para programar siembras/cosechas masivas de un mismo cultivo.
-function tlMasivaCultivoChange(){
   const cultivo=document.getElementById('tl-masiva-cultivo').value;
   const cont=document.getElementById('tl-masiva-lote-lista');
-  if(!cultivo){cont.innerHTML='<div class="muted" style="font-size:11px">Elegí un campo, o un cultivo, para ver lotes.</div>';return;}
-  document.getElementById('tl-masiva-cli').value='';
-  document.getElementById('tl-masiva-campo').innerHTML='<option value="">Campo...</option>';
-  const campañaActiva=getCampanaActiva();
-  const lotes=DB.lotes.filter(l=>baseCultivo(getCultivoDeLote(l.id,campañaActiva))===cultivo).sort((a,b)=>naturalCmp(a.nombre,b.nombre));
-  if(!lotes.length){cont.innerHTML='<div class="muted" style="font-size:11px">Ningún lote con ese cultivo en la campaña activa.</div>';return;}
+  if(!cliId&&!campoId&&!cultivo){cont.innerHTML='<div class="muted" style="font-size:11px">Elegí Cliente, Campo y/o Cultivo para ver lotes — se combinan entre sí.</div>';return;}
+  let lotes=DB.lotes.slice();
+  if(cliId)lotes=lotes.filter(l=>l.clienteId===cliId);
+  if(campoId)lotes=lotes.filter(l=>l.campoId===campoId);
+  if(cultivo){
+    const campañaActiva=getCampanaActiva();
+    lotes=lotes.filter(l=>baseCultivo(getCultivoDeLote(l.id,campañaActiva))===cultivo);
+  }
+  lotes=lotes.sort((a,b)=>naturalCmp(a.nombre,b.nombre));
+  if(!lotes.length){cont.innerHTML='<div class="muted" style="font-size:11px">Ningún lote cumple esa combinación de filtros.</div>';return;}
   cont.innerHTML=lotes.map(l=>{
     const cli=DB.clientes.find(c=>c.id===l.clienteId);
     const campo=DB.campos.find(c=>c.id===l.campoId);
