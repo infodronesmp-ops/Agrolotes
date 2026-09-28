@@ -825,6 +825,11 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
           <option value="cultivo">Grupo 5: Cultivo</option>
         </select>
         <button class="btn bs bsm" onclick="clearFiltrosActM()">Limpiar</button>
+        <span style="border-left:1px solid var(--border);padding-left:8px;margin-left:2px">
+          <button class="btn bp bsm" onclick="actMVistaMia()" title="Relevamientos pendientes, agrupados por Cliente → Vencimiento → Accionable">🧑‍🌾 Mi semana</button>
+          <button class="btn bp bsm" onclick="actMVistaClientes()" title="Todo lo que no es relevamiento (siembra, cosecha, aplicación...), pendiente, agrupado por Cliente → Vencimiento → Accionable">👥 Semana de mis clientes</button>
+        </span>
+        <span id="act-m-vista-chip" style="display:none"></span>
       </div>
       <div id="act-m-viajes" class="ph" style="display:none;font-size:12px;color:var(--accent2);margin-bottom:10px"></div>
       <div id="act-m-filtro-resumen" class="ph" style="display:none;font-size:11px;color:var(--text3);margin-bottom:8px"></div>
@@ -5424,6 +5429,7 @@ function urgenciaActividad(a){
 let _actMSort={col:'creada',dir:-1};
 function actMSortBy(col){if(_actMSort.col===col)_actMSort.dir*=-1;else{_actMSort={col,dir:1};}renderActividadesMaster();}
 function clearFiltrosActM(){
+  _actMVistaActiva=null;
   const s=document.getElementById('act-m-search');if(s)s.value='';
   const acc=document.getElementById('act-m-accionable');if(acc)acc.value='';
   ['act-m-creada-desde','act-m-creada-hasta','act-m-real-desde','act-m-real-hasta','act-m-plan-desde','act-m-plan-hasta'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
@@ -5434,6 +5440,39 @@ function clearFiltrosActM(){
   const g1=document.getElementById('act-m-agrupar');if(g1)g1.value='';
   ['act-m-agrupar2','act-m-agrupar3','act-m-agrupar4','act-m-agrupar5'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   renderActividadesMaster();
+}
+// Dos vistas de un clic: "lo mío" (relevamientos, los hago yo) y "lo de mis
+// clientes" (todo lo demás — siembra, cosecha, aplicación... lo hacen ellos,
+// yo lo administro). Las dos: todo lo Pendiente (accionable ya o no — así se
+// ve venir lo que arranca esta semana aunque todavía no lo puedas hacer),
+// agrupado por Cliente → Vencimiento → Accionable, para no rearmar filtros.
+let _actMVistaActiva=null; // null | 'mia' | 'clientes'
+function actMVistaBase(){
+  const s=document.getElementById('act-m-search');if(s)s.value='';
+  ['act-m-creada-desde','act-m-creada-hasta','act-m-real-desde','act-m-real-hasta','act-m-plan-desde','act-m-plan-hasta'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  msClear('act-m-cli');msClear('act-m-campo');msClear('act-m-lote');msClear('act-m-cult');msClear('act-m-urgencia');
+  _msState['act-m-estado']=new Set(['Pendiente']);
+  const acc=document.getElementById('act-m-accionable');if(acc)acc.value='';
+  const g1=document.getElementById('act-m-agrupar');if(g1)g1.value='cliente';
+  const g2=document.getElementById('act-m-agrupar2');if(g2)g2.value='urgencia';
+  const g3=document.getElementById('act-m-agrupar3');if(g3)g3.value='accionable';
+  ['act-m-agrupar4','act-m-agrupar5'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+}
+function actMVistaMia(){
+  actMVistaBase();
+  _msState['act-m-tipo']=new Set(['Relevamiento']);
+  _actMVistaActiva='mia';
+  renderActividadesMaster();
+}
+function actMVistaClientes(){
+  actMVistaBase();
+  _msState['act-m-tipo']=new Set(Object.keys(ACT_TIPOS).filter(t=>t!=='Relevamiento'&&!['Incendio','Granizo','Inundación','Helada'].includes(t)));
+  _actMVistaActiva='clientes';
+  renderActividadesMaster();
+}
+function actMSalirDeVista(){
+  _actMVistaActiva=null;
+  clearFiltrosActM();
 }
 const URGENCIA_ORDEN={vencida:0,hoy:1,estasemana:2,proxsemana:3,luego:4,sinfecha:5,Realizada:6};
 const URGENCIA_LABELS={vencida:'🔴 Vencida',hoy:'🟠 Vencimiento hoy',estasemana:'🟡 Vence esta semana',proxsemana:'🔵 Vence próxima semana',luego:'🟢 Vence más adelante',sinfecha:'— Sin vencimiento'};
@@ -5527,6 +5566,14 @@ function renderActividadesMaster(){
 
   // Referencia corta de qué hay filtrado — así no hace falta adivinar qué
   // significa el número de resultados.
+  const chip=document.getElementById('act-m-vista-chip');
+  if(chip){
+    if(_actMVistaActiva){
+      chip.style.display='inline-block';
+      const nom=_actMVistaActiva==='mia'?'🧑‍🌾 Mi semana':'👥 Semana de mis clientes';
+      chip.innerHTML=`<span class="badge bg-blue" style="font-size:11px;cursor:pointer" onclick="actMSalirDeVista()" title="Salir de esta vista y limpiar todo">${nom} ✕</span>`;
+    } else chip.style.display='none';
+  }
   const resumenBar=document.getElementById('act-m-filtro-resumen');
   if(resumenBar){
     const corto=(arr,nombres)=>{const a=arr.slice(0,2).map(v=>nombres?nombres(v):v);return a.join(', ')+(arr.length>2?` (+${arr.length-2})`:'');};
@@ -5687,6 +5734,10 @@ function renderActividadesMaster(){
     const tipoLink=`<a href="#" onclick="event.preventDefault();${abrirJs}" style="color:inherit;text-decoration:underline;text-decoration-style:dotted;cursor:pointer" title="Abrir">${f.icono} ${f.tipo}</a>`;
     // Relevamiento que es seguimiento de otro: link al de origen
     const origenLink=(f.esRelev&&f.origenRelevId)?` <a href="#" onclick="event.preventDefault();editRelevFromMaster('${f.origenRelevId}')" title="Es seguimiento de otro relevamiento — ir al de origen"><span class="badge bg-purple" style="font-size:9px">↩ origen</span></a>`:'';
+    // Toda la fila se oscurece si es Pendiente pero todavía no es accionable
+    // (fecha de inicio a futuro) — para verla de entrada, no solo por el texto
+    // chico de la columna Vencimiento.
+    const filaBg=(u&&!u.accionable)?' style="background:rgba(120,120,120,.16)"':'';
     const chk=`<input type="checkbox" ${_actMSelected.has(f.id)?'checked':''} onchange="actMToggleSel('${f.id}',${f.esRelev},this.checked)">`;
     const celdas=[
       {k:'chk',w:28,html:`<td class="ph">${chk}</td>`},
@@ -5702,7 +5753,7 @@ function renderActividadesMaster(){
       {k:'estado',w:90,html:`<td>${estadoBadge}</td>`},
       {k:'acciones',w:115,html:`<td class="rf ph">${acciones}</td>`},
     ];
-    return`<tr>${celdas.filter(c=>!ocultarCol[c.k]).map(c=>c.html).join('')}</tr>`;
+    return`<tr${filaBg}>${celdas.filter(c=>!ocultarCol[c.k]).map(c=>c.html).join('')}</tr>`;
   };
   const columnasHead=[
     {k:'chk',w:28,html:'<th class="ph"></th>'},
