@@ -716,7 +716,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
         <select id="cal-cli" class="fi" style="width:160px" onchange="renderCalendario()"><option value="">Todos los clientes</option></select>
         <select id="cal-campo" class="fi" style="width:160px" onchange="renderCalendario()"><option value="">Todos los campos</option></select>
       </div>
-      <div class="ph" style="font-size:11px;color:var(--text3);margin-bottom:8px">Un bloque por campo — tocá el encabezado para desplegar sus lotes y ver sus actividades mes a mes (2 meses atrás, el actual y 9 por delante). "＋" en un lote agrega una actividad ahí; "＋ Nueva (varios lotes)" carga una misma actividad — ideal para Capacitación o análisis de suelo, que no son de un lote puntual — en todos los lotes del campo a la vez.</div>
+      <div class="ph" style="font-size:11px;color:var(--text3);margin-bottom:8px">Un bloque por campo — tocá el encabezado para desplegar sus lotes y ver sus actividades mes a mes (2 meses atrás, el actual resaltado, y 9 por delante). El "＋" de cada casillero carga una actividad para ese lote con el mes ya precargado de 1º a último día; "＋ Nueva (varios lotes)" hace lo mismo en todos los lotes del campo a la vez — ideal para Capacitación o análisis de suelo. El "📌" marca a mano, por vos, a partir de qué mes ese lote pasa a otra campaña — queda como una línea vertical en el casillero y vale hasta que declares el próximo corte; mientras no marques nada, el "＋" no te va a sugerir ninguna campaña sola. Tocá el nombre de un mes (🔍) para ver el detalle de todos tus clientes ese mes, en Actividades.</div>
       <div id="cal-body"></div>
     </div>
 
@@ -1078,6 +1078,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
         </div>
         <div class="field"><label>Campaña</label>
           <select id="tl-act-camp" class="fi"><option value="">Seleccioná...</option></select>
+          <span id="tl-act-camp-hint" class="muted" style="font-size:10px;display:none;margin-top:2px"></span>
         </div>
         <div id="tl-act-extra"></div>
         <div class="field"><label>Observaciones</label>
@@ -1263,6 +1264,27 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
     <div class="mf">
       <button class="btn bs" onclick="_confirmGenericoNo()">Cancelar</button>
       <button class="btn bd" id="confirm-generico-btn-si" onclick="_confirmGenericoSi()">Eliminar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL CORTE DE CAMPAÑA (declarado a mano por lote, desde el Calendario) ══ -->
+<div class="mo" id="modal-corte-campana">
+  <div class="modal" style="max-width:380px">
+    <div class="mh"><span class="mt">📌 Corte de campaña</span><button class="mx" onclick="closeModal('modal-corte-campana')">✕</button></div>
+    <div class="mb">
+      <p id="corte-campana-lbl" style="font-size:13px;font-weight:500;margin-bottom:10px"></p>
+      <div class="field"><label>A partir de acá, este lote pasa a campaña *</label>
+        <select id="corte-campana-sel" class="fi"><option value="">Seleccioná...</option></select>
+      </div>
+      <p class="muted" style="font-size:11px;margin-top:8px">Queda vigente hasta que declares el próximo corte para este lote — no hace falta poner fecha de cierre.</p>
+    </div>
+    <div class="mf" style="justify-content:space-between">
+      <button class="btn bd" id="corte-campana-quitar" onclick="calQuitarCorte()" style="display:none">Quitar corte</button>
+      <span style="margin-left:auto;display:flex;gap:8px">
+        <button class="btn bs" onclick="closeModal('modal-corte-campana')">Cancelar</button>
+        <button class="btn bp" onclick="calGuardarCorte()">Guardar</button>
+      </span>
     </div>
   </div>
 </div>
@@ -2062,20 +2084,99 @@ function calItemsDeLote(loteId){
   const items=[];
   (DB.relevamientos||[]).forEach(r=>{
     if(r.loteId!==loteId||r.borrado||r.estado==='Borrador')return;
-    items.push({esRelev:true,id:r.id,tipo:'Relevamiento',estado:r.fecha?'Realizada':'Pendiente',fecha:r.fechaInicio||null,fechaFin:r.fechaLimite||null,real:r.fecha||null});
+    items.push({esRelev:true,id:r.id,tipo:'Relevamiento',estado:r.fecha?'Realizada':'Pendiente',fecha:r.fechaInicio||null,fechaFin:r.fechaLimite||null,real:r.fecha||null,campaña:r.campaña||''});
   });
   (DB.actividades||[]).forEach(a=>{
     if(a.loteId!==loteId||a.borrado||a.tipo==='Relevamiento')return;
-    items.push({esRelev:false,id:a.id,tipo:a.tipo,estado:estadoDe(a),fecha:a.fecha||null,fechaFin:a.fechaFin||null,real:a.fechaRealizacion||null});
+    items.push({esRelev:false,id:a.id,tipo:a.tipo,estado:estadoDe(a),fecha:a.fecha||null,fechaFin:a.fechaFin||null,real:a.fechaRealizacion||null,campaña:a.campaña||''});
   });
   items.forEach(i=>{i.ref=i.real||i.fecha||i.fechaFin||'';});
   return items;
+}
+// Corte de campaña por lote: 100% declarado a mano, nunca inferido. Cada
+// lote guarda lote.cortesCampana = [{desde:'YYYY-MM', campaña:'2026/27'}, ...]
+// — vos marcás el mes en que arranca cada campaña para ESE lote puntual, y
+// queda vigente hasta que declares la siguiente (no hace falta fecha de
+// cierre). Si todavía no declaraste ningún corte para un lote, no hay nada
+// de qué agarrarse — se deja en blanco para que lo cargues vos.
+function loteCampanaEnMes(lote,ym){
+  const cortes=(lote?.cortesCampana||[]).slice().sort((a,b)=>a.desde.localeCompare(b.desde));
+  let actual='';
+  for(const c of cortes){if(c.desde<=ym)actual=c.campaña;else break;}
+  return actual;
+}
+let _corteCtx={loteId:'',ym:''};
+function calAbrirCorte(loteId,ym){
+  const lote=DB.lotes.find(l=>l.id===loteId);if(!lote)return;
+  _corteCtx={loteId,ym};
+  const mesLbl=calMesesRango().find(m=>m.ym===ym)?.label||ym;
+  document.getElementById('corte-campana-lbl').textContent=`${lote.nombre} — a partir de ${mesLbl}`;
+  const existente=(lote.cortesCampana||[]).find(c=>c.desde===ym);
+  const sel=document.getElementById('corte-campana-sel');
+  sel.innerHTML='<option value="">Seleccioná...</option>'+(DB.campanas||[]).map(c=>`<option value="${c}"${existente&&existente.campaña===c?' selected':''}>${c}</option>`).join('');
+  document.getElementById('corte-campana-quitar').style.display=existente?'inline-flex':'none';
+  openModal('modal-corte-campana');
+}
+function calGuardarCorte(){
+  const{loteId,ym}=_corteCtx;
+  const lote=DB.lotes.find(l=>l.id===loteId);if(!lote)return;
+  const camp=document.getElementById('corte-campana-sel').value;
+  if(!camp){alert('Elegí una campaña');return;}
+  if(!Array.isArray(lote.cortesCampana))lote.cortesCampana=[];
+  lote.cortesCampana=lote.cortesCampana.filter(c=>c.desde!==ym);
+  lote.cortesCampana.push({desde:ym,campaña:camp});
+  lote.cortesCampana.sort((a,b)=>a.desde.localeCompare(b.desde));
+  save();
+  closeModal('modal-corte-campana');
+  mostrarSnackbar('📌 Corte de campaña guardado');
+  renderCalendario();
+}
+function calQuitarCorte(){
+  const{loteId,ym}=_corteCtx;
+  const lote=DB.lotes.find(l=>l.id===loteId);if(!lote)return;
+  lote.cortesCampana=(lote.cortesCampana||[]).filter(c=>c.desde!==ym);
+  save();
+  closeModal('modal-corte-campana');
+  mostrarSnackbar('📌 Corte de campaña eliminado');
+  renderCalendario();
 }
 let _calCamposCache={}; // campoId -> ids de lotes mostrados, para el "+ Nueva (varios lotes)"
 function calNuevoVarios(campoId){
   const ids=_calCamposCache[campoId]||[];
   if(!ids.length){mostrarSnackbar('Este campo no tiene lotes cargados');return;}
   abrirModalActividadMasiva(ids);
+}
+// 1º y último día de un "YYYY-MM" — el día 0 del mes siguiente es, en JS, el
+// último día del mes pedido.
+function calMesInicioFin(ym){
+  const[y,mo]=ym.split('-').map(Number);
+  const ultimoDia=new Date(y,mo,0).getDate();
+  return{ini:ym+'-01',fin:ym+'-'+String(ultimoDia).padStart(2,'0')};
+}
+// "+" de un casillero puntual: precarga ese mes entero (1º al último día)
+// como fecha inicio/límite — es solo un punto de partida para no escribir la
+// fecha de cero, se termina de ajustar a mano en el modal (campaña incluida,
+// que acá no se toca: sigue siendo 100% manual, como en el resto de la app).
+function calCrear(loteId,ym){
+  const{ini,fin}=calMesInicioFin(ym);
+  const lote=DB.lotes.find(l=>l.id===loteId);
+  const campSugerida=loteCampanaEnMes(lote,ym);
+  const hint=campSugerida?'📌 Según el corte de campaña que declaraste para este lote — la cambiás acá si hace falta.':'';
+  abrirModalActividadMasiva([loteId],'',campSugerida,null,ini,fin,hint,!campSugerida);
+}
+// Clic en el encabezado de un mes: en vez de armar una vista mensual nueva
+// (que terminaría duplicando lo que Actividades ya hace con sus filtros y
+// agrupamientos), reusa esa misma pantalla — la deja filtrada por Inicio/
+// límite de ese mes, con todos los clientes, lista para agrupar/exportar
+// como cualquier otra consulta de Actividades.
+function calVerMesEnActividades(ym){
+  const{ini,fin}=calMesInicioFin(ym);
+  navTo('actividades');
+  clearFiltrosActM();
+  const ds=document.getElementById('act-m-plan-desde'),ha=document.getElementById('act-m-plan-hasta');
+  if(ds)ds.value=ini;
+  if(ha)ha.value=fin;
+  renderActividadesMaster();
 }
 function renderCalendario(){
   const cont=document.getElementById('cal-body');if(!cont)return;
@@ -2103,34 +2204,46 @@ function renderCalendario(){
   if(!campos.length){cont.innerHTML='<div class="empty"><div class="empty-icon">📆</div><div class="empty-t">Sin campos para mostrar</div></div>';return;}
 
   _calCamposCache={};
-  const th=`<th style="text-align:left;padding:6px 8px;min-width:130px;position:sticky;left:0;background:var(--card)">Lote</th>`
-    +meses.map(m=>`<th style="text-align:left;padding:6px 8px;min-width:118px;${m.esActual?'background:var(--bg2)':''}">${m.label}</th>`).join('');
+  const th=`<th style="text-align:left;padding:8px;position:sticky;left:0;background:var(--bg2);border-bottom:1px solid var(--border)">Lote</th>`
+    +meses.map(m=>`<th style="text-align:left;padding:8px;min-width:120px;border-bottom:1px solid var(--border);${m.esActual?'background:var(--accent-bg)':'background:var(--bg2)'}">`
+      +`<a href="#" onclick="event.preventDefault();calVerMesEnActividades('${m.ym}')" style="color:inherit;text-decoration:none;display:inline-flex;align-items:center;gap:3px" title="Ver el detalle de ${m.label} en Actividades, con todos los clientes">${m.label}<span style="font-size:9px;opacity:.6">🔍</span></a></th>`).join('');
 
   cont.innerHTML=campos.map(campo=>{
     const cli=DB.clientes.find(x=>x.id===campo.clienteId);
     const lotes=DB.lotes.filter(l=>l.campoId===campo.id).sort((a,b)=>naturalCmp(a.nombre,b.nombre));
     _calCamposCache[campo.id]=lotes.map(l=>l.id);
     let total=0;
-    const cuerpo=lotes.map(l=>{
+    const cuerpo=lotes.map((l,idx)=>{
       const items=calItemsDeLote(l.id).filter(it=>it.ref&&mesesSet.has(it.ref.slice(0,7)));
       total+=items.length;
       const porMes={};
       meses.forEach(m=>porMes[m.ym]=[]);
       items.forEach(it=>{porMes[it.ref.slice(0,7)].push(it);});
+      const zebra=idx%2?'background:var(--bg2)':'';
       const celdas=meses.map(m=>{
         const arr=porMes[m.ym];
-        if(!arr.length)return`<td style="padding:4px 6px;${m.esActual?'background:var(--bg2)':''}"></td>`;
+        const fondo=m.esActual?'background:var(--accent-bg)':zebra;
+        // El corte de campaña es 100% lo que vos declaraste con el 📌 — nunca
+        // inferido. Si este mes es exactamente donde arranca uno, se marca con
+        // una línea vertical a la izquierda (la frontera entre el mes anterior
+        // y este) más el nombre de la campaña que arranca ahí.
+        const corteAqui=(l.cortesCampana||[]).find(c=>c.desde===m.ym);
+        const borde=corteAqui?'border-left:3px solid var(--accent)':'';
+        const etiqueta=corteAqui?`<div style="font-size:8px;font-weight:700;color:var(--accent);white-space:nowrap" title="Campaña declarada desde acá para ${l.nombre}">➜ ${corteAqui.campaña}</div>`:'';
+        const pinTitle=corteAqui?`Corte declarado: ${corteAqui.campaña} desde ${m.label}. Tocá para cambiarlo o quitarlo.`:`Marcar que ${l.nombre} pasa de campaña a partir de ${m.label}`;
+        const pin=`<a href="#" onclick="event.preventDefault();calAbrirCorte('${l.id}','${m.ym}')" title="${pinTitle}" style="display:inline-block;font-size:11px;${corteAqui?'':'opacity:.3'};padding:0 2px">📌</a>`;
+        const add=`<a href="#" onclick="event.preventDefault();calCrear('${l.id}','${m.ym}')" title="Agregar actividad en ${m.label} para ${l.nombre} (precarga todo el mes, se ajusta a mano)" style="display:inline-block;font-size:11px;color:var(--accent);opacity:.55;padding:0 3px;border-radius:3px">＋</a>`;
+        if(!arr.length)return`<td style="padding:5px 6px;${fondo};${borde}">${etiqueta}${add}${pin}</td>`;
         const mas=arr.length>3?` <a href="#" onclick="event.preventDefault();navTo('lote',{loteId:'${l.id}',cliId:'${l.clienteId}',campoId:'${l.campoId}'})" style="font-size:10px" title="Ver todas en la ficha del lote">+${arr.length-3} más</a>`:'';
-        return`<td style="padding:4px 6px;${m.esActual?'background:var(--bg2)':''}">${arr.slice(0,3).map(planPill).join('')}${mas}</td>`;
+        return`<td style="padding:5px 6px;${fondo};${borde}">${etiqueta}${arr.slice(0,3).map(planPill).join('')}${mas} ${add}${pin}</td>`;
       }).join('');
-      return`<tr>
-        <td style="padding:5px 8px;position:sticky;left:0;background:var(--card)">
+      return`<tr style="border-top:1px solid var(--border)">
+        <td style="padding:6px 8px;position:sticky;left:0;${zebra||'background:var(--card)'}">
           <a href="#" onclick="event.preventDefault();navTo('lote',{loteId:'${l.id}',cliId:'${l.clienteId}',campoId:'${l.campoId}'})" style="color:var(--accent);font-weight:500">${l.nombre}</a>
-          <a href="#" onclick="event.preventDefault();abrirModalActividadMasiva(['${l.id}'])" title="Agregar actividad en este lote" style="font-size:12px;color:var(--accent);margin-left:6px">＋</a>
         </td>${celdas}</tr>`;
     }).join('');
-    return`<details style="margin-bottom:8px;border:1px solid var(--border);border-radius:var(--r);overflow:hidden">
-      <summary style="cursor:pointer;padding:8px 12px;font-weight:600;font-size:13px;background:var(--bg2);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+    return`<details style="margin-bottom:10px;border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;box-shadow:var(--shadow)">
+      <summary style="cursor:pointer;padding:10px 14px;font-weight:600;font-size:13px;background:var(--bg2);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
         <span>📍 ${campo.nombre}</span>
         <span class="muted" style="font-weight:400;font-size:11px">👤 ${cli?.nombre||'—'} · ${lotes.length} lote${lotes.length===1?'':'s'}</span>
         <span class="badge ${total?'bg-blue':'bg-gray'}" style="font-size:10px">${total} actividad${total===1?'':'es'} en el rango</span>
@@ -4937,12 +5050,21 @@ let _tlMasivaMomento=null; // 'pre'|'post'|null — de qué columna de Planifica
 // Punto de entrada único para "crear actividad" desde cualquier lugar de la
 // app — Tablero (con o sin selección previa), ficha de Lote, Clientes/Lotes.
 // El carrito arranca con los lotes que le pases (puede ser uno solo, o varios).
-function abrirModalActividadMasiva(lotesIniciales=[],tipoInicial='',campInicial='',momentoInicial=null){
+function abrirModalActividadMasiva(lotesIniciales=[],tipoInicial='',campInicial='',momentoInicial=null,fechaIniDefault='',fechaFinDefault='',campHint='',sinDefaultCamp=false){
   _tlMasivaCarrito=new Set(lotesIniciales);
   _tlMasivaMomento=momentoInicial||null;
-  const campDef=campInicial||getCampanaActiva();
+  // sinDefaultCamp: para cuando no hay forma honesta de sugerir nada (p.ej.
+  // el Calendario, lote sin corte de campaña declarado) — se deja en blanco
+  // en vez de caer en la campaña activa global, que podría no ser la de ese
+  // lote puntual.
+  const campDef=campInicial||(sinDefaultCamp?'':getCampanaActiva());
   const cs=document.getElementById('tl-act-camp');
   if(cs){cs.innerHTML='<option value="">Seleccioná...</option>';(DB.campanas||[]).forEach(c=>cs.innerHTML+=`<option value="${c}"${c===campDef?' selected':''}>${c}</option>`);}
+  const campHintEl=document.getElementById('tl-act-camp-hint');
+  if(campHintEl){
+    if(campHint){campHintEl.textContent=campHint;campHintEl.style.display='block';}
+    else campHintEl.style.display='none';
+  }
   const cliSel=document.getElementById('tl-masiva-cli');
   if(cliSel)cliSel.innerHTML='<option value="">Cliente...</option>'+DB.clientes.slice().sort((a,b)=>a.nombre.localeCompare(b.nombre)).map(c=>`<option value="${c.id}">${c.nombre}</option>`).join('');
   document.getElementById('tl-masiva-campo').innerHTML='<option value="">Campo...</option>';
@@ -4954,8 +5076,11 @@ function abrirModalActividadMasiva(lotesIniciales=[],tipoInicial='',campInicial=
   }
   document.getElementById('tl-masiva-lote-lista').innerHTML='<div class="muted" style="font-size:11px">Elegí Cliente, Campo y/o Cultivo para ver lotes — se combinan entre sí.</div>';
   document.getElementById('tl-act-tipo').value=tipoInicial||'';
-  document.getElementById('tl-act-fecha').value='';
-  document.getElementById('tl-act-fecha-fin').value='';
+  // Si se abrió desde un casillero de mes puntual (Calendario), se precarga el
+  // rango 1º al último día de ese mes — es solo un punto de partida, se ajusta
+  // a mano como cualquier otra fecha del formulario.
+  document.getElementById('tl-act-fecha').value=fechaIniDefault||'';
+  document.getElementById('tl-act-fecha-fin').value=fechaFinDefault||'';
   document.getElementById('tl-act-fecha-real').value='';
   document.getElementById('tl-act-obs').value='';
   document.getElementById('tl-act-extra').innerHTML='';
