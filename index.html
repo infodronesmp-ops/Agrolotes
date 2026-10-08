@@ -701,10 +701,17 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
       <div class="filters ph" style="gap:6px;flex-wrap:wrap;margin-bottom:10px;align-items:center">
         <select id="hist-cli" class="fi" style="width:160px" onchange="renderHistorial()"><option value="">Todos los clientes</option></select>
         <select id="hist-campo" class="fi" style="width:160px" onchange="renderHistorial()"><option value="">Todos los campos</option></select>
+        <span class="muted" style="font-size:11px">Mostrar</span>
+        <select id="hist-ncamp" class="fi" style="width:140px" onchange="renderHistorial()">
+          <option value="3">Últimas 3 campañas</option>
+          <option value="4" selected>Últimas 4 campañas</option>
+          <option value="6">Últimas 6 campañas</option>
+          <option value="todas">Todas las campañas</option>
+        </select>
         <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer"><input type="checkbox" id="hist-repetidos" onchange="renderHistorial()"> Solo lotes con problemas repetidos</label>
         <button class="btn bs bsm" onclick="histLimpiar()">Limpiar</button>
       </div>
-      <div class="ph" style="font-size:11px;color:var(--text3);margin-bottom:8px">Una fila por lote, una columna por campaña — el cultivo arriba, los diagnósticos de esa campaña debajo. ⚠️ marca un diagnóstico que ya había aparecido antes en ese mismo lote. Pasá el mouse por un diagnóstico para ver la nota que le cargaste.</div>
+      <div class="ph" style="font-size:11px;color:var(--text3);margin-bottom:8px">Por lote: una fila de Cultivo y una fila por cada categoría de diagnóstico que tuvo, una columna por campaña. ⚠️ marca un diagnóstico que ya había aparecido antes en ese mismo lote. En la columna de la campaña más reciente, un casillero vacío te deja "➕ Agregar solución" directo. Pasá el mouse por un diagnóstico para ver la nota que le cargaste.</div>
       <div class="card"><div class="cb" id="hist-body" style="overflow-x:auto"></div></div>
     </div>
 
@@ -1588,8 +1595,11 @@ function planColumnaDe(it,siembraRef){
     return post?'relPost':'relPre';
   }
   if(it.tipo==='Aplicación'){
+    // 'pre' es la marca vieja, de antes de desdoblar en barbecho largo/corto —
+    // no distingue cuál de los dos es, así que NO se la toma como definitiva:
+    // se deja caer al cálculo por fecha, igual que si no tuviera marca.
     if(it.momento==='preLargo')return'apBarbLargo';
-    if(it.momento==='preCorto'||it.momento==='pre')return'apBarbCorto';
+    if(it.momento==='preCorto')return'apBarbCorto';
     if(it.momento==='preEmer')return'apPreem';
     if(it.momento==='post')return'apPost';
     if(!siembraRef||!it.ref)return'apBarbCorto';
@@ -1845,13 +1855,19 @@ function renderPapelera(){
 function histLimpiar(){
   ['hist-cli','hist-campo'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   const f=document.getElementById('hist-repetidos');if(f)f.checked=false;
+  const n=document.getElementById('hist-ncamp');if(n)n.value='4';
   renderHistorial();
 }
-// Historial y Rotación: una fila por lote, una columna por campaña (orden de
-// DB.campanas). Por celda: el cultivo de esa campaña + los diagnósticos que
-// tuvo ese lote en esa campaña (de todos los relevamientos, sin duplicar por
-// nombre). Si un mismo diagnóstico ya había aparecido en una campaña anterior
-// del mismo lote, se marca con ⚠️ — es la señal de "esto se repite acá".
+// Historial y Rotación: Lote (ocupa tantas filas como categorías tuvo) ×
+// Categoría de diagnóstico × campaña. Solo entran categorías que de verdad
+// tuvieron algo en ese lote dentro de la ventana mostrada — no se listan las
+// 6 categorías del catálogo completas para cada lote, sería puro ruido. La
+// primera fila de cada lote es el cultivo de cada campaña, sin eso no hay
+// dónde verlo. Si un mismo diagnóstico ya había aparecido en una campaña
+// anterior del mismo lote, se marca con ⚠️. En la columna de la campaña más
+// reciente, una celda vacía ofrece "➕ Agregar solución", que abre el alta de
+// actividad para ese lote directo — así el precedente se convierte en acción
+// sin tener que ir a buscar el botón en otro lado.
 function renderHistorial(){
   const cont=document.getElementById('hist-body');if(!cont)return;
   const selCli=document.getElementById('hist-cli'),selCampo=document.getElementById('hist-campo');
@@ -1865,8 +1881,11 @@ function renderHistorial(){
   }
   const fCampo=selCampo?.value||'';
   const soloRep=!!document.getElementById('hist-repetidos')?.checked;
+  const nSel=document.getElementById('hist-ncamp')?.value||'4';
 
-  const campañas=(DB.campanas||[]).slice(); // orden cronológico tal cual las tiene cargadas
+  const todasCamp=(DB.campanas||[]).slice(); // orden cronológico tal cual las tiene cargadas
+  const campañas=nSel==='todas'?todasCamp:todasCamp.slice(Math.max(0,todasCamp.length-parseInt(nSel,10)));
+
   let lotes=DB.lotes.slice();
   if(fCli)lotes=lotes.filter(l=>l.clienteId===fCli);
   if(fCampo)lotes=lotes.filter(l=>l.campoId===fCampo);
@@ -1880,47 +1899,78 @@ function renderHistorial(){
 
   const filas=[];
   lotes.forEach(l=>{
-    const porCamp={};
+    const cultivoPorCamp={},porCampCat={};
     campañas.forEach(camp=>{
-      const cultivo=baseCultivo(getCultivoDeLote(l.id,camp))||'';
+      cultivoPorCamp[camp]=baseCultivo(getCultivoDeLote(l.id,camp))||'';
       const relevs=(DB.relevamientos||[]).filter(r=>r.loteId===l.id&&r.campaña===camp&&!r.borrado&&r.estado!=='Borrador');
-      const diagPorNombre=new Map();
+      const porCat={};
       relevs.forEach(r=>(r.malezas||[]).forEach(m=>{
         if(!m.nombre)return;
-        if(!diagPorNombre.has(m.nombre))diagPorNombre.set(m.nombre,{nombre:m.nombre,categoria:m.categoria||catDeM(m),nota:m.nota||''});
-        else if(m.nota&&!diagPorNombre.get(m.nombre).nota)diagPorNombre.get(m.nombre).nota=m.nota;
+        const cat=m.categoria||catDeM(m);
+        if(!porCat[cat])porCat[cat]=new Map();
+        if(!porCat[cat].has(m.nombre))porCat[cat].set(m.nombre,{nombre:m.nombre,nota:m.nota||''});
+        else if(m.nota&&!porCat[cat].get(m.nombre).nota)porCat[cat].get(m.nombre).nota=m.nota;
       }));
-      porCamp[camp]={cultivo,diags:[...diagPorNombre.values()]};
+      porCampCat[camp]=porCat;
     });
-    // Para cada nombre de diagnóstico de este lote, en qué campañas (de las visibles) apareció
-    const campañasPorNombre=new Map();
-    campañas.forEach(camp=>porCamp[camp].diags.forEach(d=>{
-      if(!campañasPorNombre.has(d.nombre))campañasPorNombre.set(d.nombre,[]);
-      campañasPorNombre.get(d.nombre).push(camp);
-    }));
-    const hayRepetido=[...campañasPorNombre.values()].some(arr=>arr.length>1);
+    // Categorías con algo en al menos una campaña de las mostradas — un lote
+    // sin ningún diagnóstico en la ventana no suma fila acá.
+    const categoriasConDatos=new Set();
+    campañas.forEach(camp=>Object.keys(porCampCat[camp]).forEach(cat=>categoriasConDatos.add(cat)));
+    if(!categoriasConDatos.size)return;
+    const ordenCats=categoriasDiag().map(c=>c.nombre).filter(n=>categoriasConDatos.has(n));
+    categoriasConDatos.forEach(c=>{if(!ordenCats.includes(c))ordenCats.push(c);}); // categorías borradas del catálogo, si quedó algo viejo con ese nombre
+
+    // Por categoría: cuántas campañas (de las mostradas) tuvieron cada nombre de diagnóstico — para el ⚠️
+    const repetidoPorCat={};
+    ordenCats.forEach(cat=>{
+      const cuenta=new Map();
+      campañas.forEach(camp=>{
+        const m=porCampCat[camp][cat];
+        if(!m)return;
+        [...m.keys()].forEach(nombre=>cuenta.set(nombre,(cuenta.get(nombre)||0)+1));
+      });
+      repetidoPorCat[cat]=cuenta;
+    });
+    const hayRepetido=ordenCats.some(cat=>[...repetidoPorCat[cat].values()].some(n=>n>1));
     if(soloRep&&!hayRepetido)return;
-    filas.push({l,cli:DB.clientes.find(x=>x.id===l.clienteId),campo:DB.campos.find(x=>x.id===l.campoId),porCamp,campañasPorNombre});
+    filas.push({l,cli:DB.clientes.find(x=>x.id===l.clienteId),campo:DB.campos.find(x=>x.id===l.campoId),cultivoPorCamp,porCampCat,ordenCats,repetidoPorCat});
   });
   if(!filas.length){cont.innerHTML='<div class="empty"><div class="empty-icon">📜</div><div class="empty-t">Ningún lote cumple ese filtro</div></div>';return;}
 
-  const th=`<th style="text-align:left;padding:6px 8px;min-width:120px;position:sticky;left:0;background:var(--card)">Lote</th>`
+  const th=`<th style="text-align:left;padding:6px 8px;min-width:130px;position:sticky;left:0;background:var(--card)">Lote</th>`
+    +`<th style="text-align:left;padding:6px 8px;min-width:110px">Categoría</th>`
     +campañas.map(c=>`<th style="text-align:left;padding:6px 8px;min-width:150px">${c}</th>`).join('');
-  let ultimo='',cuerpo='';
+  let cuerpo='';
   filas.forEach(f=>{
-    const g=`${f.cli?.nombre||'—'} › ${f.campo?.nombre||'—'}`;
-    if(g!==ultimo){ultimo=g;cuerpo+=`<tr><td colspan="${campañas.length+1}" style="padding:8px 8px 4px;font-weight:600;font-size:12px;color:var(--text2);border-top:1px solid var(--border)">👤 ${f.cli?.nombre||'—'} <span class="muted" style="font-weight:400">›</span> 📍 ${f.campo?.nombre||'—'}</td></tr>`;}
-    const celdas=campañas.map(camp=>{
-      const d=f.porCamp[camp];
-      const cultHtml=d.cultivo?`<span class="badge bg-amber" style="font-size:10px">${d.cultivo}</span>`:'<span class="muted" style="font-size:10px">—</span>';
-      const diagsHtml=d.diags.map(dg=>{
-        const repetido=(f.campañasPorNombre.get(dg.nombre)||[]).length>1;
-        const tip=[dg.categoria,dg.nota?'📝 '+dg.nota:''].filter(Boolean).join(' | ');
-        return`<span class="mal-pill" style="font-size:10px" title="${tip.replace(/"/g,'&quot;')}">${repetido?'⚠️ ':''}${diagIcono(dg.categoria)} ${dg.nombre}</span>`;
-      }).join('');
-      return`<td style="padding:5px 6px;vertical-align:top">${cultHtml}<div style="margin-top:3px;display:flex;flex-wrap:wrap;gap:2px">${diagsHtml}</div></td>`;
+    const totalRows=f.ordenCats.length+1; // +1 por la fila de Cultivo
+    const cultCeldas=campañas.map(camp=>{
+      const c=f.cultivoPorCamp[camp];
+      return`<td style="padding:4px 6px">${c?`<span class="badge bg-amber" style="font-size:10px">${c}</span>`:'<span class="muted" style="font-size:10px">—</span>'}</td>`;
     }).join('');
-    cuerpo+=`<tr><td style="padding:5px 8px;position:sticky;left:0;background:var(--card)"><a href="#" onclick="event.preventDefault();navTo('lote',{loteId:'${f.l.id}',cliId:'${f.l.clienteId}',campoId:'${f.l.campoId}'})" style="color:var(--accent);font-weight:500">${f.l.nombre}</a></td>${celdas}</tr>`;
+    cuerpo+=`<tr style="border-top:2px solid var(--border)">
+      <td rowspan="${totalRows}" style="padding:6px 8px;vertical-align:top;position:sticky;left:0;background:var(--card)">
+        <a href="#" onclick="event.preventDefault();navTo('lote',{loteId:'${f.l.id}',cliId:'${f.l.clienteId}',campoId:'${f.l.campoId}'})" style="color:var(--accent);font-weight:500">${f.l.nombre}</a>
+        <div class="muted" style="font-size:10px;margin-top:2px">${f.cli?.nombre||'—'} · ${f.campo?.nombre||'—'}</div>
+      </td>
+      <td style="padding:4px 6px;font-size:11px;font-weight:600;color:var(--text2)">Cultivo</td>${cultCeldas}</tr>`;
+    f.ordenCats.forEach(cat=>{
+      const celdas=campañas.map((camp,idx)=>{
+        const esUltima=idx===campañas.length-1;
+        const m=f.porCampCat[camp][cat];
+        if(!m||!m.size){
+          if(esUltima)return`<td style="padding:4px 6px"><a href="#" onclick="event.preventDefault();abrirModalActividadMasiva(['${f.l.id}'],'','${camp}')" style="font-size:10px;color:var(--accent)">➕ Agregar solución</a></td>`;
+          return`<td style="padding:4px 6px"><span class="muted" style="font-size:10px">—</span></td>`;
+        }
+        const pills=[...m.values()].map(dg=>{
+          const rep=(f.repetidoPorCat[cat].get(dg.nombre)||0)>1;
+          const tip=dg.nota?'📝 '+dg.nota:'';
+          return`<span class="mal-pill" style="font-size:10px" title="${tip.replace(/"/g,'&quot;')}">${rep?'⚠️ ':''}${dg.nombre}</span>`;
+        }).join('');
+        return`<td style="padding:4px 6px"><div style="display:flex;flex-wrap:wrap;gap:2px">${pills}</div></td>`;
+      }).join('');
+      cuerpo+=`<tr><td style="padding:4px 6px;font-size:11px;font-weight:600;color:var(--text2)">${diagIcono(cat)} ${cat}</td>${celdas}</tr>`;
+    });
   });
   cont.innerHTML=`<div class="tw"><table style="width:100%;border-collapse:collapse"><thead><tr>${th}</tr></thead><tbody>${cuerpo}</tbody></table></div>`;
 }
