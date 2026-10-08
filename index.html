@@ -2099,12 +2099,32 @@ function calItemsDeLote(loteId){
 // queda vigente hasta que declares la siguiente (no hace falta fecha de
 // cierre). Si todavía no declaraste ningún corte para un lote, no hay nada
 // de qué agarrarse — se deja en blanco para que lo cargues vos.
-function loteCampanaEnMes(lote,ym){
+// Campaña que corresponde a un lote en un mes dado, y por qué.
+// Regla (100% determinada por lo que el usuario ya cargó, nunca inferida de
+// fechas de actividades):
+//  1) Si hay un corte 📌 declarado para este lote vigente en ese mes (el
+//     último con desde<=ym), esa es la campaña — es la declaración explícita.
+//  2) Si el mes es anterior a todos los cortes declarados para este lote,
+//     corresponde la campaña previa a la del primer corte, según el orden
+//     de DB.campanas (por eso un pin "de acá en adelante es 26/27" también
+//     define, por descarte, que antes era la campaña anterior de la lista).
+//  3) Si el lote no tiene ningún corte declarado, cae en la campaña activa
+//     global — igual que en el resto de la app — hasta que el usuario
+//     declare el primer corte para ese lote.
+function loteCampanaSugerida(lote,ym){
   const cortes=(lote?.cortesCampana||[]).slice().sort((a,b)=>a.desde.localeCompare(b.desde));
-  let actual='';
-  for(const c of cortes){if(c.desde<=ym)actual=c.campaña;else break;}
-  return actual;
+  let idx=-1;
+  for(let i=0;i<cortes.length;i++){if(cortes[i].desde<=ym)idx=i;else break;}
+  if(idx>=0)return{campana:cortes[idx].campaña,motivo:'corte'};
+  if(cortes.length){
+    const camps=DB.campanas||[];
+    const pos=camps.indexOf(cortes[0].campaña);
+    if(pos>0)return{campana:camps[pos-1],motivo:'anterior'};
+    return{campana:'',motivo:'sinAnterior'};
+  }
+  return{campana:getCampanaActiva(),motivo:'activa'};
 }
+function loteCampanaEnMes(lote,ym){return loteCampanaSugerida(lote,ym).campana;}
 let _corteCtx={loteId:'',ym:''};
 function calAbrirCorte(loteId,ym){
   const lote=DB.lotes.find(l=>l.id===loteId);if(!lote)return;
@@ -2160,9 +2180,14 @@ function calMesInicioFin(ym){
 function calCrear(loteId,ym){
   const{ini,fin}=calMesInicioFin(ym);
   const lote=DB.lotes.find(l=>l.id===loteId);
-  const campSugerida=loteCampanaEnMes(lote,ym);
-  const hint=campSugerida?'📌 Según el corte de campaña que declaraste para este lote — la cambiás acá si hace falta.':'';
-  abrirModalActividadMasiva([loteId],'',campSugerida,null,ini,fin,hint,!campSugerida);
+  const{campana:campSugerida,motivo}=loteCampanaSugerida(lote,ym);
+  const hints={
+    corte:'📌 Según el corte de campaña que declaraste para este lote — la cambiás acá si hace falta.',
+    anterior:'📌 Es anterior al corte que declaraste para este lote, así que te traigo la campaña previa — la cambiás acá si hace falta.',
+    activa:'Campaña activa — la cambiás acá si corresponde otra.',
+    sinAnterior:''
+  };
+  abrirModalActividadMasiva([loteId],'',campSugerida,null,ini,fin,hints[motivo]||'',!campSugerida);
 }
 // Clic en el encabezado de un mes: en vez de armar una vista mensual nueva
 // (que terminaría duplicando lo que Actividades ya hace con sus filtros y
@@ -2219,6 +2244,9 @@ function renderCalendario(){
       const porMes={};
       meses.forEach(m=>porMes[m.ym]=[]);
       items.forEach(it=>{porMes[it.ref.slice(0,7)].push(it);});
+      // Orden fijo dentro del mes: por fecha y, a igual fecha, por tipo — así
+      // no van quedando salteadas según el orden en que se cargaron.
+      Object.values(porMes).forEach(arr=>arr.sort((a,b)=>a.ref.localeCompare(b.ref)||a.tipo.localeCompare(b.tipo)));
       const zebra=idx%2?'background:var(--bg2)':'';
       const celdas=meses.map((m,mi)=>{
         const arr=porMes[m.ym];
@@ -2239,7 +2267,7 @@ function renderCalendario(){
         // espacio de la celda, como un botón bien claro.
         const pin=`<a href="#" onclick="event.preventDefault();calAbrirCorte('${l.id}','${m.ym}')" title="${pinTitle}" style="position:absolute;top:2px;right:3px;font-size:9px;line-height:1;${corteAqui?'opacity:.85':'opacity:.22'}">📌</a>`;
         const add=`<a href="#" onclick="event.preventDefault();calCrear('${l.id}','${m.ym}')" title="Agregar actividad en ${m.label} para ${l.nombre} (precarga todo el mes, se ajusta a mano)" class="btn bs bxs" style="display:flex;align-items:center;justify-content:center;width:100%;margin-top:3px;font-weight:700">＋ Actividad</a>`;
-        const pills=arr.length?`<div style="display:flex;flex-wrap:wrap;gap:2px;justify-content:center">${arr.map(planPill).join('')}</div>`:'';
+        const pills=arr.length?`<div style="display:flex;flex-direction:column;gap:2px;align-items:center">${arr.map(planPill).join('')}</div>`:'';
         return`<td style="position:relative;padding:6px 8px 7px;vertical-align:top;${fondo};${borde}">${etiqueta}${pills}${add}${pin}</td>`;
       }).join('');
       return`<tr style="border-top:1px solid var(--border)">
@@ -3930,6 +3958,7 @@ function saveRelev(){
   save();closeModal('modal-relev');renderRelev();renderDashboard();
   if(document.getElementById('act-m-body'))renderActividadesMaster();
   if(document.getElementById('plan-body'))renderPlanificacion();
+  if(document.getElementById('cal-body'))renderCalendario();
   sessionStorage.removeItem(DRAFT_KEY);
   mostrarSnackbar('✅ Relevamiento guardado correctamente'+mensajeExtra);
   // Si se editó desde la Orden de Trabajo, volver a esa OT ya actualizada
@@ -3965,6 +3994,7 @@ function deleteRelev(id){
     _seleccionados.delete(id);
     save();renderRelev();renderDashboard();updateSelBar();
     if(document.getElementById('plan-body'))renderPlanificacion();
+  if(document.getElementById('cal-body'))renderCalendario();
     if(document.getElementById('act-m-body'))renderActividadesMaster();
     if(document.getElementById('lote-detail-content')&&_loteDetailCtx)renderLoteDetail(_loteDetailCtx.loteId,_loteDetailCtx.cliId,_loteDetailCtx.campoId);
   });
@@ -5214,6 +5244,7 @@ function tlGuardarActividadMasiva(){
   tlLimpiarSeleccion();
   renderTablero();
   if(document.getElementById('plan-body'))renderPlanificacion();
+  if(document.getElementById('cal-body'))renderCalendario();
   if(document.getElementById('act-m-body'))renderActividadesMaster();
 }
 
@@ -5861,6 +5892,7 @@ function saveActividad(){
   if(document.getElementById('lote-detail-content')&&_actLoteCtx)renderLoteDetail(_actLoteCtx.loteId,_actLoteCtx.cliId,_actLoteCtx.campoId);
   if(document.getElementById('act-m-body'))renderActividadesMaster();
   if(document.getElementById('plan-body'))renderPlanificacion();
+  if(document.getElementById('cal-body'))renderCalendario();
   // Si se abrió desde adentro de un relevamiento, volver a ese relevamiento
   // con los datos de la actividad ya refrescados (si no, al guardar el
   // relevamiento se pisarían con los valores viejos que mostraba el bloque).
@@ -5899,6 +5931,7 @@ function deleteActividad(id,loteId,cliId,campoId){
     if(loteId)renderLoteDetail(loteId,cliId,campoId);
     if(document.getElementById('act-m-body'))renderActividadesMaster();
     if(document.getElementById('plan-body'))renderPlanificacion();
+  if(document.getElementById('cal-body'))renderCalendario();
   });
 }
 // Cambiar estado rápido (ej. el ✅ de "marcar realizada")
