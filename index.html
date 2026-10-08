@@ -37,6 +37,29 @@ body{font-family:'Sora',sans-serif;background:var(--bg);color:var(--text);font-s
 .topbar-left .t2{font-size:11px;color:var(--text3);}
 .content{flex:1;overflow-y:auto;padding:20px 24px;}
 .page{display:none;}.page.active{display:block;}
+/* Botón ☰ y fondo oscuro del menú: ocultos en escritorio, el media query de
+   abajo los muestra en pantallas angostas (celular) */
+.hamburger-btn{display:none;background:none;border:none;font-size:20px;line-height:1;padding:4px 6px;cursor:pointer;color:var(--text2);border-radius:var(--r);}
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:39;}
+.sidebar-overlay.open{display:block;}
+
+/* ══ CELULAR: menú lateral pasa a ser un panel que se desliza por encima,
+   en vez de ocupar espacio fijo siempre — se abre con ☰ y se cierra tocando
+   afuera, una opción del menú, o ☰ de nuevo. Las tablas anchas ya scrollean
+   horizontal (.tw), así que alcanza con darles más aire. ══ */
+@media(max-width:860px){
+  .hamburger-btn{display:inline-block;}
+  .sidebar{position:fixed;top:0;bottom:0;left:0;z-index:40;transform:translateX(-100%);transition:transform .2s ease;box-shadow:2px 0 12px rgba(0,0,0,.2);}
+  .sidebar.open{transform:translateX(0);}
+  .topbar{padding:10px 14px;}
+  .content{padding:12px;}
+  .stats{grid-template-columns:repeat(2,1fr);}
+  .filters{padding:8px 10px;}
+}
+@media(max-width:480px){
+  .stats{grid-template-columns:1fr 1fr;}
+  .topbar-left .t1{font-size:14px;}
+}
 
 /* CARDS */
 .card{background:var(--card);border:1px solid var(--border);border-radius:var(--rl);box-shadow:var(--shadow);overflow:hidden;margin-bottom:14px;}
@@ -303,6 +326,8 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
 <body>
 <div class="app">
 
+<!-- Fondo oscuro detrás del menú cuando se abre en celular -->
+<div class="sidebar-overlay" onclick="toggleSidebar(false)"></div>
 <!-- SIDEBAR -->
 <nav class="sidebar">
   <div class="brand"><h1>🌾 AgroLotes</h1><small>v2.0 — Relevamientos y OT</small></div>
@@ -312,6 +337,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
     <button class="nb" onclick="navTo('tablero')"><span>🗺</span> Tablero de Lotes</button>
     <button class="nb" onclick="navTo('relevamientos')"><span>🔍</span> Relevamientos</button>
     <button class="nb" onclick="navTo('actividades')"><span>🗓️</span> Actividades</button>
+    <button class="nb" onclick="navTo('calendario')"><span>📆</span> Calendario</button>
     <button class="nb" onclick="navTo('planificacion')"><span>📊</span> Planificación</button>
     <button class="nb" onclick="navTo('historial')"><span>📜</span> Historial y Rotación</button>
     <button class="nb" onclick="navTo('papelera')"><span>🗑️</span> Papelera</button>
@@ -336,9 +362,12 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
 <!-- MAIN -->
 <div class="main">
   <div class="topbar" style="justify-content:space-between">
-    <div class="topbar-left">
-      <div class="t1" id="tb-title">Resumen</div>
-      <div class="t2" id="tb-sub">Vista general</div>
+    <div class="topbar-left" style="display:flex;align-items:center;gap:10px">
+      <button class="hamburger-btn" onclick="toggleSidebar()" aria-label="Abrir menú">☰</button>
+      <div>
+        <div class="t1" id="tb-title">Resumen</div>
+        <div class="t2" id="tb-sub">Vista general</div>
+      </div>
     </div>
     <div class="rf ph" id="tb-actions"></div>
   </div>
@@ -681,6 +710,16 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
     </div>
 
     <!-- ACTIVIDADES (maestra: actividades + relevamientos) -->
+    <!-- CALENDARIO DE ACTIVIDADES -->
+    <div class="page" id="page-calendario">
+      <div class="filters ph" style="gap:6px;flex-wrap:wrap;margin-bottom:10px;align-items:center">
+        <select id="cal-cli" class="fi" style="width:160px" onchange="renderCalendario()"><option value="">Todos los clientes</option></select>
+        <select id="cal-campo" class="fi" style="width:160px" onchange="renderCalendario()"><option value="">Todos los campos</option></select>
+      </div>
+      <div class="ph" style="font-size:11px;color:var(--text3);margin-bottom:8px">Un bloque por campo — tocá el encabezado para desplegar sus lotes y ver sus actividades mes a mes (2 meses atrás, el actual y 9 por delante). "＋" en un lote agrega una actividad ahí; "＋ Nueva (varios lotes)" carga una misma actividad — ideal para Capacitación o análisis de suelo, que no son de un lote puntual — en todos los lotes del campo a la vez.</div>
+      <div id="cal-body"></div>
+    </div>
+
     <!-- PLANIFICACIÓN -->
     <div class="page" id="page-planificacion">
       <div class="filters ph" style="gap:6px;flex-wrap:wrap;margin-bottom:10px;align-items:center">
@@ -701,17 +740,16 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
       <div class="filters ph" style="gap:6px;flex-wrap:wrap;margin-bottom:10px;align-items:center">
         <select id="hist-cli" class="fi" style="width:160px" onchange="renderHistorial()"><option value="">Todos los clientes</option></select>
         <select id="hist-campo" class="fi" style="width:160px" onchange="renderHistorial()"><option value="">Todos los campos</option></select>
-        <span class="muted" style="font-size:11px">Mostrar</span>
-        <select id="hist-ncamp" class="fi" style="width:140px" onchange="renderHistorial()">
+        <span class="muted" style="font-size:11px">Repetidos sobre</span>
+        <select id="hist-ncamp" class="fi" style="width:150px" onchange="renderHistorial()">
           <option value="3">Últimas 3 campañas</option>
-          <option value="4" selected>Últimas 4 campañas</option>
-          <option value="6">Últimas 6 campañas</option>
-          <option value="todas">Todas las campañas</option>
+          <option value="5">Últimas 5 campañas</option>
+          <option value="todas" selected>Todo el historial</option>
         </select>
         <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer"><input type="checkbox" id="hist-repetidos" onchange="renderHistorial()"> Solo lotes con problemas repetidos</label>
         <button class="btn bs bsm" onclick="histLimpiar()">Limpiar</button>
       </div>
-      <div class="ph" style="font-size:11px;color:var(--text3);margin-bottom:8px">Por lote: una fila de Cultivo y una fila por cada categoría de diagnóstico que tuvo, una columna por campaña. ⚠️ marca un diagnóstico que ya había aparecido antes en ese mismo lote. En la columna de la campaña más reciente, un casillero vacío te deja "➕ Agregar solución" directo. Pasá el mouse por un diagnóstico para ver la nota que le cargaste.</div>
+      <div class="ph" style="font-size:11px;color:var(--text3);margin-bottom:8px">Por lote: a la izquierda lo diagnosticado en la campaña vigente; a la derecha, lo que conviene tener en cuenta para la próxima — ⚠️ marca un diagnóstico que ya se repitió en campañas anteriores de ese lote. Pasá el mouse por un diagnóstico para ver la nota que le cargaste. "➕ Agregar solución" carga directo una actividad para ese lote pensada para la próxima campaña.</div>
       <div class="card"><div class="cb" id="hist-body" style="overflow-x:auto"></div></div>
     </div>
 
@@ -885,6 +923,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
             <option value="Laboreo mecánico">🚜 Laboreo mecánico</option>
             <option value="Fertilización">🧪 Fertilización</option>
             <option value="Riego">💧 Riego</option>
+            <option value="Capacitación">🎓 Capacitación</option>
             <option value="Otro">📝 Otro</option>
           </select>
           <input type="date" id="act-m-bulk-crear-fecha-ini" class="fi" style="width:120px" title="Fecha inicio (opcional)">
@@ -1024,6 +1063,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
             <option value="Laboreo mecánico">🚜 Laboreo mecánico</option>
             <option value="Fertilización">🧪 Fertilización</option>
             <option value="Riego">💧 Riego</option>
+            <option value="Capacitación">🎓 Capacitación</option>
             <option value="Otro">📝 Otro</option>
           </select>
         </div>
@@ -1077,6 +1117,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
             <option value="Laboreo mecánico">🚜 Laboreo mecánico</option>
             <option value="Fertilización">🧪 Fertilización</option>
             <option value="Riego">💧 Riego</option>
+            <option value="Capacitación">🎓 Capacitación</option>
             <option value="Otro">📝 Otro</option>
           </select>
         </div>
@@ -1602,9 +1643,14 @@ function planColumnaDe(it,siembraRef){
     if(it.momento==='preCorto')return'apBarbCorto';
     if(it.momento==='preEmer')return'apPreem';
     if(it.momento==='post')return'apPost';
-    if(!siembraRef||!it.ref)return'apBarbCorto';
-    if(it.ref>siembraRef)return'apPost';
-    const dias=(new Date(siembraRef)-new Date(it.ref))/86400000;
+    if(!it.ref)return'apBarbCorto';
+    // Si todavía no hay fecha de Siembra cargada para este lote+campaña,
+    // no hay forma de saber cuándo se va a sembrar: se usa la fecha de HOY
+    // como referencia provisoria (en vez de asumir siempre "corto"), así
+    // una aplicación bien temprana en el año cae en "barbecho largo".
+    const ref=siembraRef||hoyLocal();
+    if(siembraRef&&it.ref>siembraRef)return'apPost';
+    const dias=(new Date(ref)-new Date(it.ref))/86400000;
     return dias>DIAS_BARBECHO_LARGO?'apBarbLargo':'apBarbCorto';
   }
   return'otras';
@@ -1855,19 +1901,22 @@ function renderPapelera(){
 function histLimpiar(){
   ['hist-cli','hist-campo'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   const f=document.getElementById('hist-repetidos');if(f)f.checked=false;
-  const n=document.getElementById('hist-ncamp');if(n)n.value='4';
+  const n=document.getElementById('hist-ncamp');if(n)n.value='todas';
   renderHistorial();
 }
-// Historial y Rotación: Lote (ocupa tantas filas como categorías tuvo) ×
-// Categoría de diagnóstico × campaña. Solo entran categorías que de verdad
-// tuvieron algo en ese lote dentro de la ventana mostrada — no se listan las
-// 6 categorías del catálogo completas para cada lote, sería puro ruido. La
-// primera fila de cada lote es el cultivo de cada campaña, sin eso no hay
-// dónde verlo. Si un mismo diagnóstico ya había aparecido en una campaña
-// anterior del mismo lote, se marca con ⚠️. En la columna de la campaña más
-// reciente, una celda vacía ofrece "➕ Agregar solución", que abre el alta de
-// actividad para ese lote directo — así el precedente se convierte en acción
-// sin tener que ir a buscar el botón en otro lado.
+// Historial y Rotación: vista hacia ADELANTE, no un archivo histórico. Por
+// lote, dos columnas nada más: la campaña vigente (lo que se diagnosticó
+// este año) y la próxima (qué cultivo va, si ya está cargado, y qué
+// diagnósticos repetidos de campañas anteriores conviene vigilar antes de
+// que arranque). Las campañas intermedias no se muestran como columnas: se
+// usan solo puertas adentro para calcular el ⚠️ y armar la lista de "a tener
+// en cuenta para la próxima" — eso es lo que convierte el precedente en una
+// decisión concreta para la campaña que viene.
+function proximaCampaña(camp){
+  const idx=(DB.campanas||[]).indexOf(camp);
+  if(idx<0)return null;
+  return DB.campanas[idx+1]||null;
+}
 function renderHistorial(){
   const cont=document.getElementById('hist-body');if(!cont)return;
   const selCli=document.getElementById('hist-cli'),selCampo=document.getElementById('hist-campo');
@@ -1881,10 +1930,14 @@ function renderHistorial(){
   }
   const fCampo=selCampo?.value||'';
   const soloRep=!!document.getElementById('hist-repetidos')?.checked;
-  const nSel=document.getElementById('hist-ncamp')?.value||'4';
+  const nSel=document.getElementById('hist-ncamp')?.value||'todas';
 
-  const todasCamp=(DB.campanas||[]).slice(); // orden cronológico tal cual las tiene cargadas
-  const campañas=nSel==='todas'?todasCamp:todasCamp.slice(Math.max(0,todasCamp.length-parseInt(nSel,10)));
+  const vigente=getCampanaActiva();
+  const proxima=proximaCampaña(vigente);
+  const todasCamp=(DB.campanas||[]).slice();
+  const idxVigente=todasCamp.indexOf(vigente);
+  if(!vigente||idxVigente<0){cont.innerHTML='<div class="empty"><div class="empty-icon">📜</div><div class="empty-t">Sin campaña vigente configurada</div></div>';return;}
+  const ventanaRepetidos=nSel==='todas'?todasCamp.slice(0,idxVigente+1):todasCamp.slice(Math.max(0,idxVigente+1-parseInt(nSel,10)),idxVigente+1);
 
   let lotes=DB.lotes.slice();
   if(fCli)lotes=lotes.filter(l=>l.clienteId===fCli);
@@ -1894,86 +1947,200 @@ function renderHistorial(){
     const poa=DB.campos.find(x=>x.id===a.campoId)?.nombre||'',pob=DB.campos.find(x=>x.id===b.campoId)?.nombre||'';
     return ca.localeCompare(cb)||poa.localeCompare(pob)||naturalCmp(a.nombre,b.nombre);
   });
+  if(!lotes.length){cont.innerHTML='<div class="empty"><div class="empty-icon">📜</div><div class="empty-t">Sin lotes para mostrar</div></div>';return;}
 
-  if(!lotes.length||!campañas.length){cont.innerHTML='<div class="empty"><div class="empty-icon">📜</div><div class="empty-t">Sin datos para mostrar</div></div>';return;}
+  function diagsDeCamp(loteId,camp){
+    const relevs=(DB.relevamientos||[]).filter(r=>r.loteId===loteId&&r.campaña===camp&&!r.borrado&&r.estado!=='Borrador');
+    const porCat={};
+    relevs.forEach(r=>(r.malezas||[]).forEach(m=>{
+      if(!m.nombre)return;
+      const cat=m.categoria||catDeM(m);
+      if(!porCat[cat])porCat[cat]=new Map();
+      if(!porCat[cat].has(m.nombre))porCat[cat].set(m.nombre,{nombre:m.nombre,nota:m.nota||''});
+      else if(m.nota&&!porCat[cat].get(m.nombre).nota)porCat[cat].get(m.nombre).nota=m.nota;
+    }));
+    return porCat;
+  }
 
   const filas=[];
   lotes.forEach(l=>{
-    const cultivoPorCamp={},porCampCat={};
-    campañas.forEach(camp=>{
-      cultivoPorCamp[camp]=baseCultivo(getCultivoDeLote(l.id,camp))||'';
-      const relevs=(DB.relevamientos||[]).filter(r=>r.loteId===l.id&&r.campaña===camp&&!r.borrado&&r.estado!=='Borrador');
-      const porCat={};
-      relevs.forEach(r=>(r.malezas||[]).forEach(m=>{
-        if(!m.nombre)return;
-        const cat=m.categoria||catDeM(m);
-        if(!porCat[cat])porCat[cat]=new Map();
-        if(!porCat[cat].has(m.nombre))porCat[cat].set(m.nombre,{nombre:m.nombre,nota:m.nota||''});
-        else if(m.nota&&!porCat[cat].get(m.nombre).nota)porCat[cat].get(m.nombre).nota=m.nota;
-      }));
-      porCampCat[camp]=porCat;
-    });
-    // Categorías con algo en al menos una campaña de las mostradas — un lote
-    // sin ningún diagnóstico en la ventana no suma fila acá.
-    const categoriasConDatos=new Set();
-    campañas.forEach(camp=>Object.keys(porCampCat[camp]).forEach(cat=>categoriasConDatos.add(cat)));
-    if(!categoriasConDatos.size)return;
-    const ordenCats=categoriasDiag().map(c=>c.nombre).filter(n=>categoriasConDatos.has(n));
-    categoriasConDatos.forEach(c=>{if(!ordenCats.includes(c))ordenCats.push(c);}); // categorías borradas del catálogo, si quedó algo viejo con ese nombre
-
-    // Por categoría: cuántas campañas (de las mostradas) tuvieron cada nombre de diagnóstico — para el ⚠️
-    const repetidoPorCat={};
-    ordenCats.forEach(cat=>{
-      const cuenta=new Map();
-      campañas.forEach(camp=>{
-        const m=porCampCat[camp][cat];
-        if(!m)return;
-        [...m.keys()].forEach(nombre=>cuenta.set(nombre,(cuenta.get(nombre)||0)+1));
+    const porCatVigente=diagsDeCamp(l.id,vigente);
+    // Cuántas veces (dentro de la ventana elegida) apareció cada nombre de
+    // diagnóstico en cada categoría — es lo que decide el ⚠️ y la lista de
+    // "a tener en cuenta".
+    const cuentaPorCat={};
+    ventanaRepetidos.forEach(camp=>{
+      const porCat=camp===vigente?porCatVigente:diagsDeCamp(l.id,camp);
+      Object.keys(porCat).forEach(cat=>{
+        if(!cuentaPorCat[cat])cuentaPorCat[cat]=new Map();
+        [...porCat[cat].keys()].forEach(nombre=>cuentaPorCat[cat].set(nombre,(cuentaPorCat[cat].get(nombre)||0)+1));
       });
-      repetidoPorCat[cat]=cuenta;
     });
-    const hayRepetido=ordenCats.some(cat=>[...repetidoPorCat[cat].values()].some(n=>n>1));
-    if(soloRep&&!hayRepetido)return;
-    filas.push({l,cli:DB.clientes.find(x=>x.id===l.clienteId),campo:DB.campos.find(x=>x.id===l.campoId),cultivoPorCamp,porCampCat,ordenCats,repetidoPorCat});
+    const catsVigente=categoriasDiag().map(c=>c.nombre).filter(n=>porCatVigente[n]&&porCatVigente[n].size);
+    Object.keys(porCatVigente).forEach(c=>{if(porCatVigente[c].size&&!catsVigente.includes(c))catsVigente.push(c);});
+
+    const aVigilar=[];
+    catsVigente.forEach(cat=>{
+      [...porCatVigente[cat].values()].forEach(dg=>{
+        const veces=cuentaPorCat[cat]?.get(dg.nombre)||1;
+        if(veces>1)aVigilar.push({cat,nombre:dg.nombre,nota:dg.nota,veces});
+      });
+    });
+
+    if(!catsVigente.length&&!aVigilar.length)return;
+    if(soloRep&&!aVigilar.length)return;
+
+    filas.push({
+      l,cli:DB.clientes.find(x=>x.id===l.clienteId),campo:DB.campos.find(x=>x.id===l.campoId),
+      porCatVigente,catsVigente,cuentaPorCat,aVigilar,
+      cultivoVigente:baseCultivo(getCultivoDeLote(l.id,vigente))||'',
+      cultivoProxima:proxima?(baseCultivo(getCultivoDeLote(l.id,proxima))||''):''
+    });
   });
   if(!filas.length){cont.innerHTML='<div class="empty"><div class="empty-icon">📜</div><div class="empty-t">Ningún lote cumple ese filtro</div></div>';return;}
 
-  const th=`<th style="text-align:left;padding:6px 8px;min-width:130px;position:sticky;left:0;background:var(--card)">Lote</th>`
-    +`<th style="text-align:left;padding:6px 8px;min-width:110px">Categoría</th>`
-    +campañas.map(c=>`<th style="text-align:left;padding:6px 8px;min-width:150px">${c}</th>`).join('');
+  function pillsDeCategorias(cats,porCat,cuentaPorCat){
+    return cats.map(cat=>{
+      const pills=[...porCat[cat].values()].map(dg=>{
+        const veces=cuentaPorCat[cat]?.get(dg.nombre)||1;
+        const rep=veces>1;
+        const tip=(dg.nota?'📝 '+dg.nota:'')+(rep?` — se repitió en ${veces} campañas`:'');
+        return`<span class="mal-pill" style="font-size:10px" title="${tip.replace(/"/g,'&quot;')}">${rep?'⚠️ ':''}${dg.nombre}</span>`;
+      }).join('');
+      return`<div style="margin-bottom:3px"><span style="font-size:10px;font-weight:600;color:var(--text2)">${diagIcono(cat)} ${cat}:</span> <span style="display:inline-flex;flex-wrap:wrap;gap:2px">${pills}</span></div>`;
+    }).join('');
+  }
+
+  const th=`<th style="text-align:left;padding:6px 8px;min-width:150px;position:sticky;left:0;background:var(--card)">Lote</th>`
+    +`<th style="text-align:left;padding:6px 8px;min-width:240px">Campaña vigente (${vigente})</th>`
+    +`<th style="text-align:left;padding:6px 8px;min-width:240px">Próxima campaña${proxima?' ('+proxima+')':''}</th>`;
   let cuerpo='';
   filas.forEach(f=>{
-    const totalRows=f.ordenCats.length+1; // +1 por la fila de Cultivo
-    const cultCeldas=campañas.map(camp=>{
-      const c=f.cultivoPorCamp[camp];
-      return`<td style="padding:4px 6px">${c?`<span class="badge bg-amber" style="font-size:10px">${c}</span>`:'<span class="muted" style="font-size:10px">—</span>'}</td>`;
-    }).join('');
-    cuerpo+=`<tr style="border-top:2px solid var(--border)">
-      <td rowspan="${totalRows}" style="padding:6px 8px;vertical-align:top;position:sticky;left:0;background:var(--card)">
+    const celdaVigente=`<div style="margin-bottom:4px">${f.cultivoVigente?`<span class="badge bg-amber" style="font-size:10px">${f.cultivoVigente}</span>`:'<span class="muted" style="font-size:10px">Sin cultivo cargado</span>'}</div>`
+      +(f.catsVigente.length?pillsDeCategorias(f.catsVigente,f.porCatVigente,f.cuentaPorCat):'<span class="muted" style="font-size:10px">Sin diagnósticos esta campaña</span>');
+    const celdaProxima=(f.cultivoProxima?`<div style="margin-bottom:4px"><span class="badge bg-amber" style="font-size:10px">${f.cultivoProxima}</span></div>`:(proxima?'<div style="margin-bottom:4px"><span class="muted" style="font-size:10px">Cultivo aún no planificado</span></div>':''))
+      +(f.aVigilar.length
+        ?`<div style="font-size:10px;font-weight:600;color:var(--text2);margin-bottom:2px">⚠️ A tener en cuenta:</div><div style="display:flex;flex-wrap:wrap;gap:2px;margin-bottom:4px">`+f.aVigilar.map(a=>{
+            const tip=(a.nota?'📝 '+a.nota:'')+` — se repitió en ${a.veces} campañas`;
+            return`<span class="mal-pill" style="font-size:10px" title="${tip.replace(/"/g,'&quot;')}">${diagIcono(a.cat)} ${a.nombre}</span>`;
+          }).join('')+`</div>`
+        :'<div class="muted" style="font-size:10px;margin-bottom:4px">Sin antecedentes repetidos</div>')
+      +`<a href="#" onclick="event.preventDefault();abrirModalActividadMasiva(['${f.l.id}'],'','${proxima||vigente}')" style="font-size:10px;color:var(--accent)">➕ Agregar solución / actividad</a>`;
+    cuerpo+=`<tr style="border-top:1px solid var(--border)">
+      <td style="padding:6px 8px;vertical-align:top;position:sticky;left:0;background:var(--card)">
         <a href="#" onclick="event.preventDefault();navTo('lote',{loteId:'${f.l.id}',cliId:'${f.l.clienteId}',campoId:'${f.l.campoId}'})" style="color:var(--accent);font-weight:500">${f.l.nombre}</a>
         <div class="muted" style="font-size:10px;margin-top:2px">${f.cli?.nombre||'—'} · ${f.campo?.nombre||'—'}</div>
       </td>
-      <td style="padding:4px 6px;font-size:11px;font-weight:600;color:var(--text2)">Cultivo</td>${cultCeldas}</tr>`;
-    f.ordenCats.forEach(cat=>{
-      const celdas=campañas.map((camp,idx)=>{
-        const esUltima=idx===campañas.length-1;
-        const m=f.porCampCat[camp][cat];
-        if(!m||!m.size){
-          if(esUltima)return`<td style="padding:4px 6px"><a href="#" onclick="event.preventDefault();abrirModalActividadMasiva(['${f.l.id}'],'','${camp}')" style="font-size:10px;color:var(--accent)">➕ Agregar solución</a></td>`;
-          return`<td style="padding:4px 6px"><span class="muted" style="font-size:10px">—</span></td>`;
-        }
-        const pills=[...m.values()].map(dg=>{
-          const rep=(f.repetidoPorCat[cat].get(dg.nombre)||0)>1;
-          const tip=dg.nota?'📝 '+dg.nota:'';
-          return`<span class="mal-pill" style="font-size:10px" title="${tip.replace(/"/g,'&quot;')}">${rep?'⚠️ ':''}${dg.nombre}</span>`;
-        }).join('');
-        return`<td style="padding:4px 6px"><div style="display:flex;flex-wrap:wrap;gap:2px">${pills}</div></td>`;
-      }).join('');
-      cuerpo+=`<tr><td style="padding:4px 6px;font-size:11px;font-weight:600;color:var(--text2)">${diagIcono(cat)} ${cat}</td>${celdas}</tr>`;
-    });
+      <td style="padding:6px 8px;vertical-align:top">${celdaVigente}</td>
+      <td style="padding:6px 8px;vertical-align:top">${celdaProxima}</td>
+    </tr>`;
   });
   cont.innerHTML=`<div class="tw"><table style="width:100%;border-collapse:collapse"><thead><tr>${th}</tr></thead><tbody>${cuerpo}</tbody></table></div>`;
 }
+
+// ── Calendario de Actividades: Lote × Mes, agrupado y plegable por Campo ──
+// Vista operativa de "qué hay cargado y cuándo", complementaria a Planificación
+// (que es por tipo de actividad dentro de una campaña puntual): acá el eje es
+// el calendario real, cruza campañas si hace falta, y te deja ver de un
+// vistazo todos los campos de un cliente sin que la tabla se haga eterna —
+// cada campo arranca plegado y se abre con un clic en su encabezado.
+function calMesesRango(){
+  const hoy=new Date(hoyLocal()+'T00:00:00');
+  const meses=[];
+  for(let i=-2;i<=9;i++){
+    const d=new Date(hoy.getFullYear(),hoy.getMonth()+i,1);
+    const ym=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+    let label=d.toLocaleDateString('es-AR',{month:'short',year:'2-digit'}).replace(/\./g,'');
+    label=label.charAt(0).toUpperCase()+label.slice(1);
+    meses.push({ym,label,esActual:i===0});
+  }
+  return meses;
+}
+// Igual que planItemsDeLote pero sin filtrar por campaña — el calendario es
+// una ventana de fechas que puede cruzar de una campaña a la siguiente.
+function calItemsDeLote(loteId){
+  const items=[];
+  (DB.relevamientos||[]).forEach(r=>{
+    if(r.loteId!==loteId||r.borrado||r.estado==='Borrador')return;
+    items.push({esRelev:true,id:r.id,tipo:'Relevamiento',estado:r.fecha?'Realizada':'Pendiente',fecha:r.fechaInicio||null,fechaFin:r.fechaLimite||null,real:r.fecha||null});
+  });
+  (DB.actividades||[]).forEach(a=>{
+    if(a.loteId!==loteId||a.borrado||a.tipo==='Relevamiento')return;
+    items.push({esRelev:false,id:a.id,tipo:a.tipo,estado:estadoDe(a),fecha:a.fecha||null,fechaFin:a.fechaFin||null,real:a.fechaRealizacion||null});
+  });
+  items.forEach(i=>{i.ref=i.real||i.fecha||i.fechaFin||'';});
+  return items;
+}
+let _calCamposCache={}; // campoId -> ids de lotes mostrados, para el "+ Nueva (varios lotes)"
+function calNuevoVarios(campoId){
+  const ids=_calCamposCache[campoId]||[];
+  if(!ids.length){mostrarSnackbar('Este campo no tiene lotes cargados');return;}
+  abrirModalActividadMasiva(ids);
+}
+function renderCalendario(){
+  const cont=document.getElementById('cal-body');if(!cont)return;
+  const selCli=document.getElementById('cal-cli'),selCampo=document.getElementById('cal-campo');
+  if(selCli){const pv=selCli.value;selCli.innerHTML='<option value="">Todos los clientes</option>'+DB.clientes.slice().sort((a,b)=>a.nombre.localeCompare(b.nombre)).map(c=>`<option value="${c.id}"${c.id===pv?' selected':''}>${c.nombre}</option>`).join('');}
+  const fCli=selCli?.value||'';
+  if(selCampo){
+    const pv=selCampo.value;
+    const camposOpt=(fCli?DB.campos.filter(c=>c.clienteId===fCli):DB.campos).slice().sort((a,b)=>a.nombre.localeCompare(b.nombre));
+    selCampo.innerHTML='<option value="">Todos los campos</option>'+camposOpt.map(c=>`<option value="${c.id}"${c.id===pv?' selected':''}>${c.nombre}</option>`).join('');
+    if(pv&&!camposOpt.some(c=>c.id===pv))selCampo.value='';
+  }
+  const fCampo=selCampo?.value||'';
+
+  const meses=calMesesRango();
+  const mesesSet=new Set(meses.map(m=>m.ym));
+
+  let campos=DB.campos.slice();
+  if(fCli)campos=campos.filter(c=>c.clienteId===fCli);
+  if(fCampo)campos=campos.filter(c=>c.id===fCampo);
+  campos.sort((a,b)=>{
+    const ca=DB.clientes.find(x=>x.id===a.clienteId)?.nombre||'',cb=DB.clientes.find(x=>x.id===b.clienteId)?.nombre||'';
+    return ca.localeCompare(cb)||a.nombre.localeCompare(b.nombre);
+  });
+  if(!campos.length){cont.innerHTML='<div class="empty"><div class="empty-icon">📆</div><div class="empty-t">Sin campos para mostrar</div></div>';return;}
+
+  _calCamposCache={};
+  const th=`<th style="text-align:left;padding:6px 8px;min-width:130px;position:sticky;left:0;background:var(--card)">Lote</th>`
+    +meses.map(m=>`<th style="text-align:left;padding:6px 8px;min-width:118px;${m.esActual?'background:var(--bg2)':''}">${m.label}</th>`).join('');
+
+  cont.innerHTML=campos.map(campo=>{
+    const cli=DB.clientes.find(x=>x.id===campo.clienteId);
+    const lotes=DB.lotes.filter(l=>l.campoId===campo.id).sort((a,b)=>naturalCmp(a.nombre,b.nombre));
+    _calCamposCache[campo.id]=lotes.map(l=>l.id);
+    let total=0;
+    const cuerpo=lotes.map(l=>{
+      const items=calItemsDeLote(l.id).filter(it=>it.ref&&mesesSet.has(it.ref.slice(0,7)));
+      total+=items.length;
+      const porMes={};
+      meses.forEach(m=>porMes[m.ym]=[]);
+      items.forEach(it=>{porMes[it.ref.slice(0,7)].push(it);});
+      const celdas=meses.map(m=>{
+        const arr=porMes[m.ym];
+        if(!arr.length)return`<td style="padding:4px 6px;${m.esActual?'background:var(--bg2)':''}"></td>`;
+        const mas=arr.length>3?` <a href="#" onclick="event.preventDefault();navTo('lote',{loteId:'${l.id}',cliId:'${l.clienteId}',campoId:'${l.campoId}'})" style="font-size:10px" title="Ver todas en la ficha del lote">+${arr.length-3} más</a>`:'';
+        return`<td style="padding:4px 6px;${m.esActual?'background:var(--bg2)':''}">${arr.slice(0,3).map(planPill).join('')}${mas}</td>`;
+      }).join('');
+      return`<tr>
+        <td style="padding:5px 8px;position:sticky;left:0;background:var(--card)">
+          <a href="#" onclick="event.preventDefault();navTo('lote',{loteId:'${l.id}',cliId:'${l.clienteId}',campoId:'${l.campoId}'})" style="color:var(--accent);font-weight:500">${l.nombre}</a>
+          <a href="#" onclick="event.preventDefault();abrirModalActividadMasiva(['${l.id}'])" title="Agregar actividad en este lote" style="font-size:12px;color:var(--accent);margin-left:6px">＋</a>
+        </td>${celdas}</tr>`;
+    }).join('');
+    return`<details style="margin-bottom:8px;border:1px solid var(--border);border-radius:var(--r);overflow:hidden">
+      <summary style="cursor:pointer;padding:8px 12px;font-weight:600;font-size:13px;background:var(--bg2);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span>📍 ${campo.nombre}</span>
+        <span class="muted" style="font-weight:400;font-size:11px">👤 ${cli?.nombre||'—'} · ${lotes.length} lote${lotes.length===1?'':'s'}</span>
+        <span class="badge ${total?'bg-blue':'bg-gray'}" style="font-size:10px">${total} actividad${total===1?'':'es'} en el rango</span>
+        <a href="#" onclick="event.preventDefault();event.stopPropagation();calNuevoVarios('${campo.id}')" title="Cargar una misma actividad en todos los lotes de este campo — ideal para Capacitación, análisis de suelo, etc." style="font-size:11px;color:var(--accent);margin-left:auto">＋ Nueva (varios lotes)</a>
+      </summary>
+      ${lotes.length?`<div class="tw"><table style="width:100%;border-collapse:collapse"><thead><tr>${th}</tr></thead><tbody>${cuerpo}</tbody></table></div>`:'<div class="empty" style="padding:16px"><div class="empty-t">Este campo todavía no tiene lotes cargados</div></div>'}
+    </details>`;
+  }).join('');
+}
+
 function restaurarDePapelera(id,esRelev){
   if(esRelev){
     const r=DB.relevamientos.find(x=>x.id===id);if(r){delete r.borrado;delete r.fechaBorrado;delete r.borradoTs;}
@@ -2083,9 +2250,18 @@ const PM={
   planificacion:{t:'Planificación',s:'Qué tiene cada lote en la campaña — y qué falta cargar'},
   papelera:{t:'Papelera',s:'Relevamientos y actividades eliminados — se guardan 30 días por si hace falta restaurarlos'},
   historial:{t:'Historial y Rotación',s:'Cultivo y diagnósticos por lote, campaña a campaña — para decidir la rotación con precedentes'},
+  calendario:{t:'Calendario de Actividades',s:'Por campo y lote, qué hay cargado mes a mes — últimos 2 meses y los próximos 9'},
 };
 let _prevPage='dashboard';
+function toggleSidebar(force){
+  const sb=document.querySelector('.sidebar'),ov=document.querySelector('.sidebar-overlay');
+  if(!sb||!ov)return;
+  const open=force!==undefined?force:!sb.classList.contains('open');
+  sb.classList.toggle('open',open);
+  ov.classList.toggle('open',open);
+}
 function navTo(id,params={}){
+  toggleSidebar(false); // en celular, elegir una solapa cierra el menú
   _prevPage=document.querySelector('.page.active')?.id?.replace('page-','') || 'dashboard';
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));
@@ -2112,6 +2288,7 @@ function navTo(id,params={}){
   if(id==='lote')         renderLoteDetail(params.loteId,params.cliId,params.campoId);
   if(id==='diagnostico')  renderDiagnosticoDetail(params.malId);
   if(id==='actividades')  renderActividadesMaster();
+  if(id==='calendario')   renderCalendario();
   if(id==='planificacion')renderPlanificacion();
   if(id==='papelera')     renderPapelera();
   if(id==='historial')    renderHistorial();
@@ -5135,6 +5312,7 @@ const ACT_TIPOS={
   'Helada':       {icono:'❄️',dot:'act-dot-evento',color:'bg-red'},
   'Relevamiento': {icono:'🔍',dot:'act-dot-relevado',color:'bg-gray'},
   'Aplicación':   {icono:'✅',dot:'act-dot-aplicado',color:'bg-blue'},
+  'Capacitación': {icono:'🎓',dot:'act-dot-otro',color:'bg-gray'},
   'Otro':         {icono:'📝',dot:'act-dot-otro',color:'bg-gray'},
 };
 // Campos extra según tipo
