@@ -715,8 +715,25 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
       <div class="filters ph" style="gap:6px;flex-wrap:wrap;margin-bottom:10px;align-items:center">
         <select id="cal-cli" class="fi" style="width:160px" onchange="renderCalendario()"><option value="">Todos los clientes</option></select>
         <select id="cal-campo" class="fi" style="width:160px" onchange="renderCalendario()"><option value="">Todos los campos</option></select>
+        <div class="ms-combo" style="position:relative">
+          <button type="button" class="fi" id="ms-btn-cal-lote" onclick="msToggle('cal-lote')" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:5px 8px;font-family:'Sora',sans-serif;font-size:12px;color:var(--text);cursor:pointer;text-align:left;width:120px">Lote...</button>
+          <div class="ms-drop" id="ms-drop-cal-lote" style="display:none;position:absolute;top:calc(100% + 2px);left:0;z-index:50;background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:6px;max-height:220px;overflow:auto;min-width:180px;box-shadow:0 4px 12px rgba(0,0,0,.15)"></div>
+        </div>
+        <div class="ms-combo" style="position:relative">
+          <button type="button" class="fi" id="ms-btn-cal-cult" onclick="msToggle('cal-cult')" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:5px 8px;font-family:'Sora',sans-serif;font-size:12px;color:var(--text);cursor:pointer;text-align:left;width:120px">Cultivo...</button>
+          <div class="ms-drop" id="ms-drop-cal-cult" style="display:none;position:absolute;top:calc(100% + 2px);left:0;z-index:50;background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:6px;max-height:220px;overflow:auto;min-width:180px;box-shadow:0 4px 12px rgba(0,0,0,.15)"></div>
+        </div>
+        <div class="ms-combo" style="position:relative">
+          <button type="button" class="fi" id="ms-btn-cal-tipo" onclick="msToggle('cal-tipo')" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:5px 8px;font-family:'Sora',sans-serif;font-size:12px;color:var(--text);cursor:pointer;text-align:left;width:120px">Tipo...</button>
+          <div class="ms-drop" id="ms-drop-cal-tipo" style="display:none;position:absolute;top:calc(100% + 2px);left:0;z-index:50;background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:6px;max-height:220px;overflow:auto;min-width:180px;box-shadow:0 4px 12px rgba(0,0,0,.15)"></div>
+        </div>
+        <div class="ms-combo" style="position:relative">
+          <button type="button" class="fi" id="ms-btn-cal-estado" onclick="msToggle('cal-estado')" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:5px 8px;font-family:'Sora',sans-serif;font-size:12px;color:var(--text);cursor:pointer;text-align:left;width:130px">Estado...</button>
+          <div class="ms-drop" id="ms-drop-cal-estado" style="display:none;position:absolute;top:calc(100% + 2px);left:0;z-index:50;background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:6px;max-height:220px;overflow:auto;min-width:180px;box-shadow:0 4px 12px rgba(0,0,0,.15)"></div>
+        </div>
+        <button class="btn bs bsm" onclick="clearFiltrosCal()">Limpiar</button>
       </div>
-      <div class="ph" style="font-size:11px;color:var(--text3);margin-bottom:8px">Un bloque por campo — tocá el encabezado para desplegar sus lotes y ver sus actividades mes a mes (2 meses atrás, el actual resaltado, y 9 por delante). 🟢 realizada · 🔵 pendiente en horario · 🔴 pendiente y vencida — clic en cualquier pastilla para abrirla. "＋ Actividad" carga una para ese lote con el mes ya precargado de 1º a último día; "＋ Nueva (varios lotes)" hace lo mismo en todos los lotes del campo a la vez — ideal para Capacitación o análisis de suelo. El 📌 (arriba a la derecha de cada casillero, uso ocasional) marca a mano a partir de qué mes ese lote pasa a otra campaña — queda como una línea gruesa vertical y vale hasta que declares el próximo corte; mientras no marques nada, el "＋" no sugiere ninguna campaña sola. Tocá el nombre de un mes (🔍) para ver el detalle de todos tus clientes ese mes, en Actividades.</div>
+      <div class="ph" style="font-size:11px;color:var(--text3);margin-bottom:8px">Un bloque por campo — tocá el encabezado para desplegar sus lotes y ver sus actividades mes a mes (2 meses atrás, el actual resaltado, y 9 por delante). 🟢 realizada · 🔵 pendiente en horario · 🔴 pendiente y vencida · cada pastilla lleva la inicial del tipo (A: Aplicación, R: Relevamiento, S: Siembra, Co: Cosecha...) — clic en cualquiera para abrirla. "＋ Actividad" carga una para ese lote con el mes ya precargado de 1º a último día; "＋ Nueva (varios lotes)" hace lo mismo en todos los lotes del campo a la vez — ideal para Capacitación o análisis de suelo. El 📌 (arriba a la derecha de cada casillero, uso ocasional) marca a mano a partir de qué mes ese lote pasa a otra campaña — queda como una línea gruesa vertical y vale hasta que declares el próximo corte; mientras no marques nada, el "＋" no sugiere ninguna campaña sola. Tocá el nombre de un mes (🔍) para ver el detalle de todos tus clientes ese mes, en Actividades.</div>
       <div id="cal-body"></div>
     </div>
 
@@ -727,6 +744,18 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
         <select id="plan-camp" class="fi" style="width:130px" onchange="_planCamp=this.value;renderPlanificacion()"></select>
         <select id="plan-cli" class="fi" style="width:160px" onchange="renderPlanificacion()"><option value="">Todos los clientes</option></select>
         <select id="plan-cult" class="fi" style="width:150px" onchange="renderPlanificacion()"><option value="">Todos los cultivos</option></select>
+        <div class="ms-combo" style="position:relative">
+          <button type="button" class="fi" id="ms-btn-plan-lote" onclick="msToggle('plan-lote')" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:5px 8px;font-family:'Sora',sans-serif;font-size:12px;color:var(--text);cursor:pointer;text-align:left;width:120px">Lote...</button>
+          <div class="ms-drop" id="ms-drop-plan-lote" style="display:none;position:absolute;top:calc(100% + 2px);left:0;z-index:50;background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:6px;max-height:220px;overflow:auto;min-width:180px;box-shadow:0 4px 12px rgba(0,0,0,.15)"></div>
+        </div>
+        <div class="ms-combo" style="position:relative">
+          <button type="button" class="fi" id="ms-btn-plan-tipo" onclick="msToggle('plan-tipo')" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:5px 8px;font-family:'Sora',sans-serif;font-size:12px;color:var(--text);cursor:pointer;text-align:left;width:120px">Tipo...</button>
+          <div class="ms-drop" id="ms-drop-plan-tipo" style="display:none;position:absolute;top:calc(100% + 2px);left:0;z-index:50;background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:6px;max-height:220px;overflow:auto;min-width:180px;box-shadow:0 4px 12px rgba(0,0,0,.15)"></div>
+        </div>
+        <div class="ms-combo" style="position:relative">
+          <button type="button" class="fi" id="ms-btn-plan-estado" onclick="msToggle('plan-estado')" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:5px 8px;font-family:'Sora',sans-serif;font-size:12px;color:var(--text);cursor:pointer;text-align:left;width:130px">Estado...</button>
+          <div class="ms-drop" id="ms-drop-plan-estado" style="display:none;position:absolute;top:calc(100% + 2px);left:0;z-index:50;background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:6px;max-height:220px;overflow:auto;min-width:180px;box-shadow:0 4px 12px rgba(0,0,0,.15)"></div>
+        </div>
         <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer"><input type="checkbox" id="plan-falt" onchange="renderPlanificacion()"> Solo lotes con casilleros vacíos</label>
         <button class="btn bs bsm" onclick="planLimpiar()">Limpiar</button>
       </div>
@@ -1688,6 +1717,21 @@ function planPill(it){
   const tit=`${it.tipo} — ${it.estado}${it.fecha?' · inicio '+it.fecha:''}${it.fechaFin?' · límite '+it.fechaFin:''}${it.real?' · realizada '+it.real:''}`;
   return`<a href="#" onclick="event.preventDefault();${abrir}" title="${tit}"><span class="badge ${cls}" style="font-size:10px;margin:1px">${ico}${txt}</span></a>`;
 }
+// Igual que planPill, pero para el Calendario: con varias pastillas apiladas
+// una debajo de otra en una celda chica, conviene ver de un vistazo QUÉ tipo
+// es cada una sin tener que fijarse en el ícono — por eso lleva la inicial
+// del tipo (A: Aplicación, R: Relevamiento, S: Siembra...) bien visible.
+function calPill(it){
+  let cls='bg-blue';
+  if(it.estado==='Realizada')cls='bg-green';
+  else{const u=urgenciaActividad({estado:it.estado,fecha:it.fecha,fechaFin:it.fechaFin});if(u&&u.k==='vencida')cls='bg-red';}
+  const f=it.real||it.fecha||it.fechaFin;
+  const txt=f?f.slice(8,10)+'/'+f.slice(5,7):'s/f';
+  const letra=ACT_TIPO_LETRA[it.tipo]||(it.tipo||'?').slice(0,1).toUpperCase();
+  const abrir=it.esRelev?`openModalRelev('${it.id}')`:`openModalActividad(null,null,null,'${it.id}')`;
+  const tit=`${it.tipo} — ${it.estado}${it.fecha?' · inicio '+it.fecha:''}${it.fechaFin?' · límite '+it.fechaFin:''}${it.real?' · realizada '+it.real:''}${it.cultivo?' · '+it.cultivo:''}`;
+  return`<a href="#" onclick="event.preventDefault();${abrir}" title="${tit}" style="width:100%"><span class="badge ${cls}" style="font-size:10px;margin:1px;display:flex;gap:3px;align-items:center;justify-content:center;width:100%"><strong>${letra}</strong>·${txt}</span></a>`;
+}
 // momento ('pre'|'post'|null) viene de la columna donde se clickeó "+crear" —
 // queda fijo en la actividad, así no se mueve de columna si la fecha de la
 // siembra (todavía solo planificada) se termina corriendo más adelante.
@@ -1710,6 +1754,7 @@ function planCrearMasivo(k){
 function planLimpiar(){
   ['plan-cli','plan-cult'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   const f=document.getElementById('plan-falt');if(f)f.checked=false;
+  msClear('plan-lote');msClear('plan-tipo');msClear('plan-estado');
   _planCamp=getCampanaActiva();
   renderPlanificacion();
 }
@@ -1757,6 +1802,15 @@ function renderPlanificacion(){
   const cultDe=l=>baseCultivo(getCultivoDeLote(l.id,_planCamp))||'';
   if(selCult){const pv=selCult.value;const cs=[...new Set(DB.lotes.map(cultDe).filter(Boolean))].sort();selCult.innerHTML='<option value="">Todos los cultivos</option>'+cs.map(x=>`<option value="${x}"${x===pv?' selected':''}>${x}</option>`).join('');}
   const fCli=selCli?.value||'',fCult=selCult?.value||'',soloFalt=!!document.getElementById('plan-falt')?.checked;
+  let lotesOptPlan=DB.lotes.slice();
+  if(fCli)lotesOptPlan=lotesOptPlan.filter(l=>l.clienteId===fCli);
+  msRender('plan-lote',lotesOptPlan.sort((a,b)=>naturalCmp(a.nombre,b.nombre)).map(l=>{const c=DB.clientes.find(x=>x.id===l.clienteId);return{value:l.id,label:l.nombre+(c?' — '+c.nombre:'')};}),'Lote',()=>renderPlanificacion());
+  const fLotes=msValues('plan-lote');
+  const TIPO_ORDEN_PLAN=['Aplicación','Relevamiento','Siembra','Cosecha','Capacitación','Laboreo mecánico','Fertilización','Riego','Otro'];
+  msRender('plan-tipo',TIPO_ORDEN_PLAN.filter(t=>ACT_TIPOS[t]).map(t=>({value:t,label:t})),'Tipo',()=>renderPlanificacion());
+  const fTipos=msValues('plan-tipo');
+  msRender('plan-estado',[{value:'Pendiente',label:'🕒 Pendiente'},{value:'Realizada',label:'✅ Realizada'}],'Estado',()=>renderPlanificacion());
+  const fEstados=msValues('plan-estado');
 
   // Aviso de lo que quedó sin campaña
   const av=document.getElementById('plan-aviso'),sc=planSinCampana();
@@ -1768,9 +1822,12 @@ function renderPlanificacion(){
   const filas=[];
   DB.lotes.forEach(l=>{
     if(fCli&&l.clienteId!==fCli)return;
+    if(fLotes.length&&!fLotes.includes(l.id))return;
     const cult=cultDe(l);
     if(fCult&&cult!==fCult)return;
-    const items=planItemsDeLote(l.id,_planCamp);
+    let items=planItemsDeLote(l.id,_planCamp);
+    if(fTipos.length)items=items.filter(i=>fTipos.includes(i.tipo));
+    if(fEstados.length)items=items.filter(i=>fEstados.includes(i.estado));
     const sieRefs=items.filter(i=>i.tipo==='Siembra'&&i.ref).map(i=>i.ref).sort();
     const siembraRef=sieRefs[0]||'';
     const cells={};PLAN_COLS.forEach(x=>cells[x.k]=[]);
@@ -2084,11 +2141,11 @@ function calItemsDeLote(loteId){
   const items=[];
   (DB.relevamientos||[]).forEach(r=>{
     if(r.loteId!==loteId||r.borrado||r.estado==='Borrador')return;
-    items.push({esRelev:true,id:r.id,tipo:'Relevamiento',estado:r.fecha?'Realizada':'Pendiente',fecha:r.fechaInicio||null,fechaFin:r.fechaLimite||null,real:r.fecha||null,campaña:r.campaña||''});
+    items.push({esRelev:true,id:r.id,tipo:'Relevamiento',estado:r.fecha?'Realizada':'Pendiente',fecha:r.fechaInicio||null,fechaFin:r.fechaLimite||null,real:r.fecha||null,campaña:r.campaña||'',cultivo:baseCultivo(r.cultivo||getCultivoDeLote(r.loteId,r.campaña)||'')});
   });
   (DB.actividades||[]).forEach(a=>{
     if(a.loteId!==loteId||a.borrado||a.tipo==='Relevamiento')return;
-    items.push({esRelev:false,id:a.id,tipo:a.tipo,estado:estadoDe(a),fecha:a.fecha||null,fechaFin:a.fechaFin||null,real:a.fechaRealizacion||null,campaña:a.campaña||''});
+    items.push({esRelev:false,id:a.id,tipo:a.tipo,estado:estadoDe(a),fecha:a.fecha||null,fechaFin:a.fechaFin||null,real:a.fechaRealizacion||null,campaña:a.campaña||'',cultivo:baseCultivo(a.campaña?getCultivoDeLote(a.loteId,a.campaña):'')});
   });
   items.forEach(i=>{i.ref=i.real||i.fecha||i.fechaFin||'';});
   return items;
@@ -2203,6 +2260,12 @@ function calVerMesEnActividades(ym){
   if(ha)ha.value=fin;
   renderActividadesMaster();
 }
+function clearFiltrosCal(){
+  const c1=document.getElementById('cal-cli'),c2=document.getElementById('cal-campo');
+  if(c1)c1.value='';if(c2)c2.value='';
+  msClear('cal-lote');msClear('cal-cult');msClear('cal-tipo');msClear('cal-estado');
+  renderCalendario();
+}
 function renderCalendario(){
   const cont=document.getElementById('cal-body');if(!cont)return;
   const selCli=document.getElementById('cal-cli'),selCampo=document.getElementById('cal-campo');
@@ -2215,6 +2278,24 @@ function renderCalendario(){
     if(pv&&!camposOpt.some(c=>c.id===pv))selCampo.value='';
   }
   const fCampo=selCampo?.value||'';
+
+  // Lote: las opciones se acotan al cliente/campo ya elegidos arriba, para no
+  // mostrar lotes que de todos modos no van a aparecer.
+  let lotesOpt=DB.lotes.slice();
+  if(fCli)lotesOpt=lotesOpt.filter(l=>l.clienteId===fCli);
+  if(fCampo)lotesOpt=lotesOpt.filter(l=>l.campoId===fCampo);
+  msRender('cal-lote',lotesOpt.sort((a,b)=>naturalCmp(a.nombre,b.nombre)).map(l=>{const cli=DB.clientes.find(x=>x.id===l.clienteId);return{value:l.id,label:l.nombre+(cli?' — '+cli.nombre:'')};}),'Lote',()=>renderCalendario());
+  const fLotes=msValues('cal-lote');
+  const cultSet=new Set();
+  DB.relevamientos.forEach(r=>{if(r.cultivo)cultSet.add(baseCultivo(r.cultivo));});
+  msRender('cal-cult',[...cultSet].filter(Boolean).sort().map(c=>({value:c,label:c})),'Cultivo',()=>renderCalendario());
+  const fCults=msValues('cal-cult');
+  const TIPO_ORDEN_CAL=['Aplicación','Relevamiento','Siembra','Cosecha','Capacitación','Laboreo mecánico','Fertilización','Riego','Otro'];
+  msRender('cal-tipo',TIPO_ORDEN_CAL.filter(t=>ACT_TIPOS[t]).map(t=>({value:t,label:(ACT_TIPO_LETRA[t]?ACT_TIPO_LETRA[t]+' · ':'')+t})),'Tipo',()=>renderCalendario());
+  const fTipos=msValues('cal-tipo');
+  msRender('cal-estado',[{value:'Pendiente',label:'🕒 Pendiente'},{value:'Realizada',label:'✅ Realizada'}],'Estado',()=>renderCalendario());
+  const fEstados=msValues('cal-estado');
+  const hayFiltroContenido=!!(fLotes.length||fCults.length||fTipos.length||fEstados.length);
 
   const meses=calMesesRango();
   const mesesSet=new Set(meses.map(m=>m.ym));
@@ -2235,11 +2316,16 @@ function renderCalendario(){
 
   cont.innerHTML=campos.map(campo=>{
     const cli=DB.clientes.find(x=>x.id===campo.clienteId);
-    const lotes=DB.lotes.filter(l=>l.campoId===campo.id).sort((a,b)=>naturalCmp(a.nombre,b.nombre));
+    let lotes=DB.lotes.filter(l=>l.campoId===campo.id).sort((a,b)=>naturalCmp(a.nombre,b.nombre));
+    if(fLotes.length)lotes=lotes.filter(l=>fLotes.includes(l.id));
     _calCamposCache[campo.id]=lotes.map(l=>l.id);
+    if(!lotes.length)return null;
     let total=0;
     const cuerpo=lotes.map((l,idx)=>{
-      const items=calItemsDeLote(l.id).filter(it=>it.ref&&mesesSet.has(it.ref.slice(0,7)));
+      let items=calItemsDeLote(l.id).filter(it=>it.ref&&mesesSet.has(it.ref.slice(0,7)));
+      if(fCults.length)items=items.filter(it=>fCults.includes(baseCultivo(it.cultivo||'')));
+      if(fTipos.length)items=items.filter(it=>fTipos.includes(it.tipo));
+      if(fEstados.length)items=items.filter(it=>fEstados.includes(it.estado));
       total+=items.length;
       const porMes={};
       meses.forEach(m=>porMes[m.ym]=[]);
@@ -2267,7 +2353,7 @@ function renderCalendario(){
         // espacio de la celda, como un botón bien claro.
         const pin=`<a href="#" onclick="event.preventDefault();calAbrirCorte('${l.id}','${m.ym}')" title="${pinTitle}" style="position:absolute;top:2px;right:3px;font-size:9px;line-height:1;${corteAqui?'opacity:.85':'opacity:.22'}">📌</a>`;
         const add=`<a href="#" onclick="event.preventDefault();calCrear('${l.id}','${m.ym}')" title="Agregar actividad en ${m.label} para ${l.nombre} (precarga todo el mes, se ajusta a mano)" class="btn bs bxs" style="display:flex;align-items:center;justify-content:center;width:100%;margin-top:3px;font-weight:700">＋ Actividad</a>`;
-        const pills=arr.length?`<div style="display:flex;flex-direction:column;gap:2px;align-items:center">${arr.map(planPill).join('')}</div>`:'';
+        const pills=arr.length?`<div style="display:flex;flex-direction:column;gap:2px;align-items:center">${arr.map(calPill).join('')}</div>`:'';
         return`<td style="position:relative;padding:6px 8px 7px;vertical-align:top;${fondo};${borde}">${etiqueta}${pills}${add}${pin}</td>`;
       }).join('');
       return`<tr style="border-top:1px solid var(--border)">
@@ -2275,6 +2361,7 @@ function renderCalendario(){
           <a href="#" onclick="event.preventDefault();navTo('lote',{loteId:'${l.id}',cliId:'${l.clienteId}',campoId:'${l.campoId}'})" style="color:var(--accent);font-weight:500">${l.nombre}</a>
         </td>${celdas}</tr>`;
     }).join('');
+    if(hayFiltroContenido&&!total)return null;
     return`<details style="margin-bottom:10px;border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;box-shadow:var(--shadow)">
       <summary style="cursor:pointer;padding:10px 14px;font-weight:600;font-size:13px;background:var(--bg2);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
         <span>📍 ${campo.nombre}</span>
@@ -2282,9 +2369,10 @@ function renderCalendario(){
         <span class="badge ${total?'bg-blue':'bg-gray'}" style="font-size:10px">${total} actividad${total===1?'':'es'} en el rango</span>
         <a href="#" onclick="event.preventDefault();event.stopPropagation();calNuevoVarios('${campo.id}')" title="Cargar una misma actividad en todos los lotes de este campo — ideal para Capacitación, análisis de suelo, etc." style="font-size:11px;color:var(--accent);margin-left:auto">＋ Nueva (varios lotes)</a>
       </summary>
-      ${lotes.length?`<div class="tw"><table style="width:100%;border-collapse:collapse"><thead><tr>${th}</tr></thead><tbody>${cuerpo}</tbody></table></div>`:'<div class="empty" style="padding:16px"><div class="empty-t">Este campo todavía no tiene lotes cargados</div></div>'}
+      <div class="tw"><table style="width:100%;border-collapse:collapse"><thead><tr>${th}</tr></thead><tbody>${cuerpo}</tbody></table></div>
     </details>`;
-  }).join('');
+  }).filter(Boolean).join('');
+  if(!cont.innerHTML)cont.innerHTML='<div class="empty"><div class="empty-icon">📆</div><div class="empty-t">No hay nada que coincida con esos filtros</div></div>';
 }
 
 function restaurarDePapelera(id,esRelev){
@@ -5475,6 +5563,13 @@ const ACT_TIPOS={
   'Aplicación':   {icono:'✅',dot:'act-dot-aplicado',color:'bg-blue'},
   'Capacitación': {icono:'🎓',dot:'act-dot-otro',color:'bg-gray'},
   'Otro':         {icono:'📝',dot:'act-dot-otro',color:'bg-gray'},
+};
+// Inicial de cada tipo para identificarlo de un vistazo en espacios chicos
+// (pastillas del Calendario) sin tener que abrir cada una.
+const ACT_TIPO_LETRA={
+  'Siembra':'S','Cosecha':'Co','Laboreo mecánico':'Lb','Fertilización':'Fe','Riego':'Ri',
+  'Incendio':'Ic','Granizo':'Gr','Inundación':'Iu','Helada':'He',
+  'Relevamiento':'R','Aplicación':'A','Capacitación':'Cap','Otro':'O'
 };
 // Campos extra según tipo
 const ACT_EXTRA={
