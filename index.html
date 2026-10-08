@@ -716,7 +716,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
         <select id="cal-cli" class="fi" style="width:160px" onchange="renderCalendario()"><option value="">Todos los clientes</option></select>
         <select id="cal-campo" class="fi" style="width:160px" onchange="renderCalendario()"><option value="">Todos los campos</option></select>
       </div>
-      <div class="ph" style="font-size:11px;color:var(--text3);margin-bottom:8px">Un bloque por campo — tocá el encabezado para desplegar sus lotes y ver sus actividades mes a mes (2 meses atrás, el actual resaltado, y 9 por delante). El "＋" de cada casillero carga una actividad para ese lote con el mes ya precargado de 1º a último día; "＋ Nueva (varios lotes)" hace lo mismo en todos los lotes del campo a la vez — ideal para Capacitación o análisis de suelo. El "📌" marca a mano, por vos, a partir de qué mes ese lote pasa a otra campaña — queda como una línea vertical en el casillero y vale hasta que declares el próximo corte; mientras no marques nada, el "＋" no te va a sugerir ninguna campaña sola. Tocá el nombre de un mes (🔍) para ver el detalle de todos tus clientes ese mes, en Actividades.</div>
+      <div class="ph" style="font-size:11px;color:var(--text3);margin-bottom:8px">Un bloque por campo — tocá el encabezado para desplegar sus lotes y ver sus actividades mes a mes (2 meses atrás, el actual resaltado, y 9 por delante). 🟢 realizada · 🔵 pendiente en horario · 🔴 pendiente y vencida — clic en cualquier pastilla para abrirla. "＋ Actividad" carga una para ese lote con el mes ya precargado de 1º a último día; "＋ Nueva (varios lotes)" hace lo mismo en todos los lotes del campo a la vez — ideal para Capacitación o análisis de suelo. El 📌 (arriba a la derecha de cada casillero, uso ocasional) marca a mano a partir de qué mes ese lote pasa a otra campaña — queda como una línea gruesa vertical y vale hasta que declares el próximo corte; mientras no marques nada, el "＋" no sugiere ninguna campaña sola. Tocá el nombre de un mes (🔍) para ver el detalle de todos tus clientes ese mes, en Actividades.</div>
       <div id="cal-body"></div>
     </div>
 
@@ -2205,8 +2205,8 @@ function renderCalendario(){
 
   _calCamposCache={};
   const th=`<th style="text-align:left;padding:8px;position:sticky;left:0;background:var(--bg2);border-bottom:1px solid var(--border)">Lote</th>`
-    +meses.map(m=>`<th style="text-align:left;padding:8px;min-width:120px;border-bottom:1px solid var(--border);${m.esActual?'background:var(--accent-bg)':'background:var(--bg2)'}">`
-      +`<a href="#" onclick="event.preventDefault();calVerMesEnActividades('${m.ym}')" style="color:inherit;text-decoration:none;display:inline-flex;align-items:center;gap:3px" title="Ver el detalle de ${m.label} en Actividades, con todos los clientes">${m.label}<span style="font-size:9px;opacity:.6">🔍</span></a></th>`).join('');
+    +meses.map((m,mi)=>`<th style="text-align:center;padding:8px;min-width:128px;border-bottom:1px solid var(--border);${mi?'border-left:1px solid var(--border)':''}${m.esActual?';background:var(--accent-bg)':';background:var(--bg2)'}">`
+      +`<a href="#" onclick="event.preventDefault();calVerMesEnActividades('${m.ym}')" style="color:inherit;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:3px" title="Ver el detalle de ${m.label} en Actividades, con todos los clientes">${m.label}<span style="font-size:9px;opacity:.6">🔍</span></a></th>`).join('');
 
   cont.innerHTML=campos.map(campo=>{
     const cli=DB.clientes.find(x=>x.id===campo.clienteId);
@@ -2220,22 +2220,27 @@ function renderCalendario(){
       meses.forEach(m=>porMes[m.ym]=[]);
       items.forEach(it=>{porMes[it.ref.slice(0,7)].push(it);});
       const zebra=idx%2?'background:var(--bg2)':'';
-      const celdas=meses.map(m=>{
+      const celdas=meses.map((m,mi)=>{
         const arr=porMes[m.ym];
         const fondo=m.esActual?'background:var(--accent-bg)':zebra;
         // El corte de campaña es 100% lo que vos declaraste con el 📌 — nunca
         // inferido. Si este mes es exactamente donde arranca uno, se marca con
-        // una línea vertical a la izquierda (la frontera entre el mes anterior
-        // y este) más el nombre de la campaña que arranca ahí.
+        // una línea vertical gruesa a la izquierda (la frontera entre el mes
+        // anterior y este) más el nombre de la campaña que arranca ahí. El
+        // resto de los meses llevan una división tenue, solo para separar
+        // columnas a simple vista.
         const corteAqui=(l.cortesCampana||[]).find(c=>c.desde===m.ym);
-        const borde=corteAqui?'border-left:3px solid var(--accent)':'';
-        const etiqueta=corteAqui?`<div style="font-size:8px;font-weight:700;color:var(--accent);white-space:nowrap" title="Campaña declarada desde acá para ${l.nombre}">➜ ${corteAqui.campaña}</div>`:'';
+        const borde=corteAqui?'border-left:5px solid var(--accent)':(mi?'border-left:1px solid var(--border)':'');
+        const etiqueta=corteAqui?`<div style="font-size:8px;font-weight:700;color:var(--accent);white-space:nowrap;text-align:center" title="Campaña declarada desde acá para ${l.nombre}">➜ ${corteAqui.campaña}</div>`:'';
         const pinTitle=corteAqui?`Corte declarado: ${corteAqui.campaña} desde ${m.label}. Tocá para cambiarlo o quitarlo.`:`Marcar que ${l.nombre} pasa de campaña a partir de ${m.label}`;
-        const pin=`<a href="#" onclick="event.preventDefault();calAbrirCorte('${l.id}','${m.ym}')" title="${pinTitle}" style="display:inline-block;font-size:11px;${corteAqui?'':'opacity:.3'};padding:0 2px">📌</a>`;
-        const add=`<a href="#" onclick="event.preventDefault();calCrear('${l.id}','${m.ym}')" title="Agregar actividad en ${m.label} para ${l.nombre} (precarga todo el mes, se ajusta a mano)" style="display:inline-block;font-size:11px;color:var(--accent);opacity:.55;padding:0 3px;border-radius:3px">＋</a>`;
-        if(!arr.length)return`<td style="padding:5px 6px;${fondo};${borde}">${etiqueta}${add}${pin}</td>`;
-        const mas=arr.length>3?` <a href="#" onclick="event.preventDefault();navTo('lote',{loteId:'${l.id}',cliId:'${l.clienteId}',campoId:'${l.campoId}'})" style="font-size:10px" title="Ver todas en la ficha del lote">+${arr.length-3} más</a>`:'';
-        return`<td style="padding:5px 6px;${fondo};${borde}">${etiqueta}${arr.slice(0,3).map(planPill).join('')}${mas} ${add}${pin}</td>`;
+        // El pin es un uso esporádico — chiquito, en la esquina, casi invisible
+        // hasta que hay un corte declarado ahí. La cruz de "agregar actividad"
+        // es lo que se toca todo el tiempo, así que se lleva casi todo el
+        // espacio de la celda, como un botón bien claro.
+        const pin=`<a href="#" onclick="event.preventDefault();calAbrirCorte('${l.id}','${m.ym}')" title="${pinTitle}" style="position:absolute;top:2px;right:3px;font-size:9px;line-height:1;${corteAqui?'opacity:.85':'opacity:.22'}">📌</a>`;
+        const add=`<a href="#" onclick="event.preventDefault();calCrear('${l.id}','${m.ym}')" title="Agregar actividad en ${m.label} para ${l.nombre} (precarga todo el mes, se ajusta a mano)" class="btn bs bxs" style="display:flex;align-items:center;justify-content:center;width:100%;margin-top:3px;font-weight:700">＋ Actividad</a>`;
+        const pills=arr.length?`<div style="display:flex;flex-wrap:wrap;gap:2px;justify-content:center">${arr.map(planPill).join('')}</div>`:'';
+        return`<td style="position:relative;padding:6px 8px 7px;vertical-align:top;${fondo};${borde}">${etiqueta}${pills}${add}${pin}</td>`;
       }).join('');
       return`<tr style="border-top:1px solid var(--border)">
         <td style="padding:6px 8px;position:sticky;left:0;${zebra||'background:var(--card)'}">
