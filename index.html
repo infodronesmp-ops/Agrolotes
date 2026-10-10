@@ -650,6 +650,42 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
       </div>
     </div>
 
+    <!-- FICHA DE CULTIVO -->
+    <div class="page" id="page-cultivo-detail">
+      <div class="rf ph mb16" style="gap:10px;align-items:center;flex-wrap:wrap">
+        <button class="btn bs bsm" onclick="navTo(_prevPage)">← Volver</button>
+        <span id="cd-titulo" style="font-size:16px;font-weight:700"></span>
+      </div>
+      <div class="filters ph" style="gap:6px;flex-wrap:wrap;margin-bottom:10px">
+        <div class="ms-combo" style="position:relative">
+          <button type="button" class="fi" id="ms-btn-cd-f-cli" onclick="msToggle('cd-f-cli')" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:5px 8px;font-family:'Sora',sans-serif;font-size:12px;color:var(--text);cursor:pointer;text-align:left;width:140px">Cliente...</button>
+          <div class="ms-drop" id="ms-drop-cd-f-cli" style="display:none;position:absolute;top:calc(100% + 2px);left:0;z-index:50;background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:6px;max-height:220px;overflow:auto;min-width:180px;box-shadow:0 4px 12px rgba(0,0,0,.15)"></div>
+        </div>
+        <div class="ms-combo" style="position:relative">
+          <button type="button" class="fi" id="ms-btn-cd-f-camp" onclick="msToggle('cd-f-camp')" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:5px 8px;font-family:'Sora',sans-serif;font-size:12px;color:var(--text);cursor:pointer;text-align:left;width:140px">Campaña...</button>
+          <div class="ms-drop" id="ms-drop-cd-f-camp" style="display:none;position:absolute;top:calc(100% + 2px);left:0;z-index:50;background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:6px;max-height:220px;overflow:auto;min-width:180px;box-shadow:0 4px 12px rgba(0,0,0,.15)"></div>
+        </div>
+        <div class="ms-combo" style="position:relative">
+          <button type="button" class="fi" id="ms-btn-cd-f-campo" onclick="msToggle('cd-f-campo')" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:5px 8px;font-family:'Sora',sans-serif;font-size:12px;color:var(--text);cursor:pointer;text-align:left;width:120px">Campo...</button>
+          <div class="ms-drop" id="ms-drop-cd-f-campo" style="display:none;position:absolute;top:calc(100% + 2px);left:0;z-index:50;background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:6px;max-height:220px;overflow:auto;min-width:180px;box-shadow:0 4px 12px rgba(0,0,0,.15)"></div>
+        </div>
+        <div class="ms-combo" style="position:relative">
+          <button type="button" class="fi" id="ms-btn-cd-f-lote" onclick="msToggle('cd-f-lote')" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:5px 8px;font-family:'Sora',sans-serif;font-size:12px;color:var(--text);cursor:pointer;text-align:left;width:120px">Lote...</button>
+          <div class="ms-drop" id="ms-drop-cd-f-lote" style="display:none;position:absolute;top:calc(100% + 2px);left:0;z-index:50;background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:6px;max-height:220px;overflow:auto;min-width:180px;box-shadow:0 4px 12px rgba(0,0,0,.15)"></div>
+        </div>
+        <div class="ms-combo" style="position:relative">
+          <button type="button" class="fi" id="ms-btn-cd-f-rol" onclick="msToggle('cd-f-rol')" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:5px 8px;font-family:'Sora',sans-serif;font-size:12px;color:var(--text);cursor:pointer;text-align:left;width:130px">Rol...</button>
+          <div class="ms-drop" id="ms-drop-cd-f-rol" style="display:none;position:absolute;top:calc(100% + 2px);left:0;z-index:50;background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:6px;max-height:220px;overflow:auto;min-width:180px;box-shadow:0 4px 12px rgba(0,0,0,.15)"></div>
+        </div>
+        <button class="btn bs bsm" onclick="clearFiltrosCultDet()">Limpiar</button>
+        <span class="muted" style="font-size:11px;margin-left:auto" id="cd-resumen"></span>
+      </div>
+      <div class="card">
+        <div class="ch"><span class="ct" id="cd-ct"></span></div>
+        <div class="cb" id="cd-body"></div>
+      </div>
+    </div>
+
     <!-- CAMPAÑAS -->
     <div class="page" id="page-campanas">
       <div class="rf ph mb16" style="gap:8px;flex-wrap:wrap;align-items:center">
@@ -2653,6 +2689,7 @@ const PM={
   lote:{t:'Detalle de lote',s:'Historial de relevamientos del lote'},
   campanas:{t:'Campañas',s:'Gestión de campañas agrícolas'},
   cultivos:{t:'Cultivos',s:'Gestión de cultivos'},
+  'cultivo-detail':{t:'Cultivo',s:'Lotes con este cultivo cargado — en Cultivo 1, Cultivo 2da o Cobertura'},
   malezas:{t:'Diagnósticos',s:'Catálogo de diagnósticos: malezas, enfermedades, plagas y más'},
   diagnostico:{t:'Diagnóstico',s:'Presencia por campaña, cliente, campo y lote'},
   actividades:{t:'Actividades',s:'Relevamientos y actividades de todos los lotes — realizadas y programadas'},
@@ -2703,6 +2740,7 @@ function navTo(id,params={}){
   if(id==='papelera')     renderPapelera();
   if(id==='historial')    renderHistorial();
   if(id==='facturacion')  renderFacturacion();
+  if(id==='cultivo-detail')abrirCultivoDetail(params.cultivo,params.campaña);
 }
 
 // ══ MODALES ══
@@ -7437,12 +7475,99 @@ function renderCultivos(){
     <thead><tr><th>#</th><th>Cultivo</th><th class="ph"></th></tr></thead>
     <tbody>${DB.cultivos.map((c,i)=>`<tr>
       <td class="mono">${i+1}</td>
-      <td><strong>${c}</strong></td>
+      <td><a href="#" onclick="event.preventDefault();navTo('cultivo-detail',{cultivo:'${c}'})" style="color:var(--accent);font-weight:600" title="Ver lotes con este cultivo">${c}</a></td>
       <td class="rf ph">
         <button class="btn bs bxs" onclick="openModalCultivo(${i})">✏️</button>
         <button class="btn bd bxs" onclick="deleteCultivo(${i})">✕</button>
       </td></tr>`).join('')}
     </tbody></table></div>`;
+}
+
+// ══ FICHA DE CULTIVO ══
+// Misma ficha sin importar de dónde se llegue (catálogo de Cultivos o el
+// totalizador de Rotación) — ambos apuntan a esta pantalla con el mismo
+// nombre de cultivo, para que "Girasol" sea siempre el mismo lugar.
+let _cdCultivo='';
+function abrirCultivoDetail(cultivo,campañaPre){
+  if(cultivo){
+    _cdCultivo=cultivo;
+    // Al entrar desde afuera (catálogo o totalizador) se arranca limpio de
+    // filtros, salvo la campaña con la que se vino (si vino de ahí).
+    ['cd-f-cli','cd-f-camp','cd-f-campo','cd-f-lote','cd-f-rol'].forEach(id=>msClear(id));
+    if(campañaPre)_msState['cd-f-camp']=new Set([campañaPre]);
+  }
+  renderCultivoDetail();
+}
+function clearFiltrosCultDet(){
+  ['cd-f-cli','cd-f-camp','cd-f-campo','cd-f-lote','cd-f-rol'].forEach(id=>msClear(id));
+  renderCultivoDetail();
+}
+function renderCultivoDetail(){
+  const cont=document.getElementById('cd-body');if(!cont)return;
+  const tit=document.getElementById('cd-titulo');if(tit)tit.textContent=`🌾 ${_cdCultivo}`;
+  const ct=document.getElementById('cd-ct');if(ct)ct.textContent=`Lotes con ${_cdCultivo}`;
+
+  // Todas las filas donde este cultivo aparece — en Cultivo 1, Cultivo 2da o
+  // Cobertura, campaña por campaña, lote por lote.
+  let filas=[];
+  DB.lotes.forEach(l=>{
+    const cli=DB.clientes.find(c=>c.id===l.clienteId);
+    const campo=DB.campos.find(c=>c.id===l.campoId);
+    (DB.campanas||[]).forEach(camp=>{
+      if(getCultivoDeLote(l.id,camp)===_cdCultivo)filas.push({l,cli,campo,camp,rol:'Cultivo 1'});
+      if(getCultivo2DeLote(l.id,camp)===_cdCultivo)filas.push({l,cli,campo,camp,rol:'Cultivo 2da'});
+      if(getCultivoCobDeLote(l.id,camp)===_cdCultivo)filas.push({l,cli,campo,camp,rol:'🌱 Cobertura'});
+    });
+  });
+
+  // Filtros — solo con las opciones que realmente aparecen para este cultivo
+  msRender('cd-f-cli',[...new Map(filas.map(f=>[f.cli?.id,f.cli?.nombre])).entries()].filter(([id])=>id).sort((a,b)=>a[1].localeCompare(b[1])).map(([id,nombre])=>({value:id,label:nombre})),'Cliente',()=>renderCultivoDetail());
+  const fClis=msValues('cd-f-cli');
+  msRender('cd-f-camp',[...new Set(filas.map(f=>f.camp))].sort().reverse().map(c=>({value:c,label:c})),'Campaña',()=>renderCultivoDetail());
+  const fCamps=msValues('cd-f-camp');
+  msRender('cd-f-campo',[...new Map(filas.map(f=>[f.campo?.id,f.campo?.nombre])).entries()].filter(([id])=>id).sort((a,b)=>a[1].localeCompare(b[1])).map(([id,nombre])=>({value:id,label:nombre})),'Campo',()=>renderCultivoDetail());
+  const fCampos=msValues('cd-f-campo');
+  msRender('cd-f-lote',[...new Map(filas.map(f=>[f.l.id,f.l.nombre])).entries()].sort((a,b)=>naturalCmp(a[1],b[1])).map(([id,nombre])=>({value:id,label:nombre})),'Lote',()=>renderCultivoDetail());
+  const fLotes=msValues('cd-f-lote');
+  msRender('cd-f-rol',[{value:'Cultivo 1',label:'Cultivo 1'},{value:'Cultivo 2da',label:'Cultivo 2da'},{value:'🌱 Cobertura',label:'🌱 Cobertura'}],'Rol',()=>renderCultivoDetail());
+  const fRoles=msValues('cd-f-rol');
+
+  const totalSinFiltrar=filas.length;
+  filas=filas.filter(f=>{
+    if(fClis.length&&!fClis.includes(f.cli?.id))return false;
+    if(fCamps.length&&!fCamps.includes(f.camp))return false;
+    if(fCampos.length&&!fCampos.includes(f.campo?.id))return false;
+    if(fLotes.length&&!fLotes.includes(f.l.id))return false;
+    if(fRoles.length&&!fRoles.includes(f.rol))return false;
+    return true;
+  });
+  filas.sort((a,b)=>b.camp.localeCompare(a.camp)||(a.cli?.nombre||'').localeCompare(b.cli?.nombre||'')||naturalCmp(a.l.nombre,b.l.nombre));
+
+  const haTotal=filas.reduce((s,f)=>s+(f.l.ha||0),0);
+  const resumen=document.getElementById('cd-resumen');
+  if(resumen)resumen.textContent=`${filas.length} fila(s) · ${haTotal.toFixed(0)} ha`;
+
+  if(!filas.length){
+    cont.innerHTML=totalSinFiltrar
+      ?'<div class="empty"><div class="empty-icon">🔎</div><div class="empty-t">Nada coincide con esos filtros</div></div>'
+      :'<div class="empty"><div class="empty-icon">🌾</div><div class="empty-t">Ningún lote tiene cargado este cultivo</div></div>';
+    return;
+  }
+  cont.innerHTML=`<div class="tw"><table style="width:100%"><thead><tr>
+    <th style="text-align:left;padding:6px 8px">Cliente</th>
+    <th style="text-align:left;padding:6px 8px">Campo</th>
+    <th style="text-align:left;padding:6px 8px">Lote</th>
+    <th style="text-align:left;padding:6px 8px">Campaña</th>
+    <th style="text-align:left;padding:6px 8px">Rol</th>
+    <th style="text-align:right;padding:6px 8px">Ha</th>
+  </tr></thead><tbody>${filas.map(f=>`<tr>
+    <td style="padding:5px 8px">${f.cli?.nombre||'—'}</td>
+    <td style="padding:5px 8px">${f.campo?.nombre||'—'}</td>
+    <td style="padding:5px 8px"><a href="#" onclick="event.preventDefault();navTo('lote',{loteId:'${f.l.id}',cliId:'${f.cli?.id}',campoId:'${f.campo?.id}'})" style="color:var(--accent)">${f.l.nombre}</a></td>
+    <td class="mono" style="padding:5px 8px">${f.camp}</td>
+    <td style="padding:5px 8px">${f.rol}</td>
+    <td class="mono" style="padding:5px 8px;text-align:right">${(f.l.ha||0).toFixed(0)}</td>
+  </tr>`).join('')}</tbody></table></div>`;
 }
 
 // ══ CAMPAÑAS ══
@@ -7603,12 +7728,18 @@ function renderRotTotalizador(lotes,camps){
   if(!lotes.length){cont.innerHTML='<div class="muted" style="font-size:12px;padding:8px">Sin lotes para totalizar con estos filtros.</div>';return;}
   const haTotal=lotes.reduce((s,l)=>s+(l.ha||0),0);
   const pct=ha=>haTotal?((ha/haTotal)*100).toFixed(0)+'%':'—';
-  const tablaReparto=(key,titulo,mapa)=>{
+  const tablaReparto=(key,titulo,mapa,camp)=>{
     const entries=Object.entries(mapa);
     if(!entries.length)return'<div class="muted" style="font-size:11px;flex:1;min-width:200px">Sin datos de '+titulo+'</div>';
     const s=_rotTotSort[key]||{col:'valor',dir:-1};
     entries.sort((a,b)=>s.col==='nombre'?a[0].localeCompare(b[0])*s.dir:(a[1]-b[1])*s.dir);
     const arrow=col=>s.col===col?(s.dir>0?' ▲':' ▼'):'';
+    // Mismo cultivo, misma ficha: el nombre linkea a la ficha de Cultivos con
+    // la campaña de esta columna ya preseleccionada — "sin cultivo"/"sin 2da"
+    // no es un cultivo real, así que no lleva link.
+    const nombreCell=nombre=>nombre.startsWith('— ')
+      ?`<span class="muted">${nombre}</span>`
+      :`<a href="#" onclick="event.preventDefault();navTo('cultivo-detail',{cultivo:'${nombre}',campaña:'${camp}'})" style="color:var(--accent)" title="Ver lotes con este cultivo">${nombre}</a>`;
     return`<div style="flex:1;min-width:210px">
       <div style="font-size:11px;font-weight:600;margin-bottom:4px">${titulo}</div>
       <table style="width:100%;border-collapse:collapse;font-size:12px">
@@ -7618,7 +7749,7 @@ function renderRotTotalizador(lotes,camps){
           <th onclick="rotTotSortBy('${key}','valor')" style="text-align:right;padding:3px 6px;cursor:pointer;user-select:none" title="Ordenar">%${arrow('valor')}</th>
         </tr></thead>
         <tbody>${entries.map(([nombre,ha])=>`<tr style="border-bottom:1px solid var(--border)">
-          <td style="padding:3px 6px">${nombre}</td>
+          <td style="padding:3px 6px">${nombreCell(nombre)}</td>
           <td class="mono" style="padding:3px 6px;text-align:right">${ha.toFixed(0)}</td>
           <td class="mono" style="padding:3px 6px;text-align:right">${pct(ha)}</td>
         </tr>`).join('')}</tbody>
@@ -7644,9 +7775,9 @@ function renderRotTotalizador(lotes,camps){
     html+=`<div style="padding:10px 0;${camps.length>1?'border-top:2px solid var(--border)':''}">
       <div style="font-size:13px;font-weight:700;margin-bottom:6px">${camp}${camp===getCampanaActiva()?' ★':''}</div>
       <div class="rf" style="gap:18px;flex-wrap:wrap;align-items:flex-start">
-        ${tablaReparto(camp+'||1','Cultivo 1',m1)}
-        ${tablaReparto(camp+'||2','Cultivo 2da',m2)}
-        ${tablaReparto(camp+'||cob','🌱 Cobertura',mcob)}
+        ${tablaReparto(camp+'||1','Cultivo 1',m1,camp)}
+        ${tablaReparto(camp+'||2','Cultivo 2da',m2,camp)}
+        ${tablaReparto(camp+'||cob','🌱 Cobertura',mcob,camp)}
       </div>
     </div>`;
   });
