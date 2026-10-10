@@ -7584,19 +7584,48 @@ function renderCampanas(){
 // YA FILTRADOS arriba (cliente/campo/lote/cultivo) en tres repartos
 // independientes — Cultivo 1, Cultivo 2da y 🌱 Cobertura — cada uno sobre el
 // 100% de esas hectáreas, con un bucket "Sin cargar" para que siempre cierre.
+// Una tabla chica por reparto (Cultivo 1 / Cultivo 2da / Cobertura) y por
+// campaña: una fila por cultivo, columnas Ha y % — ordenables (clic en el
+// encabezado). Ha y % siempre quedan en el mismo orden entre sí (el % es
+// proporcional a las ha de esa tabla), así que ordenar por una u otra da lo
+// mismo; lo que sí cambia el orden es "Cultivo" (alfabético).
+let _rotTotSort={};
+let _rotTotCache={lotes:[],camps:[]};
+function rotTotSortBy(key,col){
+  const s=_rotTotSort[key]||{col:'valor',dir:-1};
+  if(s.col===col)s.dir*=-1;else{s.col=col;s.dir=col==='nombre'?1:-1;}
+  _rotTotSort[key]=s;
+  renderRotTotalizador(_rotTotCache.lotes,_rotTotCache.camps);
+}
 function renderRotTotalizador(lotes,camps){
   const cont=document.getElementById('camp-tot-body');if(!cont)return;
+  _rotTotCache={lotes,camps};
   if(!lotes.length){cont.innerHTML='<div class="muted" style="font-size:12px;padding:8px">Sin lotes para totalizar con estos filtros.</div>';return;}
   const haTotal=lotes.reduce((s,l)=>s+(l.ha||0),0);
   const pct=ha=>haTotal?((ha/haTotal)*100).toFixed(0)+'%':'—';
-  const repartoHTML=(titulo,mapa,extraCls)=>{
-    const entries=Object.entries(mapa).sort((a,b)=>b[1]-a[1]);
-    if(!entries.length)return'';
-    return`<div style="margin-bottom:6px"><strong style="font-size:11px">${titulo}:</strong> `
-      +entries.map(([nombre,ha])=>`<span class="badge ${extraCls||'bg-gray'}" style="font-size:11px;margin:2px 3px 0 0">${nombre}: ${ha.toFixed(0)} ha · ${pct(ha)}</span>`).join('')
-      +`</div>`;
+  const tablaReparto=(key,titulo,mapa)=>{
+    const entries=Object.entries(mapa);
+    if(!entries.length)return'<div class="muted" style="font-size:11px;flex:1;min-width:200px">Sin datos de '+titulo+'</div>';
+    const s=_rotTotSort[key]||{col:'valor',dir:-1};
+    entries.sort((a,b)=>s.col==='nombre'?a[0].localeCompare(b[0])*s.dir:(a[1]-b[1])*s.dir);
+    const arrow=col=>s.col===col?(s.dir>0?' ▲':' ▼'):'';
+    return`<div style="flex:1;min-width:210px">
+      <div style="font-size:11px;font-weight:600;margin-bottom:4px">${titulo}</div>
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead><tr style="border-bottom:1px solid var(--border)">
+          <th onclick="rotTotSortBy('${key}','nombre')" style="text-align:left;padding:3px 6px;cursor:pointer;user-select:none" title="Ordenar">Cultivo${arrow('nombre')}</th>
+          <th onclick="rotTotSortBy('${key}','valor')" style="text-align:right;padding:3px 6px;cursor:pointer;user-select:none" title="Ordenar">Ha${arrow('valor')}</th>
+          <th onclick="rotTotSortBy('${key}','valor')" style="text-align:right;padding:3px 6px;cursor:pointer;user-select:none" title="Ordenar">%${arrow('valor')}</th>
+        </tr></thead>
+        <tbody>${entries.map(([nombre,ha])=>`<tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:3px 6px">${nombre}</td>
+          <td class="mono" style="padding:3px 6px;text-align:right">${ha.toFixed(0)}</td>
+          <td class="mono" style="padding:3px 6px;text-align:right">${pct(ha)}</td>
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>`;
   };
-  let html=`<div class="muted" style="font-size:11px;margin-bottom:8px">${lotes.length} lote(s) filtrado(s) · ${haTotal.toFixed(0)} ha en total</div>`;
+  let html=`<div class="muted" style="font-size:11px;margin-bottom:10px">${lotes.length} lote(s) filtrado(s) · ${haTotal.toFixed(0)} ha en total</div>`;
   camps.forEach(camp=>{
     const m1={},m2={},mcob={};
     let haSin1=0,haSin2=0,haSinCob=0;
@@ -7609,14 +7638,16 @@ function renderRotTotalizador(lotes,camps){
       if(c2)m2[c2]=(m2[c2]||0)+ha;else haSin2+=ha;
       if(cob)mcob[cob]=(mcob[cob]||0)+ha;else haSinCob+=ha;
     });
-    if(haSin1)m1['Sin cultivo 1']=haSin1;
-    if(haSin2)m2['Sin 2da']=haSin2;
-    if(haSinCob)mcob['Sin cobertura']=haSinCob;
-    html+=`<div style="padding:8px 0;${camps.length>1?'border-top:1px solid var(--border)':''}">
-      <div style="font-size:12px;font-weight:600;margin-bottom:4px">${camp}${camp===getCampanaActiva()?' ★':''}</div>
-      ${repartoHTML('Cultivo 1',m1,'bg-blue')}
-      ${repartoHTML('Cultivo 2da',m2,'bg-amber')}
-      ${repartoHTML('🌱 Cobertura',mcob,'bg-green')}
+    if(haSin1)m1['— Sin cultivo 1 —']=haSin1;
+    if(haSin2)m2['— Sin 2da —']=haSin2;
+    if(haSinCob)mcob['— Sin cobertura —']=haSinCob;
+    html+=`<div style="padding:10px 0;${camps.length>1?'border-top:2px solid var(--border)':''}">
+      <div style="font-size:13px;font-weight:700;margin-bottom:6px">${camp}${camp===getCampanaActiva()?' ★':''}</div>
+      <div class="rf" style="gap:18px;flex-wrap:wrap;align-items:flex-start">
+        ${tablaReparto(camp+'||1','Cultivo 1',m1)}
+        ${tablaReparto(camp+'||2','Cultivo 2da',m2)}
+        ${tablaReparto(camp+'||cob','🌱 Cobertura',mcob)}
+      </div>
     </div>`;
   });
   cont.innerHTML=html;
