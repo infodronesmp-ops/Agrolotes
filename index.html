@@ -5295,9 +5295,43 @@ function tlGuardarActividadMasiva(){
   const obs=document.getElementById('tl-act-obs').value.trim();
   const fechaReal=document.getElementById('tl-act-fecha-real')?.value||null;
   let count=0;
+  if(tipo==='Relevamiento'&&loteIds.length===1){
+    // Un solo lote: en vez de dejar un Relevamiento "cáscara" sin diagnóstico
+    // (que después hay que acordarse de volver a abrir), se abre directo el
+    // formulario real para completarlo ya mismo — mismo criterio que ya usa
+    // el modal de Actividad individual. Si venía con fecha real (carrito
+    // marcado "ya lo hice"), arranca en modo realizado con esa fecha; si no,
+    // y había fechas de inicio/límite, arranca programado con esas fechas.
+    const loteId=loteIds[0];
+    const lote=DB.lotes.find(l=>l.id===loteId);
+    closeModal('modal-act-masiva');
+    if(!lote)return;
+    openModalRelev(null);
+    setTimeout(()=>{
+      const cf=document.getElementById('r-cli-filtro');
+      if(cf)cf.value=lote.clienteId;
+      rLoteComboSelect(loteId);
+      const campSel=document.getElementById('r-camp');if(campSel&&campaña)campSel.value=campaña;
+      if(obs)document.getElementById('r-obs').value=obs;
+      if(fechaReal){
+        document.getElementById('r-fecha').value=fechaReal;
+      } else if(fechaA||fechaFinA){
+        document.getElementById('r-programado').checked=true;
+        onRProgramadoChange();
+        document.getElementById('r-fecha-inicio').value=fechaA||'';
+        document.getElementById('r-fecha-limite').value=fechaFinA||'';
+      }
+    },60);
+    _tlMasivaCarrito=new Set();
+    _tlMasivaMomento=null;
+    tlLimpiarSeleccion();
+    return;
+  }
   if(tipo==='Relevamiento'){
-    // Un relevamiento programado por lote — mismas fechas/campaña para todos,
-    // sin diagnóstico todavía (eso se carga cuando efectivamente se releva).
+    // Varios lotes a la vez: no se puede completar un diagnóstico por cada uno
+    // de una — queda un Relevamiento programado por lote, mismas fechas/campaña
+    // para todos, sin diagnóstico todavía (eso se carga cuando efectivamente
+    // se releva cada uno, desde su propia ficha).
     loteIds.forEach(loteId=>{
       const lote=DB.lotes.find(l=>l.id===loteId);if(!lote)return;
       const cli=DB.clientes.find(c=>c.id===lote.clienteId);
@@ -5339,6 +5373,7 @@ function tlGuardarActividadMasiva(){
   if(document.getElementById('plan-body'))renderPlanificacion();
   if(document.getElementById('cal-body'))renderCalendario();
   if(document.getElementById('act-m-body'))renderActividadesMaster();
+  if(document.getElementById('lote-detail-content')&&_loteDetailCtx)renderLoteDetail(_loteDetailCtx.loteId,_loteDetailCtx.cliId,_loteDetailCtx.campoId);
 }
 
 function renderTablero(){
