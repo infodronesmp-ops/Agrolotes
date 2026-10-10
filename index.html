@@ -212,6 +212,10 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
    que todavía no pasó. */
 .act-card.act-pendiente{background:var(--bg2);border-style:dashed;}
 .act-item.act-pendiente .act-dot{opacity:.55;}
+/* "Mejora programada": tareas marcadas aparte de las comunes, con reborde
+   rojo para distinguirlas de un vistazo en cualquier pantalla donde aparezcan. */
+.act-card.act-mejora,.mejora-pill{border:2px solid #ef5350!important;}
+.mejora-pill{display:inline-flex;align-items:center;gap:2px;font-size:10px;font-weight:600;color:#ef5350;border-radius:4px;padding:1px 5px;background:rgba(239,83,80,.08);}
 .act-hdr{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:5px;}
 .act-tipo{font-weight:600;font-size:13px;}
 .act-obs{font-size:12px;color:var(--text2);margin-top:4px;}
@@ -346,6 +350,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
     <button class="nb" onclick="navTo('planificacion')"><span>📊</span> Planificación</button>
     <button class="nb" onclick="navTo('historial')"><span>📜</span> Historial y Rotación</button>
     <button class="nb" onclick="navTo('papelera')"><span>🗑️</span> Papelera</button>
+    <button class="nb" onclick="navTo('facturacion')"><span>🧾</span> Facturación</button>
     <button class="nb" onclick="navTo('ot')"><span>📋</span> Órdenes de trabajo</button>
   </div>
   <div class="nav-sec">
@@ -736,6 +741,11 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
           <button type="button" class="fi" id="ms-btn-cal-estado" onclick="msToggle('cal-estado')" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:5px 8px;font-family:'Sora',sans-serif;font-size:12px;color:var(--text);cursor:pointer;text-align:left;width:130px">Estado...</button>
           <div class="ms-drop" id="ms-drop-cal-estado" style="display:none;position:absolute;top:calc(100% + 2px);left:0;z-index:50;background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:6px;max-height:220px;overflow:auto;min-width:180px;box-shadow:0 4px 12px rgba(0,0,0,.15)"></div>
         </div>
+        <select id="cal-mejora" class="fi" style="width:150px" onchange="renderCalendario()">
+          <option value="">🔧 Mejora: todas</option>
+          <option value="si">🔧 Solo mejoras</option>
+          <option value="no">Solo comunes</option>
+        </select>
         <button class="btn bs bsm" onclick="clearFiltrosCal()">Limpiar</button>
       </div>
       <div class="ph" style="font-size:11px;color:var(--text3);margin-bottom:8px">Un bloque por campo — tocá el encabezado para desplegar sus lotes y ver sus actividades mes a mes (2 meses atrás, el actual resaltado, y 9 por delante). 🟢 realizada · 🔵 pendiente en horario · 🔴 pendiente y vencida · cada pastilla lleva la inicial del tipo (A: Aplicación, R: Relevamiento, S: Siembra, Co: Cosecha...) — clic en cualquiera para abrirla. "＋ Actividad" carga una para ese lote con el mes ya precargado de 1º a último día; "＋ Nueva (varios lotes)" hace lo mismo en todos los lotes del campo a la vez — ideal para Capacitación o análisis de suelo. El 📌 (arriba a la derecha de cada casillero, uso ocasional) marca a mano a partir de qué mes ese lote pasa a otra campaña — queda como una línea gruesa vertical y vale hasta que declares el próximo corte; mientras no marques nada, el "＋" no sugiere ninguna campaña sola. Tocá el nombre de un mes (🔍) para ver el detalle de todos tus clientes ese mes, en Actividades.</div>
@@ -761,6 +771,11 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
           <button type="button" class="fi" id="ms-btn-plan-estado" onclick="msToggle('plan-estado')" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:5px 8px;font-family:'Sora',sans-serif;font-size:12px;color:var(--text);cursor:pointer;text-align:left;width:130px">Estado...</button>
           <div class="ms-drop" id="ms-drop-plan-estado" style="display:none;position:absolute;top:calc(100% + 2px);left:0;z-index:50;background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:6px;max-height:220px;overflow:auto;min-width:180px;box-shadow:0 4px 12px rgba(0,0,0,.15)"></div>
         </div>
+        <select id="plan-mejora" class="fi" style="width:150px" onchange="renderPlanificacion()">
+          <option value="">🔧 Mejora: todas</option>
+          <option value="si">🔧 Solo mejoras</option>
+          <option value="no">Solo comunes</option>
+        </select>
         <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer"><input type="checkbox" id="plan-falt" onchange="renderPlanificacion()"> Solo lotes con casilleros vacíos</label>
         <button class="btn bs bsm" onclick="planLimpiar()">Limpiar</button>
       </div>
@@ -806,6 +821,20 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
       </div>
     </div>
 
+    <div class="page" id="page-facturacion">
+      <div class="ph" style="margin-bottom:10px;font-size:12px;color:var(--text3)">Cada fila es una visita (cliente + campo + fecha de realización) — si un mismo día visitaste varios campos, quedan agrupados por fecha para que veas de un vistazo toda la recorrida de ese día y decidas cómo facturarla.</div>
+      <div class="filters ph" style="gap:6px;flex-wrap:wrap;margin-bottom:10px">
+        <select id="fact-anio" class="fi" style="width:110px" onchange="renderFacturacion()"><option value="">Todos los años</option></select>
+        <select id="fact-cli" class="fi" style="width:170px" onchange="renderFacturacion()"><option value="">Todos los clientes</option></select>
+        <button class="btn bs bsm" onclick="clearFiltrosFact()">Limpiar</button>
+        <span class="muted" style="font-size:11px;margin-left:auto" id="fact-resumen"></span>
+      </div>
+      <div class="card">
+        <div class="ch"><span class="ct" id="fact-ct">Relevamientos facturables</span></div>
+        <div class="cb" id="fact-body"></div>
+      </div>
+    </div>
+
     <div class="page" id="page-actividades">
       <div class="rf mb16 ph" style="gap:8px;flex-wrap:wrap">
         <button class="btn bp bsm" onclick="abrirNuevaActividadMaster()">+ Nueva actividad</button>
@@ -842,6 +871,11 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
           <option value="">Accionable: todas</option>
           <option value="si">🟢 Accionable ya</option>
           <option value="no">⏳ Todavía no</option>
+        </select>
+        <select id="act-m-mejora" class="fi" style="width:150px" onchange="renderActividadesMaster()">
+          <option value="">🔧 Mejora: todas</option>
+          <option value="si">🔧 Solo mejoras</option>
+          <option value="no">Solo comunes</option>
         </select>
         <span class="rf" style="gap:3px;align-items:center;background:var(--bg2);border-radius:var(--r);padding:3px 8px">
           <span class="muted" style="font-size:10px">Creación:</span>
@@ -1054,6 +1088,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
         <div id="r-act-eliminadas" style="padding:0 14px 10px"></div>
       </div>
       <div class="field"><label>Observaciones</label><textarea id="r-obs" class="fi" placeholder="Condiciones del lote, estadío de las malezas, notas..."></textarea></div>
+      <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;margin-top:4px"><input type="checkbox" id="r-mejora"> 🔧 Mejora programada <span class="muted">(no es una tarea común — se marca en rojo y se puede filtrar aparte)</span></label>
     </div>
     <div class="mf">
       <button class="btn bs" onclick="cancelModalRelev()">Cancelar</button>
@@ -1072,13 +1107,21 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
           <select id="tl-masiva-cli" class="fi" onchange="tlMasivaClienteChange()"><option value="">Cliente...</option></select>
           <select id="tl-masiva-campo" class="fi" onchange="tlMasivaCampoChange()"><option value="">Campo...</option></select>
         </div>
-        <div class="field" style="margin-top:6px"><label style="font-size:11px">...y/o por Cultivo <span class="muted">(se combina con Cliente/Campo; si lo dejás solo, cruza todos)</span></label>
-          <select id="tl-masiva-cultivo" class="fi" onchange="tlMasivaCultivoChange()"><option value="">Cultivo...</option></select>
+        <div class="fg" style="grid-template-columns:1fr 1fr;gap:6px;margin-top:6px">
+          <div class="field"><label style="font-size:11px">...y/o por Cultivo <span class="muted">(se combina con Cliente/Campo; si lo dejás solo, cruza todos)</span></label>
+            <select id="tl-masiva-cultivo" class="fi" onchange="tlMasivaCultivoChange()"><option value="">Cultivo...</option></select>
+          </div>
+          <div class="field"><label style="font-size:11px">Cultivo de la campaña <span class="muted">(para filtrar por el cultivo planeado de otra campaña, ej. la que viene)</span></label>
+            <select id="tl-masiva-cultivo-camp" class="fi" onchange="tlMasivaCultivoCampChange()"></select>
+          </div>
         </div>
         <div id="tl-masiva-lote-lista" style="background:var(--bg2);border-radius:var(--r);padding:8px 10px;max-height:150px;overflow-y:auto;margin-top:6px">
           <div class="muted" style="font-size:11px">Elegí Cliente, Campo y/o Cultivo para ver lotes — se combinan entre sí.</div>
         </div>
-        <button class="btn bp bsm" style="margin-top:6px" onclick="tlMasivaAgregarLote()">+ Agregar tildados</button>
+        <div class="rf" style="gap:6px;margin-top:6px">
+          <button class="btn bp bsm" onclick="tlMasivaAgregarLote()">+ Agregar tildados</button>
+          <button class="btn bs bsm" onclick="tlMasivaSeleccionarTodos()">☑ Seleccionar todos los filtrados</button>
+        </div>
       </div>
       <div class="field">
         <label>Lotes agregados (<span id="tl-masiva-carrito-n">0</span>)</label>
@@ -1118,6 +1161,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
         <div class="field"><label>Observaciones</label>
           <textarea id="tl-act-obs" class="fi" rows="2" placeholder="Notas adicionales..."></textarea>
         </div>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer"><input type="checkbox" id="tl-act-mejora"> 🔧 Mejora programada <span class="muted">(no es una tarea común — se marca en rojo y se puede filtrar aparte)</span></label>
       </div>
     </div>
     <div class="mf">
@@ -1194,6 +1238,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
           <input type="date" id="act-fecha-real" class="fi">
           <span class="muted" style="font-size:10px;display:block;margin-top:3px">La fecha real en la que se hizo — puede ser cualquier fecha para atrás. <strong>Con fecha cargada queda Realizada; sin fecha, Pendiente.</strong></span>
         </div>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;margin-top:4px"><input type="checkbox" id="act-mejora"> 🔧 Mejora programada <span class="muted">(no es una tarea común — se marca en rojo y se puede filtrar aparte)</span></label>
       </div>
     </div>
     <div class="mf">
@@ -1678,11 +1723,11 @@ function planItemsDeLote(loteId,camp){
   const items=[];
   (DB.relevamientos||[]).forEach(r=>{
     if(r.loteId!==loteId||r.borrado||r.estado==='Borrador'||r.campaña!==camp)return;
-    items.push({esRelev:true,id:r.id,tipo:'Relevamiento',estado:r.fecha?'Realizada':'Pendiente',fecha:r.fechaInicio||null,fechaFin:r.fechaLimite||null,real:r.fecha||null,momento:r.momento||null});
+    items.push({esRelev:true,id:r.id,tipo:'Relevamiento',estado:r.fecha?'Realizada':'Pendiente',fecha:r.fechaInicio||null,fechaFin:r.fechaLimite||null,real:r.fecha||null,momento:r.momento||null,mejoraProgramada:!!r.mejoraProgramada});
   });
   (DB.actividades||[]).forEach(a=>{
     if(a.loteId!==loteId||a.borrado||a.tipo==='Relevamiento'||a.campaña!==camp)return;
-    items.push({esRelev:false,id:a.id,tipo:a.tipo,estado:estadoDe(a),fecha:a.fecha||null,fechaFin:a.fechaFin||null,real:a.fechaRealizacion||null,momento:a.momento||null});
+    items.push({esRelev:false,id:a.id,tipo:a.tipo,estado:estadoDe(a),fecha:a.fecha||null,fechaFin:a.fechaFin||null,real:a.fechaRealizacion||null,momento:a.momento||null,mejoraProgramada:!!a.mejoraProgramada});
   });
   items.forEach(i=>{i.ref=i.real||i.fecha||i.fechaFin||'';});
   return items;
@@ -1734,8 +1779,9 @@ function planPill(it){
   const txt=f?f.slice(8,10)+'/'+f.slice(5,7):'s/f';
   const ico=it.tipo==='Relevamiento'||it.tipo==='Aplicación'||it.tipo==='Siembra'||it.tipo==='Cosecha'?'':((ACT_TIPOS[it.tipo]||{}).icono||'')+' ';
   const abrir=it.esRelev?`openModalRelev('${it.id}')`:`openModalActividad(null,null,null,'${it.id}')`;
-  const tit=`${it.tipo} — ${it.estado}${it.fecha?' · inicio '+it.fecha:''}${it.fechaFin?' · límite '+it.fechaFin:''}${it.real?' · realizada '+it.real:''}`;
-  return`<a href="#" onclick="event.preventDefault();${abrir}" title="${tit}"><span class="badge ${cls}" style="font-size:10px;margin:1px">${ico}${txt}</span></a>`;
+  const tit=`${it.tipo} — ${it.estado}${it.fecha?' · inicio '+it.fecha:''}${it.fechaFin?' · límite '+it.fechaFin:''}${it.real?' · realizada '+it.real:''}${it.mejoraProgramada?' · 🔧 Mejora programada':''}`;
+  const borde=it.mejoraProgramada?';border:2px solid #ef5350':'';
+  return`<a href="#" onclick="event.preventDefault();${abrir}" title="${tit}"><span class="badge ${cls}" style="font-size:10px;margin:1px${borde}">${ico}${txt}</span></a>`;
 }
 // Igual que planPill, pero para el Calendario: con varias pastillas apiladas
 // una debajo de otra en una celda chica, conviene ver de un vistazo QUÉ tipo
@@ -1749,8 +1795,9 @@ function calPill(it){
   const txt=f?f.slice(8,10)+'/'+f.slice(5,7):'s/f';
   const letra=ACT_TIPO_LETRA[it.tipo]||(it.tipo||'?').slice(0,1).toUpperCase();
   const abrir=it.esRelev?`openModalRelev('${it.id}')`:`openModalActividad(null,null,null,'${it.id}')`;
-  const tit=`${it.tipo} — ${it.estado}${it.fecha?' · inicio '+it.fecha:''}${it.fechaFin?' · límite '+it.fechaFin:''}${it.real?' · realizada '+it.real:''}${it.cultivo?' · '+it.cultivo:''}`;
-  return`<a href="#" onclick="event.preventDefault();${abrir}" title="${tit}" style="width:100%"><span class="badge ${cls}" style="font-size:10px;margin:1px;display:flex;gap:3px;align-items:center;justify-content:center;width:100%"><strong>${letra}</strong>·${txt}</span></a>`;
+  const tit=`${it.tipo} — ${it.estado}${it.fecha?' · inicio '+it.fecha:''}${it.fechaFin?' · límite '+it.fechaFin:''}${it.real?' · realizada '+it.real:''}${it.cultivo?' · '+it.cultivo:''}${it.mejoraProgramada?' · 🔧 Mejora programada':''}`;
+  const borde=it.mejoraProgramada?';border:2px solid #ef5350':'';
+  return`<a href="#" onclick="event.preventDefault();${abrir}" title="${tit}" style="width:100%"><span class="badge ${cls}" style="font-size:10px;margin:1px${borde};display:flex;gap:3px;align-items:center;justify-content:center;width:100%"><strong>${letra}</strong>·${txt}</span></a>`;
 }
 // momento ('pre'|'post'|null) viene de la columna donde se clickeó "+crear" —
 // queda fijo en la actividad, así no se mueve de columna si la fecha de la
@@ -1772,7 +1819,7 @@ function planCrearMasivo(k){
   abrirModalActividadMasiva(ids,col.crear,_planCamp,planMomentoDeCol(k));
 }
 function planLimpiar(){
-  ['plan-cli','plan-cult'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['plan-cli','plan-cult','plan-mejora'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   const f=document.getElementById('plan-falt');if(f)f.checked=false;
   msClear('plan-lote');msClear('plan-tipo');msClear('plan-estado');
   _planCamp=getCampanaActiva();
@@ -1831,6 +1878,7 @@ function renderPlanificacion(){
   const fTipos=msValues('plan-tipo');
   msRender('plan-estado',[{value:'Pendiente',label:'🕒 Pendiente'},{value:'Realizada',label:'✅ Realizada'}],'Estado',()=>renderPlanificacion());
   const fEstados=msValues('plan-estado');
+  const fMejora=document.getElementById('plan-mejora')?.value||'';
 
   // Aviso de lo que quedó sin campaña
   const av=document.getElementById('plan-aviso'),sc=planSinCampana();
@@ -1848,6 +1896,8 @@ function renderPlanificacion(){
     let items=planItemsDeLote(l.id,_planCamp);
     if(fTipos.length)items=items.filter(i=>fTipos.includes(i.tipo));
     if(fEstados.length)items=items.filter(i=>fEstados.includes(i.estado));
+    if(fMejora==='si')items=items.filter(i=>i.mejoraProgramada);
+    else if(fMejora==='no')items=items.filter(i=>!i.mejoraProgramada);
     const sieRefs=items.filter(i=>i.tipo==='Siembra'&&i.ref).map(i=>i.ref).sort();
     const siembraRef=sieRefs[0]||'';
     const cells={};PLAN_COLS.forEach(x=>cells[x.k]=[]);
@@ -1996,6 +2046,84 @@ function renderPapelera(){
       </tr>`;
     }).join('')}
   </tbody></table></div>`;
+}
+// ══ FACTURACIÓN ══
+// Cada relevamiento ya realizado se agrupa por cliente+campo+fecha de
+// realización: eso es "una visita" (independiente de cuántos lotes tenga
+// adentro — eso queda como un número más, no infla la cuenta). Se ordena por
+// fecha primero (no por cliente) para que, si un mismo día se visitaron
+// varios campos, esas filas queden juntas y se vea de un vistazo toda la
+// recorrida de ese día.
+function renderFacturacion(){
+  const cont=document.getElementById('fact-body');if(!cont)return;
+  const relevs=(DB.relevamientos||[]).filter(r=>!r.borrado&&r.estado!=='Borrador'&&r.fecha);
+  const grupos={};
+  relevs.forEach(r=>{
+    const key=r.clienteId+'||'+r.campoId+'||'+r.fecha;
+    if(!grupos[key])grupos[key]={clienteId:r.clienteId,campoId:r.campoId,fecha:r.fecha,loteIds:new Set(),clienteNombre:r.clienteNombre||'—',campoNombre:r.campoNombre||'—'};
+    grupos[key].loteIds.add(r.loteId);
+  });
+  let filas=Object.values(grupos).map(g=>({...g,lotes:g.loteIds.size}));
+
+  // Opciones de filtro: solo años/clientes que realmente aparecen
+  const anios=[...new Set(filas.map(f=>f.fecha.slice(0,4)))].sort().reverse();
+  const selAnio=document.getElementById('fact-anio');
+  if(selAnio){const pv=selAnio.value;selAnio.innerHTML='<option value="">Todos los años</option>'+anios.map(a=>`<option value="${a}"${a===pv?' selected':''}>${a}</option>`).join('');}
+  const cliEn=[...new Set(filas.map(f=>f.clienteNombre))].filter(Boolean).sort();
+  const selCli=document.getElementById('fact-cli');
+  if(selCli){const pv=selCli.value;selCli.innerHTML='<option value="">Todos los clientes</option>'+cliEn.map(c=>`<option value="${c}"${c===pv?' selected':''}>${c}</option>`).join('');}
+
+  const fAnio=selAnio?.value||'',fCli=selCli?.value||'';
+  const totalSinFiltrar=filas.length;
+  filas=filas.filter(f=>{
+    if(fAnio&&f.fecha.slice(0,4)!==fAnio)return false;
+    if(fCli&&f.clienteNombre!==fCli)return false;
+    return true;
+  });
+
+  // Orden: fecha (la más reciente arriba) y, dentro del mismo día, por cliente/campo.
+  filas.sort((a,b)=>b.fecha.localeCompare(a.fecha)||a.clienteNombre.localeCompare(b.clienteNombre)||a.campoNombre.localeCompare(b.campoNombre));
+
+  const ct=document.getElementById('fact-ct');
+  if(ct)ct.textContent=filas.length===totalSinFiltrar?`Relevamientos facturables (${filas.length})`:`Relevamientos facturables (${filas.length} de ${totalSinFiltrar})`;
+
+  // Resumen rápido por cliente, ya con los filtros de año/cliente aplicados —
+  // es la cuenta de "cuántos relevamientos le facturo a cada uno".
+  const resumen=document.getElementById('fact-resumen');
+  if(resumen){
+    const porCli={};
+    filas.forEach(f=>{porCli[f.clienteNombre]=(porCli[f.clienteNombre]||0)+1;});
+    const partes=Object.entries(porCli).sort((a,b)=>b[1]-a[1]).map(([c,n])=>`${c}: ${n}`);
+    resumen.textContent=partes.length?partes.join(' · '):'';
+  }
+
+  if(!filas.length){
+    cont.innerHTML=totalSinFiltrar
+      ?'<div class="empty"><div class="empty-icon">🔎</div><div class="empty-t">Nada coincide con esos filtros</div></div>'
+      :'<div class="empty"><div class="empty-icon">🧾</div><div class="empty-t">Todavía no hay relevamientos realizados</div></div>';
+    return;
+  }
+  let ultimaFecha=null,cuerpo='';
+  filas.forEach(f=>{
+    const nuevaRecorrida=f.fecha!==ultimaFecha;
+    ultimaFecha=f.fecha;
+    cuerpo+=`<tr${nuevaRecorrida?' style="border-top:2px solid var(--border)"':''}>
+      <td style="padding:5px 8px">${f.clienteNombre}</td>
+      <td style="padding:5px 8px">${f.campoNombre}</td>
+      <td class="mono" style="padding:5px 8px">${f.fecha}</td>
+      <td style="padding:5px 8px;text-align:right">${f.lotes}</td>
+    </tr>`;
+  });
+  cont.innerHTML=`<div class="tw"><table style="width:100%"><thead><tr>
+    <th style="text-align:left;padding:6px 8px">Cliente</th>
+    <th style="text-align:left;padding:6px 8px">Campo</th>
+    <th style="text-align:left;padding:6px 8px">Fecha de realización</th>
+    <th style="text-align:right;padding:6px 8px">Lotes</th>
+  </tr></thead><tbody>${cuerpo}</tbody></table></div>`;
+}
+function clearFiltrosFact(){
+  ['fact-anio','fact-cli'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  renderFacturacion();
 }
 function histLimpiar(){
   ['hist-cli','hist-campo'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
@@ -2161,11 +2289,11 @@ function calItemsDeLote(loteId){
   const items=[];
   (DB.relevamientos||[]).forEach(r=>{
     if(r.loteId!==loteId||r.borrado||r.estado==='Borrador')return;
-    items.push({esRelev:true,id:r.id,tipo:'Relevamiento',estado:r.fecha?'Realizada':'Pendiente',fecha:r.fechaInicio||null,fechaFin:r.fechaLimite||null,real:r.fecha||null,campaña:r.campaña||'',cultivo:baseCultivo(r.cultivo||getCultivoDeLote(r.loteId,r.campaña)||'')});
+    items.push({esRelev:true,id:r.id,tipo:'Relevamiento',estado:r.fecha?'Realizada':'Pendiente',fecha:r.fechaInicio||null,fechaFin:r.fechaLimite||null,real:r.fecha||null,campaña:r.campaña||'',cultivo:baseCultivo(r.cultivo||getCultivoDeLote(r.loteId,r.campaña)||''),mejoraProgramada:!!r.mejoraProgramada});
   });
   (DB.actividades||[]).forEach(a=>{
     if(a.loteId!==loteId||a.borrado||a.tipo==='Relevamiento')return;
-    items.push({esRelev:false,id:a.id,tipo:a.tipo,estado:estadoDe(a),fecha:a.fecha||null,fechaFin:a.fechaFin||null,real:a.fechaRealizacion||null,campaña:a.campaña||'',cultivo:baseCultivo(a.campaña?getCultivoDeLote(a.loteId,a.campaña):'')});
+    items.push({esRelev:false,id:a.id,tipo:a.tipo,estado:estadoDe(a),fecha:a.fecha||null,fechaFin:a.fechaFin||null,real:a.fechaRealizacion||null,campaña:a.campaña||'',cultivo:baseCultivo(a.campaña?getCultivoDeLote(a.loteId,a.campaña):''),mejoraProgramada:!!a.mejoraProgramada});
   });
   items.forEach(i=>{i.ref=i.real||i.fecha||i.fechaFin||'';});
   return items;
@@ -2283,6 +2411,7 @@ function calVerMesEnActividades(ym){
 function clearFiltrosCal(){
   const c1=document.getElementById('cal-cli'),c2=document.getElementById('cal-campo');
   if(c1)c1.value='';if(c2)c2.value='';
+  const c3=document.getElementById('cal-mejora');if(c3)c3.value='';
   msClear('cal-lote');msClear('cal-cult');msClear('cal-tipo');msClear('cal-estado');
   renderCalendario();
 }
@@ -2315,7 +2444,8 @@ function renderCalendario(){
   const fTipos=msValues('cal-tipo');
   msRender('cal-estado',[{value:'Pendiente',label:'🕒 Pendiente'},{value:'Realizada',label:'✅ Realizada'}],'Estado',()=>renderCalendario());
   const fEstados=msValues('cal-estado');
-  const hayFiltroContenido=!!(fLotes.length||fCults.length||fTipos.length||fEstados.length);
+  const fMejora=document.getElementById('cal-mejora')?.value||'';
+  const hayFiltroContenido=!!(fLotes.length||fCults.length||fTipos.length||fEstados.length||fMejora);
 
   const meses=calMesesRango();
   const mesesSet=new Set(meses.map(m=>m.ym));
@@ -2346,6 +2476,8 @@ function renderCalendario(){
       if(fCults.length)items=items.filter(it=>fCults.includes(baseCultivo(it.cultivo||'')));
       if(fTipos.length)items=items.filter(it=>fTipos.includes(it.tipo));
       if(fEstados.length)items=items.filter(it=>fEstados.includes(it.estado));
+      if(fMejora==='si')items=items.filter(it=>it.mejoraProgramada);
+      else if(fMejora==='no')items=items.filter(it=>!it.mejoraProgramada);
       total+=items.length;
       const porMes={};
       meses.forEach(m=>porMes[m.ym]=[]);
@@ -2505,6 +2637,7 @@ const PM={
   papelera:{t:'Papelera',s:'Relevamientos y actividades eliminados — se guardan 30 días por si hace falta restaurarlos'},
   historial:{t:'Historial y Rotación',s:'Cultivo y diagnósticos por lote, campaña a campaña — para decidir la rotación con precedentes'},
   calendario:{t:'Calendario de Actividades',s:'Por campo y lote, qué hay cargado mes a mes — últimos 2 meses y los próximos 9'},
+  facturacion:{t:'Facturación',s:'Visitas realizadas (cliente + campo + fecha) para saber cómo facturar cada recorrida'},
 };
 let _prevPage='dashboard';
 function toggleSidebar(force){
@@ -2546,6 +2679,7 @@ function navTo(id,params={}){
   if(id==='planificacion')renderPlanificacion();
   if(id==='papelera')     renderPapelera();
   if(id==='historial')    renderHistorial();
+  if(id==='facturacion')  renderFacturacion();
 }
 
 // ══ MODALES ══
@@ -3606,6 +3740,7 @@ function openModalRelev(editId=null){
   document.getElementById('r-fecha-lbl').textContent='Fecha de realización *';
   document.getElementById('r-cultivo').value='';
   document.getElementById('r-obs').value='';
+  document.getElementById('r-mejora').checked=false;
   document.getElementById('r-act-blocks').innerHTML='<div class="muted" style="font-size:11px">¿Qué sigue para este lote? Podés agregar más de una — por ejemplo una Aplicación en 3 días y un Relevamiento de seguimiento en 20.</div>';
   _rActBlockN=0;
   const _eliminadasBox=document.getElementById('r-act-eliminadas');if(_eliminadasBox)_eliminadasBox.innerHTML='';
@@ -3630,6 +3765,7 @@ function openModalRelev(editId=null){
     const r=DB.relevamientos.find(x=>x.id===editId);if(!r)return;
     document.getElementById('r-cultivo').value=r.cultivo||'';
     document.getElementById('r-obs').value=r.obs||'';
+    document.getElementById('r-mejora').checked=!!r.mejoraProgramada;
     document.getElementById('r-camp').value=r.campaña||'';
     if(!r.fecha&&(r.fechaInicio||r.fechaLimite)){
       document.getElementById('r-programado').checked=true;
@@ -3979,6 +4115,7 @@ function saveRelev(){
     loteNombre:lote?.nombre||'',loteHa:lote?.ha||0,
     malezas,productos,
     obs:document.getElementById('r-obs').value.trim(),
+    mejoraProgramada:!!document.getElementById('r-mejora')?.checked,
     estado:'Relevado',
     borradorTs:null,
     createdAt:_editRelevId?(DB.relevamientos.find(r=>r.id===_editRelevId)?.createdAt||Date.now()):Date.now(),
@@ -5212,10 +5349,16 @@ function abrirModalActividadMasiva(lotesIniciales=[],tipoInicial='',campInicial=
   const cliSel=document.getElementById('tl-masiva-cli');
   if(cliSel)cliSel.innerHTML='<option value="">Cliente...</option>'+DB.clientes.slice().sort((a,b)=>a.nombre.localeCompare(b.nombre)).map(c=>`<option value="${c.id}">${c.nombre}</option>`).join('');
   document.getElementById('tl-masiva-campo').innerHTML='<option value="">Campo...</option>';
+  // El selector de "cultivo de la campaña" arranca en la campaña activa, pero
+  // se puede cambiar a cualquier otra (típicamente la que viene) para filtrar
+  // por el cultivo YA PLANEADO en Rotación, sin esperar a que esa campaña arranque.
+  const campActiva=getCampanaActiva();
+  const cultCampSel=document.getElementById('tl-masiva-cultivo-camp');
+  if(cultCampSel){cultCampSel.innerHTML=(DB.campanas||[]).map(c=>`<option value="${c}"${c===campActiva?' selected':''}>${c}</option>`).join('');}
   const cultSel=document.getElementById('tl-masiva-cultivo');
   if(cultSel){
-    const campañaActiva=getCampanaActiva();
-    const cultivos=[...new Set(DB.lotes.map(l=>baseCultivo(getCultivoDeLote(l.id,campañaActiva))).filter(Boolean))].sort();
+    const campParaCultivo=cultCampSel?.value||campActiva;
+    const cultivos=[...new Set(DB.lotes.map(l=>baseCultivo(getCultivoDeLote(l.id,campParaCultivo))).filter(Boolean))].sort();
     cultSel.innerHTML='<option value="">Cultivo...</option>'+cultivos.map(c=>`<option value="${c}">${c}</option>`).join('');
   }
   document.getElementById('tl-masiva-lote-lista').innerHTML='<div class="muted" style="font-size:11px">Elegí Cliente, Campo y/o Cultivo para ver lotes — se combinan entre sí.</div>';
@@ -5227,6 +5370,7 @@ function abrirModalActividadMasiva(lotesIniciales=[],tipoInicial='',campInicial=
   document.getElementById('tl-act-fecha-fin').value=fechaFinDefault||'';
   document.getElementById('tl-act-fecha-real').value='';
   document.getElementById('tl-act-obs').value='';
+  document.getElementById('tl-act-mejora').checked=false;
   document.getElementById('tl-act-extra').innerHTML='';
   if(tipoInicial)onTlActTipoChange();
   tlMasivaRenderCarrito();
@@ -5248,19 +5392,32 @@ function tlMasivaClienteChange(){
   tlMasivaActualizarLotes();
 }
 function tlMasivaCampoChange(){tlMasivaActualizarLotes();}
+// Cambiar la campaña de referencia recalcula qué cultivos hay para elegir
+// (los de ESA campaña, no la activa) y mantiene el cultivo tildado si sigue
+// existiendo en la nueva lista.
+function tlMasivaCultivoCampChange(){
+  const cultSel=document.getElementById('tl-masiva-cultivo');
+  const camp=document.getElementById('tl-masiva-cultivo-camp')?.value||getCampanaActiva();
+  if(cultSel){
+    const pv=cultSel.value;
+    const cultivos=[...new Set(DB.lotes.map(l=>baseCultivo(getCultivoDeLote(l.id,camp))).filter(Boolean))].sort();
+    cultSel.innerHTML='<option value="">Cultivo...</option>'+cultivos.map(c=>`<option value="${c}"${c===pv?' selected':''}>${c}</option>`).join('');
+  }
+  tlMasivaActualizarLotes();
+}
 function tlMasivaCultivoChange(){tlMasivaActualizarLotes();}
 function tlMasivaActualizarLotes(){
   const cliId=document.getElementById('tl-masiva-cli').value;
   const campoId=document.getElementById('tl-masiva-campo').value;
   const cultivo=document.getElementById('tl-masiva-cultivo').value;
+  const campParaCultivo=document.getElementById('tl-masiva-cultivo-camp')?.value||getCampanaActiva();
   const cont=document.getElementById('tl-masiva-lote-lista');
   if(!cliId&&!campoId&&!cultivo){cont.innerHTML='<div class="muted" style="font-size:11px">Elegí Cliente, Campo y/o Cultivo para ver lotes — se combinan entre sí.</div>';return;}
   let lotes=DB.lotes.slice();
   if(cliId)lotes=lotes.filter(l=>l.clienteId===cliId);
   if(campoId)lotes=lotes.filter(l=>l.campoId===campoId);
   if(cultivo){
-    const campañaActiva=getCampanaActiva();
-    lotes=lotes.filter(l=>baseCultivo(getCultivoDeLote(l.id,campañaActiva))===cultivo);
+    lotes=lotes.filter(l=>baseCultivo(getCultivoDeLote(l.id,campParaCultivo))===cultivo);
   }
   lotes=lotes.sort((a,b)=>naturalCmp(a.nombre,b.nombre));
   if(!lotes.length){cont.innerHTML='<div class="muted" style="font-size:11px">Ningún lote cumple esa combinación de filtros.</div>';return;}
@@ -5277,6 +5434,16 @@ function tlMasivaAgregarLote(){
   if(!chks.length){mostrarSnackbar('⚠️ Tildá uno o más lotes primero','amber');return;}
   chks.forEach(cb=>{_tlMasivaCarrito.add(cb.value);cb.checked=false;});
   tlMasivaRenderCarrito();
+}
+// Tilda todos los lotes que ya quedaron listados por los filtros de arriba
+// (Cliente/Campo/Cultivo) y los agrega de una — para no ir tildando lote por
+// lote cuando son muchos (ej. toda la fina de un cliente para la campaña que viene).
+function tlMasivaSeleccionarTodos(){
+  const chks=[...document.querySelectorAll('.tl-masiva-lote-chk')];
+  if(!chks.length){mostrarSnackbar('⚠️ Primero elegí Cliente, Campo y/o Cultivo para traer lotes','amber');return;}
+  chks.forEach(cb=>{_tlMasivaCarrito.add(cb.value);cb.checked=false;});
+  tlMasivaRenderCarrito();
+  mostrarSnackbar(`✅ ${chks.length} lote(s) agregado(s)`);
 }
 function tlMasivaQuitarDelCarrito(loteId){
   _tlMasivaCarrito.delete(loteId);
@@ -5310,6 +5477,7 @@ function tlGuardarActividadMasiva(){
   const campaña=document.getElementById('tl-act-camp').value||getCampanaActiva();
   const obs=document.getElementById('tl-act-obs').value.trim();
   const fechaReal=document.getElementById('tl-act-fecha-real')?.value||null;
+  const mejora=!!document.getElementById('tl-act-mejora')?.checked;
   let count=0;
   if(tipo==='Relevamiento'&&loteIds.length===1){
     // Un solo lote: en vez de dejar un Relevamiento "cáscara" sin diagnóstico
@@ -5337,6 +5505,7 @@ function tlGuardarActividadMasiva(){
         document.getElementById('r-fecha-inicio').value=fechaA||'';
         document.getElementById('r-fecha-limite').value=fechaFinA||'';
       }
+      if(mejora)document.getElementById('r-mejora').checked=true;
     },60);
     _tlMasivaCarrito=new Set();
     _tlMasivaMomento=null;
@@ -5356,7 +5525,7 @@ function tlGuardarActividadMasiva(){
         id:uid(),fecha:fechaReal,fechaInicio:fechaA,fechaLimite:fechaFinA||null,campaña:campaña||getCampanaActiva(),
         cultivo:'',clienteId:lote.clienteId,campoId:lote.campoId,loteId:lote.id,
         clienteNombre:cli?.nombre||'',campoNombre:campo?.nombre||'',loteNombre:lote.nombre,loteHa:lote.ha||0,
-        malezas:[],productos:[],obs,estado:'Relevado',createdAt:Date.now(),momento:_tlMasivaMomento||null
+        malezas:[],productos:[],obs,mejoraProgramada:mejora,estado:'Relevado',createdAt:Date.now(),momento:_tlMasivaMomento||null
       });
       count++;
     });
@@ -5373,6 +5542,7 @@ function tlGuardarActividadMasiva(){
         id:uid(),loteId,clienteId:lote.clienteId,campoId:lote.campoId,
         tipo,fecha:fechaA,fechaFin:fechaFinA||null,campaña,obs,datos,
         estado:calcularEstadoActividad(fechaReal),fechaRealizacion:fechaReal,
+        mejoraProgramada:mejora,
         createdAt:Date.now(),momento:_tlMasivaMomento||null
       };
       if(tipo==='Aplicación'){actObj.diagnostico=[];actObj.cultivoSnapshot='';actObj.productos=[];actObj.historial=[];}
@@ -5792,6 +5962,7 @@ function openModalActividad(loteId,cliId,campoId,editId=null){
   window._aplResyncDiag=null;
   document.getElementById('act-apl-historial').style.display='none';
   document.getElementById('act-fecha-real').value='';
+  document.getElementById('act-mejora').checked=false;
   document.getElementById('act-origen-info').style.display='none';
   // Lote: se pide arriba solo si se abre desde la pantalla maestra (sin lote ya sabido)
   const loteWrap=document.getElementById('act-lote-wrap');
@@ -5811,6 +5982,7 @@ function openModalActividad(loteId,cliId,campoId,editId=null){
       document.getElementById('act-camp').value=a.campaña||'';
       document.getElementById('act-obs').value=a.obs||'';
       document.getElementById('act-fecha-real').value=a.fechaRealizacion||'';
+      document.getElementById('act-mejora').checked=!!a.mejoraProgramada;
       // Si viene de un relevamiento, mostrar el link + la opción de desadjuntar
       if(a.relevId){
         const origen=DB.relevamientos.find(x=>x.id===a.relevId);
@@ -5964,6 +6136,7 @@ function saveActividad(){
   if(tipo==='Relevamiento'&&!_editActId){
     const fIni=document.getElementById('act-fecha').value||'';
     const fLim=document.getElementById('act-fecha-fin').value||'';
+    const mejora=!!document.getElementById('act-mejora')?.checked;
     const loteId=_actLoteCtx.loteId,cliId=_actLoteCtx.cliId;
     closeModal('modal-actividad');
     openModalRelev(null);
@@ -5977,6 +6150,7 @@ function saveActividad(){
         document.getElementById('r-fecha-inicio').value=fIni;
         document.getElementById('r-fecha-limite').value=fLim;
       }
+      if(mejora)document.getElementById('r-mejora').checked=true;
     },60);
     return;
   }
@@ -6003,6 +6177,7 @@ function saveActividad(){
     datos,
     estado,
     fechaRealizacion,
+    mejoraProgramada:!!document.getElementById('act-mejora')?.checked,
     relevId:relevIdPrevio||null,
     createdAt:existente?existente.createdAt:Date.now()
   };
@@ -6146,6 +6321,7 @@ function clearFiltrosActM(){
   _actMVistaActiva=null;
   const s=document.getElementById('act-m-search');if(s)s.value='';
   const acc=document.getElementById('act-m-accionable');if(acc)acc.value='';
+  const mej=document.getElementById('act-m-mejora');if(mej)mej.value='';
   ['act-m-creada-desde','act-m-creada-hasta','act-m-real-desde','act-m-real-hasta','act-m-plan-desde','act-m-plan-hasta'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   msClear('act-m-cli');msClear('act-m-campo');msClear('act-m-lote');msClear('act-m-cult');msClear('act-m-tipo');
   msClear('act-m-estado');msClear('act-m-urgencia');
@@ -6273,6 +6449,7 @@ function renderActividadesMaster(){
   const fEstados=msValues('act-m-estado');
   msRender('act-m-urgencia',[{value:'vencida',label:'🔴 Vencida'},{value:'hoy',label:'🟠 Vencimiento hoy'},{value:'estasemana',label:'🟡 Vence esta semana'},{value:'proxsemana',label:'🔵 Vence próxima semana'},{value:'luego',label:'🟢 Vence más adelante'},{value:'sinfecha',label:'— Sin vencimiento'}],'Vencimiento',()=>renderActividadesMaster());
   const fUrgs=msValues('act-m-urgencia');
+  const fMejora=document.getElementById('act-m-mejora')?.value||'';
   // "Vence esta semana" trae de yapa lo Vencido y lo de Vencimiento hoy — son,
   // en los hechos, lo más urgente de la semana, así que conviene que aparezcan
   // juntos sin tener que tildar los tres a mano.
@@ -6301,6 +6478,7 @@ function renderActividadesMaster(){
     if(fEstados.length)partes.push('Estado: '+corto(fEstados));
     if(fUrgs.length)partes.push('Vencimiento: '+corto(fUrgs,k=>URGENCIA_LABELS[k]||k));
     if(fAccionable)partes.push('Accionable: '+(fAccionable==='si'?'Sí':'No'));
+    if(fMejora)partes.push('Mejora programada: '+(fMejora==='si'?'Sí':'No'));
     if(fCreadaDesde||fCreadaHasta)partes.push(`Creación: ${fCreadaDesde||'…'} a ${fCreadaHasta||'…'}`);
     if(fRealDesde||fRealHasta)partes.push(`Realización: ${fRealDesde||'…'} a ${fRealHasta||'…'}`);
     if(fPlanDesde||fPlanHasta)partes.push(`Inicio/límite: ${fPlanDesde||'…'} a ${fPlanHasta||'…'}`);
@@ -6319,7 +6497,8 @@ function renderActividadesMaster(){
       loteId:a.loteId,loteNombre:l?.nombre||a.loteId,campoNombre:campo?.nombre||'—',clienteNombre:cli?.nombre||'—',
       clienteId:a.clienteId,campoId:a.campoId,cultivo:a.campaña?getCultivoDeLote(a.loteId,a.campaña):'',
       campaña:a.campaña,obs:a.obs,relevId:a.relevId,sort:a.fecha||a.fechaFin||'0000',
-      creada:fechaLocalDeTs(a.createdAt),creadaTs:a.createdAt||0
+      creada:fechaLocalDeTs(a.createdAt),creadaTs:a.createdAt||0,
+      mejoraProgramada:!!a.mejoraProgramada
     };
   });
   const filasRelev=DB.relevamientos.filter(r=>r.estado!=='Borrador'&&!r.borrado).map(r=>{
@@ -6338,7 +6517,8 @@ function renderActividadesMaster(){
       campaña:r.campaña,obs:'',relevId:r.id,sort:r.fecha||r.fechaInicio||r.fechaLimite||'0000',
       creada:fechaLocalDeTs(r.createdAt),creadaTs:r.createdAt||0,
       origenRelevId:(r.origenRelevId&&DB.relevamientos.some(x=>x.id===r.origenRelevId))?r.origenRelevId:null,
-      actividadLigada:tieneAplic?{id:tieneAplic.id,tipo:tieneAplic.tipo,estado:estadoDe(tieneAplic)}:null
+      actividadLigada:tieneAplic?{id:tieneAplic.id,tipo:tieneAplic.tipo,estado:estadoDe(tieneAplic)}:null,
+      mejoraProgramada:!!r.mejoraProgramada
     };
   });
   filas=filas.concat(filasRelev);
@@ -6357,6 +6537,8 @@ function renderActividadesMaster(){
     if(u&&fUrgsExpandido.length&&!fUrgsExpandido.includes(u.k))return false;
     if(fAccionable==='si'&&(!u||!u.accionable))return false;
     if(fAccionable==='no'&&(!u||u.accionable))return false;
+    if(fMejora==='si'&&!f.mejoraProgramada)return false;
+    if(fMejora==='no'&&f.mejoraProgramada)return false;
     if(fCreadaDesde&&(f.creada||'')<fCreadaDesde)return false;
     if(fCreadaHasta&&(f.creada||'')>fCreadaHasta)return false;
     if(fRealDesde||fRealHasta){
@@ -6451,11 +6633,12 @@ function renderActividadesMaster(){
     // Toda la fila se oscurece si es Pendiente pero todavía no es accionable
     // (fecha de inicio a futuro) — para verla de entrada, no solo por el texto
     // chico de la columna Vencimiento.
-    const filaBg=(u&&!u.accionable)?' style="background:rgba(120,120,120,.16)"':'';
+    const filaBg=(u&&!u.accionable)?' style="background:rgba(120,120,120,.16)'+(f.mejoraProgramada?';border-left:3px solid #ef5350':'')+'"':(f.mejoraProgramada?' style="border-left:3px solid #ef5350"':'');
+    const mejoraBadgeF=f.mejoraProgramada?` <span class="mejora-pill" title="Mejora programada">🔧</span>`:'';
     const chk=`<input type="checkbox" ${_actMSelected.has(f.id)?'checked':''} onchange="actMToggleSel('${f.id}',${f.esRelev},this.checked)">`;
     const celdas=[
       {k:'chk',w:28,html:`<td class="ph">${chk}</td>`},
-      {k:'tipo',w:115,html:`<td style="font-size:12px">${tipoLink}${origenLink}${ligadaBadge}${f.relevId&&!f.esRelev?` <a href="#" onclick="event.preventDefault();editRelevFromMaster('${f.relevId}')" title="Ver relevamiento de origen" style="font-size:10px">🔗</a>`:''}</td>`},
+      {k:'tipo',w:115,html:`<td style="font-size:12px">${tipoLink}${origenLink}${ligadaBadge}${mejoraBadgeF}${f.relevId&&!f.esRelev?` <a href="#" onclick="event.preventDefault();editRelevFromMaster('${f.relevId}')" title="Ver relevamiento de origen" style="font-size:10px">🔗</a>`:''}</td>`},
       {k:'lote',w:95,html:`<td>${loteLink}</td>`},
       {k:'cliente',w:125,html:`<td style="font-size:12px">${f.clienteNombre} <span class="muted">— ${f.campoNombre}</span></td>`},
       {k:'creada',w:68,html:`<td class="mono muted" style="font-size:10px">${f.creada||'—'}</td>`},
@@ -6718,7 +6901,7 @@ function actMEditarFechaRealizacion(id,esRelev,valor){
   if(_loteDetailCtx&&document.getElementById('lote-detail-content'))renderLoteDetail(_loteDetailCtx.loteId,_loteDetailCtx.cliId,_loteDetailCtx.campoId);
 }
 
-function buildHistorialItems(loteId,cliId,campoId,filtroTipo='',filtroCamp=''){
+function buildHistorialItems(loteId,cliId,campoId,filtroTipo='',filtroCamp='',filtroMejora=''){
   const todosRelev=DB.relevamientos.filter(r=>r.loteId===loteId&&r.estado!=='Borrador'&&!r.borrado);
   // Solo actividades reales (Siembra, Cosecha, Aplicación, etc.) — el propio
   // Relevamiento se agrega aparte, abajo, con su estado Pendiente/Realizada real.
@@ -6737,6 +6920,7 @@ function buildHistorialItems(loteId,cliId,campoId,filtroTipo='',filtroCamp=''){
       campaña:r.campaña||'',
       obs:r.obs||'',
       datos:{},
+      mejoraProgramada:!!r.mejoraProgramada,
       _relev:r,
       _esRelev:true
     });
@@ -6750,6 +6934,8 @@ function buildHistorialItems(loteId,cliId,campoId,filtroTipo='',filtroCamp=''){
   items.push(...actPropias.map(a=>({...a,estado:estadoDe(a),fechaDisplay:a.fechaRealizacion||null,_relev:null})));
   if(filtroTipo)items=items.filter(i=>i.tipo===filtroTipo);
   if(filtroCamp)items=items.filter(i=>i.campaña===filtroCamp);
+  if(filtroMejora==='si')items=items.filter(i=>i.mejoraProgramada);
+  else if(filtroMejora==='no')items=items.filter(i=>!i.mejoraProgramada);
   // Orden: lo pendiente va SIEMPRE arriba de lo realizado, sin excepción — ni
   // siquiera una pendiente sin ninguna fecha cargada, que antes se iba al
   // fondo por quedar con una fecha "vacía" al ordenar. Dentro de lo
@@ -6843,15 +7029,16 @@ function renderActItem(item,loteId,cliId,campoId){
       :`<button class="btn bs bxs" onclick="duplicarActividad('${item.id}')" title="Duplicar">📄</button>
         <button class="btn bs bxs" onclick="openModalActividad('${loteId}','${cliId}','${campoId}','${item.id}')" title="Editar">✏️</button>
         <button class="btn bd bxs" onclick="deleteActividad('${item.id}','${loteId}','${cliId}','${campoId}')" title="Eliminar">✕</button>`);
+  const mejoraBadge=item.mejoraProgramada?`<span class="mejora-pill" title="Mejora programada — no es una tarea común">🔧 Mejora</span>`:'';
   return`<div class="act-item${item.estado==='Pendiente'?' act-pendiente':''}">
     <div class="act-dot ${meta.dot}"></div>
-    <div class="act-card${item.estado==='Pendiente'?' act-pendiente':''}">
+    <div class="act-card${item.estado==='Pendiente'?' act-pendiente':''}${item.mejoraProgramada?' act-mejora':''}">
       <div class="act-hdr">
         <span class="act-tipo"><a href="#" onclick="event.preventDefault();${abrirItemJs}" style="color:inherit;text-decoration:underline;text-decoration-style:dotted" title="Abrir">${meta.icono} ${item.tipo}</a></span>${linkOrigen}${linkOrigenRelev}
         <span class="mono muted" style="font-size:11px">${item.fechaDisplay||(item.fecha?'desde '+item.fecha:'')||'sin fecha'}${item.fechaFin?' · hasta '+item.fechaFin:''}</span>${diasBadge}
         ${item.campaña?`<span class="badge bg-purple" style="font-size:10px">${item.campaña}</span>`:''}
         ${(r?.cultivo||(r?getCultivoDeLote(r.loteId,r.campaña):''))?`<span class="badge bg-amber" style="font-size:10px">${r.cultivo||getCultivoDeLote(r.loteId,r.campaña)}</span>`:''}
-        ${estadoBadgeAct}${urgBadge}
+        ${estadoBadgeAct}${urgBadge}${mejoraBadge}
         <span class="rf ph mla" style="gap:3px">${acciones}</span>
       </div>
       ${extra}${obsStr}
@@ -6874,7 +7061,8 @@ function renderLoteDetail(loteId,cliId,campoId){
   const malezasVistas=[...new Set(todosRelev.flatMap(r=>(r.malezas||[]).map(m=>m.nombre)).filter(Boolean))].sort();
   const filtroTipo=window._actFiltroTipo||'';
   const filtroCamp=window._actFiltroCamp||'';
-  const items=buildHistorialItems(loteId,cliId,campoId,filtroTipo,filtroCamp);
+  const filtroMejora=window._actFiltroMejora||'';
+  const items=buildHistorialItems(loteId,cliId,campoId,filtroTipo,filtroCamp,filtroMejora);
   // Lo eliminado de este lote: aparte del historial principal (no se mezcla,
   // ya no está vigente), pero plegado ahí mismo por si hay que recuperar algo
   // sin ir hasta la Papelera general — queda resaltado en rojo tenue.
@@ -6976,6 +7164,11 @@ function renderLoteDetail(loteId,cliId,campoId){
       <option value="">Todas las campañas</option>
       ${campanias.map(c=>`<option value="${c}"${filtroCamp===c?' selected':''}>${c}</option>`).join('')}
     </select>
+    <select class="fi" style="width:150px" onchange="window._actFiltroMejora=this.value;renderLoteDetail('${loteId}','${cliId}','${campoId}')">
+      <option value="">🔧 Mejora: todas</option>
+      <option value="si"${filtroMejora==='si'?' selected':''}>🔧 Solo mejoras</option>
+      <option value="no"${filtroMejora==='no'?' selected':''}>Solo comunes</option>
+    </select>
     <span class="muted" style="font-size:11px;align-self:center">${items.length} evento(s)</span>
   </div>`;
 
@@ -7004,7 +7197,7 @@ function renderLoteDetail(loteId,cliId,campoId){
           })()}
         </div>
         <button class="btn bsm ph" style="background:#fff;color:var(--accent);font-weight:700;border:none" onclick="abrirModalActividadMasiva(['${loteId}'])">+ Actividad</button>
-        <button class="btn bsm mla ph" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.3)" onclick="window._actFiltroTipo='';window._actFiltroCamp='';navTo('${_prevPage}')">← Volver</button>
+        <button class="btn bsm mla ph" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.3)" onclick="window._actFiltroTipo='';window._actFiltroCamp='';window._actFiltroMejora='';navTo('${_prevPage}')">← Volver</button>
       </div>
     </div>
 
