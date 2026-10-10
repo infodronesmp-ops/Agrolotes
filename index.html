@@ -207,6 +207,11 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
 .act-dot{position:absolute;left:-22px;top:8px;width:12px;height:12px;border-radius:50%;border:2px solid var(--card);z-index:1;}
 .act-card{border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;background:var(--card);}
 .act-card:hover{border-color:var(--accent);}
+/* Pendiente: más oscuro/opaco y con borde punteado, para que en el historial
+   del lote (donde se mezcla con lo ya realizado) se distinga de un vistazo
+   que todavía no pasó. */
+.act-card.act-pendiente{background:var(--bg2);border-style:dashed;}
+.act-item.act-pendiente .act-dot{opacity:.55;}
 .act-hdr{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:5px;}
 .act-tipo{font-weight:600;font-size:13px;}
 .act-obs{font-size:12px;color:var(--text2);margin-top:4px;}
@@ -6683,7 +6688,13 @@ function buildHistorialItems(loteId,cliId,campoId,filtroTipo='',filtroCamp=''){
       _esRelev:true
     });
   });
-  items.push(...actPropias.map(a=>({...a,estado:estadoDe(a),fechaDisplay:a.fecha,_relev:null})));
+  // fechaDisplay es la fecha "real" para mostrar y para ordenar: si ya se
+  // realizó, es la fecha de realización (que puede ser bien distinta de la
+  // planeada — p. ej. una Aplicación derivada de un relevamiento, o una
+  // migrada desde el viejo estado "Aplicado", que puede no tener ni cargado
+  // el campo "fecha" planeado). Si todavía está pendiente, no hay fecha real
+  // todavía, así que cae al "desde <fecha planeada>" de siempre.
+  items.push(...actPropias.map(a=>({...a,estado:estadoDe(a),fechaDisplay:a.fechaRealizacion||null,_relev:null})));
   if(filtroTipo)items=items.filter(i=>i.tipo===filtroTipo);
   if(filtroCamp)items=items.filter(i=>i.campaña===filtroCamp);
   items.sort((a,b)=>(b.fechaDisplay||b.fecha||b.fechaFin||'').localeCompare(a.fechaDisplay||a.fecha||a.fechaFin||''));
@@ -6735,9 +6746,9 @@ function renderActItem(item,loteId,cliId,campoId){
       :`<button class="btn bs bxs" onclick="duplicarActividad('${item.id}')" title="Duplicar">📄</button>
         <button class="btn bs bxs" onclick="openModalActividad('${loteId}','${cliId}','${campoId}','${item.id}')" title="Editar">✏️</button>
         <button class="btn bd bxs" onclick="deleteActividad('${item.id}','${loteId}','${cliId}','${campoId}')" title="Eliminar">✕</button>`);
-  return`<div class="act-item">
+  return`<div class="act-item${item.estado==='Pendiente'?' act-pendiente':''}">
     <div class="act-dot ${meta.dot}"></div>
-    <div class="act-card">
+    <div class="act-card${item.estado==='Pendiente'?' act-pendiente':''}">
       <div class="act-hdr">
         <span class="act-tipo"><a href="#" onclick="event.preventDefault();${abrirItemJs}" style="color:inherit;text-decoration:underline;text-decoration-style:dotted" title="Abrir">${meta.icono} ${item.tipo}</a></span>${linkOrigen}${linkOrigenRelev}
         <span class="mono muted" style="font-size:11px">${item.fechaDisplay||(item.fecha?'desde '+item.fecha:'')||'sin fecha'}${item.fechaFin?' · hasta '+item.fechaFin:''}</span>
