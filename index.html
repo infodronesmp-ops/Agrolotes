@@ -1638,6 +1638,21 @@ function diasRestantesPapelera(fechaBorrado){
   const transcurridos=Math.floor((Date.now()-new Date(y,m-1,d).getTime())/864e5);
   return Math.max(0,30-transcurridos);
 }
+// Días transcurridos entre una fecha YYYY-MM-DD y hoy (para el "hace X días"
+// del historial del lote — siempre contados desde la fecha de REALIZACIÓN,
+// nunca desde la de creación ni la planeada).
+function diasDesde(fechaStr){
+  if(!fechaStr)return null;
+  const[y,m,d]=fechaStr.split('-').map(Number);
+  return Math.floor((Date.now()-new Date(y,m-1,d).getTime())/864e5);
+}
+function haceCuantoTexto(dias){
+  if(dias===null||dias===undefined)return'';
+  if(dias<0)return'';
+  if(dias===0)return'hoy';
+  if(dias===1)return'hace 1 día';
+  return`hace ${dias} días`;
+}
 // ══ PLANIFICACIÓN ══
 // Una fila por lote, una columna por etapa del ciclo. No guarda nada propio:
 // calcula en vivo qué actividades existen en la campaña elegida y cuáles faltan.
@@ -4052,6 +4067,7 @@ function saveRelev(){
   if(document.getElementById('act-m-body'))renderActividadesMaster();
   if(document.getElementById('plan-body'))renderPlanificacion();
   if(document.getElementById('cal-body'))renderCalendario();
+  if(document.getElementById('lote-detail-content')&&_loteDetailCtx)renderLoteDetail(_loteDetailCtx.loteId,_loteDetailCtx.cliId,_loteDetailCtx.campoId);
   sessionStorage.removeItem(DRAFT_KEY);
   mostrarSnackbar('✅ Relevamiento guardado correctamente'+mensajeExtra);
   // Si se editó desde la Orden de Trabajo, volver a esa OT ya actualizada
@@ -6076,6 +6092,8 @@ function cambiarEstadoActividad(id,nuevoEstado){
   a.fechaRealizacion=nuevoEstado==='Realizada'?(a.fechaRealizacion||hoyLocal()):null;
   save();
   renderActividadesMaster();
+  if(document.getElementById('plan-body'))renderPlanificacion();
+  if(document.getElementById('cal-body'))renderCalendario();
   if(document.getElementById('lote-detail-content')&&_loteDetailCtx)renderLoteDetail(_loteDetailCtx.loteId,_loteDetailCtx.cliId,_loteDetailCtx.campoId);
 }
 function abrirNuevaActividadMaster(){
@@ -6732,8 +6750,47 @@ function buildHistorialItems(loteId,cliId,campoId,filtroTipo='',filtroCamp=''){
   items.push(...actPropias.map(a=>({...a,estado:estadoDe(a),fechaDisplay:a.fechaRealizacion||null,_relev:null})));
   if(filtroTipo)items=items.filter(i=>i.tipo===filtroTipo);
   if(filtroCamp)items=items.filter(i=>i.campaña===filtroCamp);
-  items.sort((a,b)=>(b.fechaDisplay||b.fecha||b.fechaFin||'').localeCompare(a.fechaDisplay||a.fecha||a.fechaFin||''));
+  // Orden: lo pendiente va SIEMPRE arriba de lo realizado, sin excepción — ni
+  // siquiera una pendiente sin ninguna fecha cargada, que antes se iba al
+  // fondo por quedar con una fecha "vacía" al ordenar. Dentro de lo
+  // pendiente, dos tandas: primero lo que todavía no es momento de hacer
+  // (programado para más adelante — tiene fecha de inicio futura), después
+  // lo que ya es accionable ahora (incluye vencidas, de hoy, y sin fecha
+  // ninguna: si no tiene fecha, no hay "más adelante" posible, así que
+  // cuenta como para hacer ya). Realizado queda al final, lo más reciente
+  // primero.
+  items.forEach(i=>{
+    if(i.estado==='Pendiente'){
+      const u=urgenciaActividad({estado:'Pendiente',fecha:i.fecha,fechaFin:i.fechaFin});
+      i._grupo=u.accionable?1:0;
+      i._ordenKey=i.fechaFin||i.fecha||'';
+    } else {
+      i._grupo=2;
+      i._ordenKey=i.fechaDisplay||i.fecha||i.fechaFin||'';
+    }
+  });
+  items.sort((a,b)=>{
+    if(a._grupo!==b._grupo)return a._grupo-b._grupo;
+    // Pendiente (grupos 0 y 1): lo más próximo/vencido primero. Realizado
+    // (grupo 2): lo más reciente primero.
+    return a._grupo===2?b._ordenKey.localeCompare(a._ordenKey):a._ordenKey.localeCompare(b._ordenKey);
+  });
   return items;
+}
+// Lo eliminado de este lote (relevamientos y actividades en la papelera),
+// para el bloque plegable del historial — aparte de la lista principal, no
+// mezclado, pero a mano por si hay que recuperar algo sin ir hasta la
+// Papelera general.
+function buildEliminadosLote(loteId){
+  const relevs=(DB.relevamientos||[]).filter(r=>r.loteId===loteId&&r.borrado).map(r=>({
+    id:r.id,esRelev:true,tipo:'Relevamiento',fechaBorrado:r.fechaBorrado,borradoTs:r.borradoTs||0,
+    etiqueta:r.fecha?`Realizado el ${r.fecha}`:(r.fechaInicio?`Programado desde ${r.fechaInicio}`:'Sin fecha')
+  }));
+  const acts=(DB.actividades||[]).filter(a=>a.loteId===loteId&&a.tipo!=='Relevamiento'&&a.borrado).map(a=>({
+    id:a.id,esRelev:false,tipo:a.tipo,fechaBorrado:a.fechaBorrado,borradoTs:a.borradoTs||0,
+    etiqueta:a.fechaRealizacion?`Realizada el ${a.fechaRealizacion}`:(a.fecha?`Programada desde ${a.fecha}`:'Sin fecha')
+  }));
+  return[...relevs,...acts].sort((a,b)=>(b.borradoTs||0)-(a.borradoTs||0));
 }
 
 function renderActItem(item,loteId,cliId,campoId){
@@ -6767,7 +6824,12 @@ function renderActItem(item,loteId,cliId,campoId){
   const obsStr=item.obs?`<div class="act-obs">💬 ${item.obs}</div>`:'';
   const estadoBadgeAct=item.estado&&item.estado!=='Realizada'?
     `<span class="badge bg-blue" style="font-size:10px">🕒 Pendiente</span>`:'';
-  const urgBadge=(u&&item.estado==='Pendiente')?`<span style="font-size:10px" class="${u.accionable?'':'muted'}">${u.icono} ${u.texto}</span>`:'';
+  // No accionable = tiene fecha de inicio para más adelante, todavía no es
+  // el momento — se lo marca "Programado" para que no se confunda con lo
+  // que ya hay que hacer (eso queda arriba de este, en el historial).
+  const urgBadge=(u&&item.estado==='Pendiente')?`<span style="font-size:10px" class="${u.accionable?'':'muted'}">${u.accionable?`${u.icono} ${u.texto}`:`📅 Programado · ${u.texto}`}</span>`:'';
+  const diasReal=item.estado==='Realizada'?diasDesde(item.fechaRealizacion):null;
+  const diasBadge=diasReal!==null?` <span class="muted" style="font-size:10px">(${haceCuantoTexto(diasReal)})</span>`:'';
   const acciones=item._esRelev
     ?`<button class="btn bb bxs" onclick="openOTFromRelev('${item._relev.id}')" title="OT">📋</button>
        <button class="btn bs bxs" onclick="duplicarRelev('${item._relev.id}')" title="Duplicar">📄</button>
@@ -6786,7 +6848,7 @@ function renderActItem(item,loteId,cliId,campoId){
     <div class="act-card${item.estado==='Pendiente'?' act-pendiente':''}">
       <div class="act-hdr">
         <span class="act-tipo"><a href="#" onclick="event.preventDefault();${abrirItemJs}" style="color:inherit;text-decoration:underline;text-decoration-style:dotted" title="Abrir">${meta.icono} ${item.tipo}</a></span>${linkOrigen}${linkOrigenRelev}
-        <span class="mono muted" style="font-size:11px">${item.fechaDisplay||(item.fecha?'desde '+item.fecha:'')||'sin fecha'}${item.fechaFin?' · hasta '+item.fechaFin:''}</span>
+        <span class="mono muted" style="font-size:11px">${item.fechaDisplay||(item.fecha?'desde '+item.fecha:'')||'sin fecha'}${item.fechaFin?' · hasta '+item.fechaFin:''}</span>${diasBadge}
         ${item.campaña?`<span class="badge bg-purple" style="font-size:10px">${item.campaña}</span>`:''}
         ${(r?.cultivo||(r?getCultivoDeLote(r.loteId,r.campaña):''))?`<span class="badge bg-amber" style="font-size:10px">${r.cultivo||getCultivoDeLote(r.loteId,r.campaña)}</span>`:''}
         ${estadoBadgeAct}${urgBadge}
@@ -6813,6 +6875,22 @@ function renderLoteDetail(loteId,cliId,campoId){
   const filtroTipo=window._actFiltroTipo||'';
   const filtroCamp=window._actFiltroCamp||'';
   const items=buildHistorialItems(loteId,cliId,campoId,filtroTipo,filtroCamp);
+  // Lo eliminado de este lote: aparte del historial principal (no se mezcla,
+  // ya no está vigente), pero plegado ahí mismo por si hay que recuperar algo
+  // sin ir hasta la Papelera general — queda resaltado en rojo tenue.
+  const eliminadosLote=buildEliminadosLote(loteId);
+  const eliminadosHTML=eliminadosLote.length?`
+    <details style="margin-top:12px;border-top:1px solid var(--border);padding-top:10px">
+      <summary style="cursor:pointer;font-size:12px;font-weight:600;color:var(--text2)">🗑️ Eliminado en este lote (${eliminadosLote.length})</summary>
+      <div style="margin-top:8px;display:flex;flex-direction:column;gap:6px">
+        ${eliminadosLote.map(e=>`
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 10px;border-radius:var(--r);background:rgba(239,83,80,.08);border:1px solid rgba(239,83,80,.25)">
+            <span style="font-size:11px;text-decoration:line-through;color:var(--text3)">${(ACT_TIPOS[e.tipo]||{}).icono||'📝'} ${e.tipo} — ${e.etiqueta}</span>
+            <span class="muted" style="font-size:10px">quedan ${diasRestantesPapelera(e.fechaBorrado)} días para recuperarlo</span>
+            <button class="btn bp bxs" onclick="restaurarDePapelera('${e.id}',${e.esRelev});renderLoteDetail('${loteId}','${cliId}','${campoId}')" style="margin-left:auto">↩ Restaurar</button>
+          </div>`).join('')}
+      </div>
+    </details>`:'';
 
   // Tabla pivot de diagnósticos, agrupada por categoría
   const relevsSinApl=todosRelev.filter(r=>!estaAplicado(r));
@@ -6944,6 +7022,7 @@ function renderLoteDetail(loteId,cliId,campoId){
         ${items.length
           ?`<div class="act-timeline">${items.map(i=>renderActItem(i,loteId,cliId,campoId)).join('')}</div>`
           :'<div class="empty"><div class="empty-icon">📅</div><div class="empty-t">Sin actividades registradas</div><div class="empty-s">Usá "+ Actividad" para empezar</div></div>'}
+        ${eliminadosHTML}
       </div>
     </div>
 
