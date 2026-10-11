@@ -1181,12 +1181,12 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
     <div class="mb">
       <div class="field"><label>Buscar lotes para agregar</label>
         <div class="fg" style="grid-template-columns:1fr 1fr;gap:6px">
-          <select id="tl-masiva-cli" class="fi" onchange="tlMasivaClienteChange()"><option value="">Cliente...</option></select>
-          <select id="tl-masiva-campo" class="fi" onchange="tlMasivaCampoChange()"><option value="">Campo...</option></select>
+          <div class="msel" id="msel-tlm-cli" data-field="tlm-cli-vals"></div>
+          <div class="msel" id="msel-tlm-campo" data-field="tlm-campo-vals"></div>
         </div>
         <div class="fg" style="grid-template-columns:1fr 1fr;gap:6px;margin-top:6px">
-          <div class="field"><label style="font-size:11px">...y/o por Cultivo <span class="muted">(se combina con Cliente/Campo; si lo dejás solo, cruza todos)</span></label>
-            <select id="tl-masiva-cultivo" class="fi" onchange="tlMasivaCultivoChange()"><option value="">Cultivo...</option></select>
+          <div class="field"><label style="font-size:11px">...y/o por Cultivo <span class="muted">(podés tildar varios — se combina con Cliente/Campo; un lote entra si tiene CUALQUIERA de los tildados, de primera, de segunda o de cobertura)</span></label>
+            <div class="msel" id="msel-tlm-cultivo" data-field="tlm-cultivo-vals"></div>
           </div>
           <div class="field"><label style="font-size:11px">Cultivo de la campaña <span class="muted">(para filtrar por el cultivo planeado de otra campaña, ej. la que viene)</span></label>
             <select id="tl-masiva-cultivo-camp" class="fi" onchange="tlMasivaCultivoCampChange()"></select>
@@ -3302,6 +3302,17 @@ function getCultivoDeLote(loteId,camp){
   return '';
 }
 function getCultivo2DeLote(loteId,camp){return DB.loteCultivos?.[loteId+'||'+camp+'||2']||'';}
+// Todos los cultivos que tiene cargados un lote en una campaña — primera,
+// segunda Y cobertura — en base (sin "Barbecho "), sin vacíos ni repetidos.
+// Para filtros que tienen que encontrar un lote sin importar en qué "ranura"
+// tenga el cultivo (ej. "Maíz" sea de primera o de segunda).
+function cultivosDeLote(loteId,camp){
+  return[...new Set([
+    baseCultivo(getCultivoDeLote(loteId,camp)),
+    baseCultivo(getCultivo2DeLote(loteId,camp)),
+    baseCultivo(getCultivoCobDeLote(loteId,camp)),
+  ].filter(Boolean))];
+}
 function setCultivoDeLote(loteId,camp,cultivo,cultivo2){
   if(!DB.loteCultivos)DB.loteCultivos={};
   const key=loteId+'||'+camp;
@@ -5703,21 +5714,19 @@ function abrirModalActividadMasiva(lotesIniciales=[],tipoInicial='',campInicial=
     if(campHint){campHintEl.textContent=campHint;campHintEl.style.display='block';}
     else campHintEl.style.display='none';
   }
-  const cliSel=document.getElementById('tl-masiva-cli');
-  if(cliSel)cliSel.innerHTML='<option value="">Cliente...</option>'+DB.clientes.slice().sort((a,b)=>a.nombre.localeCompare(b.nombre)).map(c=>`<option value="${c.id}">${c.nombre}</option>`).join('');
-  document.getElementById('tl-masiva-campo').innerHTML='<option value="">Campo...</option>';
+  // Cliente, Campo y Cultivo son multi-selección — se puede tildar varios de
+  // cada uno, y se combinan entre sí (Y entre categorías, O dentro de cada una).
+  _mselGet('tlm-cli-vals').clear();
+  _mselGet('tlm-campo-vals').clear();
+  _mselGet('tlm-cultivo-vals').clear();
+  tlMasivaRenderFiltroCli();
   // El selector de "cultivo de la campaña" arranca en la campaña activa, pero
   // se puede cambiar a cualquier otra (típicamente la que viene) para filtrar
   // por el cultivo YA PLANEADO en Rotación, sin esperar a que esa campaña arranque.
   const campActiva=getCampanaActiva();
   const cultCampSel=document.getElementById('tl-masiva-cultivo-camp');
   if(cultCampSel){cultCampSel.innerHTML=(DB.campanas||[]).map(c=>`<option value="${c}"${c===campActiva?' selected':''}>${c}</option>`).join('');}
-  const cultSel=document.getElementById('tl-masiva-cultivo');
-  if(cultSel){
-    const campParaCultivo=cultCampSel?.value||campActiva;
-    const cultivos=[...new Set(DB.lotes.map(l=>baseCultivo(getCultivoDeLote(l.id,campParaCultivo))).filter(Boolean))].sort();
-    cultSel.innerHTML='<option value="">Cultivo...</option>'+cultivos.map(c=>`<option value="${c}">${c}</option>`).join('');
-  }
+  tlMasivaRenderFiltroCultivo();
   document.getElementById('tl-masiva-lote-lista').innerHTML='<div class="muted" style="font-size:11px">Elegí Cliente, Campo y/o Cultivo para ver lotes — se combinan entre sí.</div>';
   document.getElementById('tl-act-tipo').value=tipoInicial||'';
   // Si se abrió desde un casillero de mes puntual (Calendario), se precarga el
@@ -5736,45 +5745,54 @@ function abrirModalActividadMasiva(lotesIniciales=[],tipoInicial='',campInicial=
 function tlAbrirModalActividad(){
   abrirModalActividadMasiva([..._tlSel]);
 }
-// Cliente, Campo y Cultivo son filtros que se COMBINAN entre sí (no se pisan):
-// elegís Campo y después Cliente, y te quedan los lotes que cumplen los dos —
-// así podés ir sumando lotes de distintas combinaciones en una sola tanda.
+// Cliente, Campo y Cultivo son filtros multi-selección que se COMBINAN entre
+// sí (Y entre categorías: Cliente Y Campo Y Cultivo) pero dentro de cada uno
+// es OR (cualquiera de los tildados) — así podés traer, en una sola tanda,
+// "los lotes de Balaika O de Castaldi que tengan Maíz O Soja".
+function tlMasivaRenderFiltroCli(){
+  const cliSelVals=_mselGet('tlm-cli-vals');
+  const cliOpts=DB.clientes.slice().sort((a,b)=>a.nombre.localeCompare(b.nombre)).map(c=>({value:c.id,label:c.nombre}));
+  mselRender('msel-tlm-cli','tlm-cli-vals','Cliente',cliOpts,tlMasivaClienteChange);
+  // El combo de Campo se restringe a los clientes tildados (si hay alguno tildado)
+  const camposDisp=(cliSelVals.size?DB.campos.filter(c=>cliSelVals.has(c.clienteId)):DB.campos).slice().sort((a,b)=>a.nombre.localeCompare(b.nombre));
+  const campoOpts=camposDisp.map(c=>({value:c.id,label:c.nombre}));
+  mselRender('msel-tlm-campo','tlm-campo-vals','Campo',campoOpts,tlMasivaActualizarLotes);
+}
 function tlMasivaClienteChange(){
-  const cliId=document.getElementById('tl-masiva-cli').value;
-  const campoSel=document.getElementById('tl-masiva-campo');
-  const campoPrevio=campoSel.value;
-  const campos=(cliId?DB.campos.filter(c=>c.clienteId===cliId):DB.campos).slice().sort((a,b)=>a.nombre.localeCompare(b.nombre));
-  campoSel.innerHTML='<option value="">Campo...</option>'+campos.map(c=>`<option value="${c.id}"${c.id===campoPrevio?' selected':''}>${c.nombre}</option>`).join('');
-  if(campoPrevio&&!campos.some(c=>c.id===campoPrevio))campoSel.value=''; // el campo elegido ya no es de este cliente
+  tlMasivaRenderFiltroCli(); // recalcula las opciones de Campo según los clientes tildados
   tlMasivaActualizarLotes();
 }
-function tlMasivaCampoChange(){tlMasivaActualizarLotes();}
-// Cambiar la campaña de referencia recalcula qué cultivos hay para elegir
-// (los de ESA campaña, no la activa) y mantiene el cultivo tildado si sigue
-// existiendo en la nueva lista.
-function tlMasivaCultivoCampChange(){
-  const cultSel=document.getElementById('tl-masiva-cultivo');
+// El combo de Cultivo sale de lo que hay REALMENTE cargado en los lotes (solapa
+// Clientes/Lotes) para la campaña de referencia — primera, segunda Y cobertura
+// por igual — y no solo de lo que algún relevamiento haya mencionado alguna vez.
+function tlMasivaRenderFiltroCultivo(){
   const camp=document.getElementById('tl-masiva-cultivo-camp')?.value||getCampanaActiva();
-  if(cultSel){
-    const pv=cultSel.value;
-    const cultivos=[...new Set(DB.lotes.map(l=>baseCultivo(getCultivoDeLote(l.id,camp))).filter(Boolean))].sort();
-    cultSel.innerHTML='<option value="">Cultivo...</option>'+cultivos.map(c=>`<option value="${c}"${c===pv?' selected':''}>${c}</option>`).join('');
-  }
+  const cultivos=[...new Set(DB.lotes.flatMap(l=>cultivosDeLote(l.id,camp)))].sort();
+  const cultOpts=cultivos.map(c=>({value:c,label:c}));
+  mselRender('msel-tlm-cultivo','tlm-cultivo-vals','Cultivo',cultOpts,tlMasivaActualizarLotes);
+}
+// Cambiar la campaña de referencia recalcula qué cultivos hay para elegir
+// (los de ESA campaña, no la activa) — mselRender ya conserva los tildados
+// que sigan existiendo en la nueva lista.
+function tlMasivaCultivoCampChange(){
+  tlMasivaRenderFiltroCultivo();
   tlMasivaActualizarLotes();
 }
-function tlMasivaCultivoChange(){tlMasivaActualizarLotes();}
 function tlMasivaActualizarLotes(){
-  const cliId=document.getElementById('tl-masiva-cli').value;
-  const campoId=document.getElementById('tl-masiva-campo').value;
-  const cultivo=document.getElementById('tl-masiva-cultivo').value;
+  const cliIds=_mselGet('tlm-cli-vals');
+  const campoIds=_mselGet('tlm-campo-vals');
+  const cultivos=_mselGet('tlm-cultivo-vals');
   const campParaCultivo=document.getElementById('tl-masiva-cultivo-camp')?.value||getCampanaActiva();
   const cont=document.getElementById('tl-masiva-lote-lista');
-  if(!cliId&&!campoId&&!cultivo){cont.innerHTML='<div class="muted" style="font-size:11px">Elegí Cliente, Campo y/o Cultivo para ver lotes — se combinan entre sí.</div>';return;}
+  if(!cliIds.size&&!campoIds.size&&!cultivos.size){cont.innerHTML='<div class="muted" style="font-size:11px">Elegí Cliente, Campo y/o Cultivo para ver lotes — se combinan entre sí.</div>';return;}
   let lotes=DB.lotes.slice();
-  if(cliId)lotes=lotes.filter(l=>l.clienteId===cliId);
-  if(campoId)lotes=lotes.filter(l=>l.campoId===campoId);
-  if(cultivo){
-    lotes=lotes.filter(l=>baseCultivo(getCultivoDeLote(l.id,campParaCultivo))===cultivo);
+  if(cliIds.size)lotes=lotes.filter(l=>cliIds.has(l.clienteId));
+  if(campoIds.size)lotes=lotes.filter(l=>campoIds.has(l.campoId));
+  if(cultivos.size){
+    // El lote entra si CUALQUIERA de sus cultivos (primera/segunda/cobertura)
+    // está entre los tildados — así "Maíz" trae tanto los de primera como los
+    // de segunda sin tener que elegir una sola "ranura".
+    lotes=lotes.filter(l=>cultivosDeLote(l.id,campParaCultivo).some(c=>cultivos.has(c)));
   }
   lotes=lotes.sort((a,b)=>naturalCmp(a.nombre,b.nombre));
   if(!lotes.length){cont.innerHTML='<div class="muted" style="font-size:11px">Ningún lote cumple esa combinación de filtros.</div>';return;}
@@ -5936,8 +5954,14 @@ function renderTablero(){
   mselRender('msel-tl-mal','tl-mal-vals','Diagnóstico',malOpts,()=>renderTablero());
   const prodOpts=DB.productos.slice().sort((a,b)=>a.nombre.localeCompare(b.nombre)).map(p=>({value:p.id,label:p.nombre}));
   mselRender('msel-tl-prod','tl-prod-vals','Producto aplicado',prodOpts,()=>renderTablero());
-  // Multiselect cultivo
-  const cultOpts=[...new Set(DB.relevamientos.map(r=>baseCultivo(r.cultivo)).filter(Boolean))].sort().map(v=>({value:v,label:v}));
+  // Multiselect cultivo — sale tanto de lo que algún relevamiento haya
+  // registrado como de lo que esté cargado en la solapa Clientes/Lotes
+  // (cultivo de primera, de segunda y de cobertura), para no perder un
+  // cultivo recién cargado que todavía no tuvo ningún relevamiento.
+  const cultOpts=[...new Set([
+    ...DB.relevamientos.map(r=>baseCultivo(r.cultivo)),
+    ...(DB.campanas||[]).flatMap(camp=>DB.lotes.flatMap(l=>cultivosDeLote(l.id,camp))),
+  ].filter(Boolean))].sort().map(v=>({value:v,label:v}));
   mselRender('msel-tl-cult','tl-cult-vals','Cultivo',cultOpts,()=>renderTablero());
 
   // Obtener filtros
@@ -5999,8 +6023,16 @@ function renderTablero(){
     if(fcliIds.size&&!fcliIds.has(d.lote.clienteId))return false;
     if(fcampoIds.size&&!fcampoIds.has(d.lote.campoId))return false;
     if(festado&&d.estadoOp!==festado)return false;
-    // Filtro multiselect cultivo: el lote debe tener al menos un relevamiento con ese cultivo
-    if(fcults.size&&!d.relevs.some(r=>fcults.has(baseCultivo(r.cultivo))))return false;
+    // Filtro multiselect cultivo: el lote entra si algún relevamiento registró
+    // ese cultivo, O si lo tiene cargado en su solapa (primera/segunda/cobertura)
+    // en alguna de las campañas en foco — así entra aunque todavía no se le
+    // haya hecho ningún relevamiento con ese cultivo.
+    if(fcults.size){
+      const campsCheck=fcamps.size?[...fcamps]:(DB.campanas||[]);
+      const tieneCultivo=d.relevs.some(r=>fcults.has(baseCultivo(r.cultivo)))
+        ||campsCheck.some(camp=>cultivosDeLote(d.lote.id,camp).some(c=>fcults.has(c)));
+      if(!tieneCultivo)return false;
+    }
     if(fdificil){
       // Filtrar lotes que tengan (o no) al menos una maleza difícil en sus relevamientos
       const malDifs=new Set(DB.malezas.filter(m=>m.dificil).flatMap(m=>[m.comun,m.cientifico]).filter(Boolean));
