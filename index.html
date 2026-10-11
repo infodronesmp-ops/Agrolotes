@@ -103,6 +103,11 @@ tr.selected td{background:var(--accent-bg);}
 tr.borrador td{background:#fff3e0;border-bottom:1px solid #ffcc80;}
 tr.borrador:hover td{background:#ffe0b2;}
 tr.borrador td:first-child{border-left:4px solid var(--red);}
+/* Fila de relevamiento "Programado" (todavía no realizado) — más oscura para
+   que salte a la vista sin tener que leer la columna de estado. */
+tr.programado td{background:#e3e8f0;border-bottom:1px solid #b0bfd4;}
+tr.programado:hover td{background:#d3dbe8;}
+tr.programado td:first-child{border-left:4px solid #5c7299;}
 
 /* FILTERS */
 .filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px;padding:11px 14px;background:var(--card);border:1px solid var(--border);border-radius:var(--rl);}
@@ -475,6 +480,12 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
           <input type="date" id="f-plan-desde" onchange="renderRelev()" style="width:118px;font-size:11px">
           <span class="muted" style="font-size:10px">a</span>
           <input type="date" id="f-plan-hasta" onchange="renderRelev()" style="width:118px;font-size:11px">
+        </span>
+        <span class="rf" style="gap:3px;align-items:center;background:var(--bg2);border-radius:var(--r);padding:3px 8px">
+          <span class="muted" style="font-size:10px">Creación:</span>
+          <input type="date" id="f-creada-desde" onchange="renderRelev()" style="width:118px;font-size:11px">
+          <span class="muted" style="font-size:10px">a</span>
+          <input type="date" id="f-creada-hasta" onchange="renderRelev()" style="width:118px;font-size:11px">
         </span>
         <button class="btn bs bsm" onclick="clearFiltros()">Limpiar</button>
         <span style="font-size:11px;color:var(--text3)">Agrupar por</span>
@@ -2752,7 +2763,7 @@ function restaurarDePapelera(id,esRelev){
   }
   save();
   mostrarSnackbar('✅ Restaurado');
-  renderPapelera();
+  refrescarVistasActividad();
 }
 function eliminarDefinitivoDePapelera(id,esRelev){
   confirmarAccion('¿Eliminar para siempre? No se puede deshacer.',()=>{
@@ -2760,7 +2771,7 @@ function eliminarDefinitivoDePapelera(id,esRelev){
     else DB.actividades=DB.actividades.filter(x=>x.id!==id);
     save();
     mostrarSnackbar('🗑️ Eliminado definitivamente');
-    renderPapelera();
+    refrescarVistasActividad();
   });
 }
 
@@ -4660,16 +4671,26 @@ function duplicarRelev(id){
   // Abrir el modal de edición de la copia para que el usuario ajuste cliente/lote si necesita
   openModalRelev(copia.id);
 }
+// Refresca TODAS las vistas que puedan estar mostrando relevamientos o
+// actividades, para que un alta/baja/restauración se vea al toque sin tener
+// que cambiar de pestaña y volver a entrar.
+function refrescarVistasActividad(){
+  if(document.getElementById('relev-body'))renderRelev();
+  renderDashboard();
+  if(typeof updateSelBar==='function')updateSelBar();
+  if(document.getElementById('plan-body'))renderPlanificacion();
+  if(document.getElementById('cal-body'))renderCalendario();
+  if(document.getElementById('act-m-body'))renderActividadesMaster();
+  if(document.getElementById('lote-detail-content')&&_loteDetailCtx)renderLoteDetail(_loteDetailCtx.loteId,_loteDetailCtx.cliId,_loteDetailCtx.campoId);
+  if(document.getElementById('papelera-body'))renderPapelera();
+}
 function deleteRelev(id){
   confirmarAccion('¿Eliminar relevamiento? Queda 30 días en la papelera por si te arrepentís.',()=>{
     const r=DB.relevamientos.find(x=>x.id===id);
     if(r){r.borrado=true;r.fechaBorrado=hoyLocal();r.borradoTs=Date.now();}
     _seleccionados.delete(id);
-    save();renderRelev();renderDashboard();updateSelBar();
-    if(document.getElementById('plan-body'))renderPlanificacion();
-  if(document.getElementById('cal-body'))renderCalendario();
-    if(document.getElementById('act-m-body'))renderActividadesMaster();
-    if(document.getElementById('lote-detail-content')&&_loteDetailCtx)renderLoteDetail(_loteDetailCtx.loteId,_loteDetailCtx.cliId,_loteDetailCtx.campoId);
+    save();
+    refrescarVistasActividad();
   });
 }
 
@@ -4707,7 +4728,7 @@ function generarOTDesdeSeleccion(){
 }
 
 function clearFiltros(){
-  ['f-txt','f-mal','f-prod','f-estado','f-desde','f-hasta','f-plan-desde','f-plan-hasta','f-agrupar','f-activ','f-barbecho'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['f-txt','f-mal','f-prod','f-estado','f-desde','f-hasta','f-plan-desde','f-plan-hasta','f-creada-desde','f-creada-hasta','f-agrupar','f-activ','f-barbecho'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   _mselGet('f-cli-vals').clear();
   _mselGet('f-camp-vals').clear();
   _mselGet('f-campo-vals').clear();
@@ -4835,6 +4856,8 @@ function getFiltrados(){
   const hasta=document.getElementById('f-hasta')?.value||'';
   const planDesde=document.getElementById('f-plan-desde')?.value||'';
   const planHasta=document.getElementById('f-plan-hasta')?.value||'';
+  const creadaDesde=document.getElementById('f-creada-desde')?.value||'';
+  const creadaHasta=document.getElementById('f-creada-hasta')?.value||'';
   const factiv=document.getElementById('f-activ')?.value||'';
   return DB.relevamientos.filter(r=>{
     if(r.borrado)return false;
@@ -4862,6 +4885,13 @@ function getFiltrados(){
       const dentroDesde=planDesde?((pIni&&pIni>=planDesde)||(pLim&&pLim>=planDesde)):true;
       const dentroHasta=planHasta?((pIni&&pIni<=planHasta)||(pLim&&pLim<=planHasta)):true;
       if(!dentroDesde||!dentroHasta)return false;
+    }
+    // Fecha de Creación (createdAt)
+    if(creadaDesde||creadaHasta){
+      const fc=fechaLocalDeTs(r.createdAt)||'';
+      if(!fc)return false;
+      if(creadaDesde&&fc<creadaDesde)return false;
+      if(creadaHasta&&fc>creadaHasta)return false;
     }
     if(prod && !(r.productos||[]).some(p=>p.productoId===prod))return false;
     if(mal){const ms=(r.malezas||[]).map(m=>m.nombre.toLowerCase()).join(' ');if(!ms.includes(mal))return false;}
@@ -4897,6 +4927,18 @@ function getFiltrados(){
     if(_rSort.col==='cultivo')return (a.cultivo||'').localeCompare(b.cultivo||'')*d;
     if(_rSort.col==='camp')return (a.campaña||'').localeCompare(b.campaña||'')*d;
     if(_rSort.col==='estado')return (a.estado||'').localeCompare(b.estado||'')*d;
+    if(_rSort.col==='fechaInicio')return (a.fechaInicio||'').localeCompare(b.fechaInicio||'')*d;
+    if(_rSort.col==='fechaLimite')return (a.fechaLimite||'').localeCompare(b.fechaLimite||'')*d;
+    if(_rSort.col==='malezas'){
+      const am=(a.malezas||[]).map(m=>m.nombre).join(', ');
+      const bm=(b.malezas||[]).map(m=>m.nombre).join(', ');
+      return am.localeCompare(bm)*d;
+    }
+    if(_rSort.col==='productos'){
+      const ap=(a.productos||[]).map(p=>DB.productos.find(x=>x.id===p.productoId)?.nombre||'').join(', ');
+      const bp=(b.productos||[]).map(p=>DB.productos.find(x=>x.id===p.productoId)?.nombre||'').join(', ');
+      return ap.localeCompare(bp)*d;
+    }
     return (b.fecha||'').localeCompare(a.fecha||'');
   });
 }
@@ -4955,7 +4997,7 @@ function renderRelev(){
   // Ha únicas por loteId: evita contar doble cuando un lote tiene varios relevamientos
   const hasPorLote=new Map();rsb.forEach(r=>{if(!hasPorLote.has(r.loteId))hasPorLote.set(r.loteId,r.loteHa||0);});
   const haFil=[...hasPorLote.values()].reduce((s,h)=>s+h,0);
-  const hayF=['f-txt','f-mal','f-prod','f-estado','f-desde','f-hasta','f-plan-desde','f-plan-hasta','f-barbecho'].some(id=>document.getElementById(id)?.value)
+  const hayF=['f-txt','f-mal','f-prod','f-estado','f-desde','f-hasta','f-plan-desde','f-plan-hasta','f-creada-desde','f-creada-hasta','f-barbecho'].some(id=>document.getElementById(id)?.value)
     || _mselGet('f-cli-vals').size>0 || _mselGet('f-camp-vals').size>0 || _mselGet('f-campo-vals').size>0 || _mselGet('f-lote-vals').size>0 || _mselGet('f-cult-vals').size>0;
   if(hb){hb.style.display=hayF?'flex':'none';if(hayF)hb.innerHTML=`<strong>${rsb.length}</strong> relevamiento(s) · <strong>${haFil.toFixed(1)} ha</strong> (${hasPorLote.size} lote(s)) · <span style="color:var(--text3)">${[...new Set(rsb.map(r=>r.clienteNombre))].join(', ')||'—'}</span><button class="btn bp bxs mla" onclick="_seleccionados.clear();rsb.forEach(r=>_seleccionados.add(r.id));generarOTDesdeSeleccion()" style="font-size:11px">📋 OT con filtrados</button>`;}
   document.getElementById('relev-count').textContent=`Relevamientos (${rs.length})`;
@@ -4969,7 +5011,7 @@ function renderRelev(){
   const fila=r=>{
     const eb=r.estado==='Borrador';
     const realizado=!!r.fecha;
-    const rc=_seleccionados.has(r.id)?'selected':eb?'borrador':'';
+    const rc=_seleccionados.has(r.id)?'selected':eb?'borrador':(!realizado?'programado':'');
     const ms=(r.malezas||[]).length
       ? r.malezas.slice(0,2).map(m=>`<span class="mal-c" title="${m.nombre}${m.pct?' '+m.pct+'%':''}">${m.nombre.length>16?m.nombre.slice(0,15)+'…':m.nombre}${m.pct?' '+m.pct+'%':''}</span>`).join(' ')
         +((r.malezas||[]).length>2?` <span class="muted" style="font-size:10px">+${r.malezas.length-2}</span>`:'')
@@ -4989,6 +5031,8 @@ function renderRelev(){
       +`<td><input type="checkbox" ${_seleccionados.has(r.id)?'checked':''} onchange="toggleSeleccion('${r.id}',this)"></td>`
       +`<td>${r.corto?`<span class="badge bg-gray mono" style="font-size:9px" title="Código corto — buscalo en el buscador">${r.corto}</span> `:''}<span class="badge bg-purple">${r.campaña||'—'}</span></td>`
       +`<td class="mono">${r.fecha||'<span class="badge bg-blue" style="font-size:9px">📅 Programado</span>'}</td>`
+      +`<td class="mono">${r.fechaInicio||'<span class="muted">—</span>'}</td>`
+      +`<td class="mono">${r.fechaLimite||'<span class="muted">—</span>'}</td>`
       +`<td><strong contenteditable="true" class="ie" onblur="ieRelev('${r.id}','clienteNombre',this)">${r.clienteNombre}</strong>${eb?' <span class="badge bg-red" style="font-size:9px">BORRADOR</span>':''}</td>`
       +`<td><a href="#" onclick="event.preventDefault();navTo('campo-detail',{campoId:'${r.campoId}'})" style="color:inherit;text-decoration:underline;text-decoration-style:dotted" title="Ver ficha del campo">${r.campoNombre}</a> › <a href="#" onclick="event.preventDefault();navTo('lote',{loteId:'${r.loteId}',cliId:'${r.clienteId}',campoId:'${r.campoId}'})" style="color:var(--accent);font-weight:500">${r.loteNombre}</a>${r.loteHa?` <span class="badge bg-green">${r.loteHa} ha</span>`:''}</td>`
       +`<td><span class="badge bg-amber ie" contenteditable="true" onblur="ieRelev('${r.id}','cultivo',this)">${r.cultivo||'—'}</span></td>`
@@ -5007,10 +5051,13 @@ function renderRelev(){
     +'<th style="width:32px"><input type="checkbox" id="chk-all" onchange="toggleAll(this)"></th>'
     +`<th class="sth" onclick="relevSortBy('camp')">Campaña ${sa('camp')}</th>`
     +`<th class="sth" onclick="relevSortBy('fecha')">Fecha ${sa('fecha')}</th>`
+    +`<th class="sth" onclick="relevSortBy('fechaInicio')">F. inicio ${sa('fechaInicio')}</th>`
+    +`<th class="sth" onclick="relevSortBy('fechaLimite')">F. límite ${sa('fechaLimite')}</th>`
     +`<th class="sth" onclick="relevSortBy('cliente')">Cliente ${sa('cliente')}</th>`
     +`<th class="sth" onclick="relevSortBy('campo')">Campo / Lote ${sa('campo')}</th>`
     +`<th class="sth" onclick="relevSortBy('cultivo')">Cultivo ${sa('cultivo')}</th>`
-    +'<th>Malezas</th><th>Productos</th>'
+    +`<th class="sth" onclick="relevSortBy('malezas')">Malezas ${sa('malezas')}</th>`
+    +`<th class="sth" onclick="relevSortBy('productos')">Productos ${sa('productos')}</th>`
     +`<th class="sth" onclick="relevSortBy('estado')">Estado ${sa('estado')}</th>`
     +'<th class="ph"></th></tr></thead>';
 
@@ -6817,10 +6864,7 @@ function deleteActividad(id,loteId,cliId,campoId){
     const a=DB.actividades.find(x=>x.id===id);
     if(a){a.borrado=true;a.fechaBorrado=hoyLocal();a.borradoTs=Date.now();}
     save();
-    if(loteId)renderLoteDetail(loteId,cliId,campoId);
-    if(document.getElementById('act-m-body'))renderActividadesMaster();
-    if(document.getElementById('plan-body'))renderPlanificacion();
-  if(document.getElementById('cal-body'))renderCalendario();
+    refrescarVistasActividad();
   });
 }
 // Cambiar estado rápido (ej. el ✅ de "marcar realizada")
@@ -7383,7 +7427,7 @@ function actMEliminarMasivo(){
     _actMSelected.clear();
     const bar=document.getElementById('act-m-selbar');if(bar)bar.style.display='none';
     mostrarSnackbar(`✅ ${cambios} eliminado(s) — quedan en la Papelera`);
-    renderActividadesMaster();
+    refrescarVistasActividad();
   });
 }
 // Una actividad independiente por cada LOTE distinto entre los seleccionados —
