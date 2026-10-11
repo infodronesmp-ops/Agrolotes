@@ -736,10 +736,10 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
       <div class="rf mb16 ph" style="gap:8px;flex-wrap:wrap">
         <button class="btn bp bsm" onclick="openModalMaleza()">+ Nuevo diagnóstico</button>
         <input type="text" id="mal-search" class="fi" placeholder="Nombre científico o común..." style="width:220px" oninput="renderMalezas()">
-        <select id="mal-fcategoria" class="fi" style="width:150px" onchange="renderMalezas()">
-          <option value="">Todas las categorías</option>
+        <select id="mal-fcategoria" class="fi" style="width:190px" onchange="renderMalezas()">
+          <option value="">Todas las categorías de diagnóstico</option>
         </select>
-        <button class="btn bs bsm" onclick="openModalCategorias()">⚙️ Categorías</button>
+        <button class="btn bs bsm" onclick="openModalCategorias()">⚙️ Categorías de diagnóstico</button>
         <div class="ms-combo" style="position:relative">
           <button type="button" class="fi" id="ms-btn-mal-f-camp" onclick="msToggle('mal-f-camp')" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:5px 8px;font-family:'Sora',sans-serif;font-size:12px;color:var(--text);cursor:pointer;text-align:left;width:130px">Campaña...</button>
           <div class="ms-drop" id="ms-drop-mal-f-camp" style="display:none;position:absolute;top:calc(100% + 2px);left:0;z-index:50;background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:6px;max-height:220px;overflow:auto;min-width:180px;box-shadow:0 4px 12px rgba(0,0,0,.15)"></div>
@@ -915,6 +915,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
     <div class="page" id="page-actividades">
       <div class="rf mb16 ph" style="gap:8px;flex-wrap:wrap">
         <button class="btn bp bsm" onclick="abrirNuevaActividadMaster()">+ Nueva actividad</button>
+        <button class="btn bs bsm" onclick="openModalTiposAct()">⚙️ Tipos de Actividad</button>
         <input type="text" id="act-m-search" class="fi" placeholder="Buscar..." style="width:150px" oninput="renderActividadesMaster()">
         <div class="ms-combo" style="position:relative">
           <button type="button" class="fi" id="ms-btn-act-m-cli" onclick="msToggle('act-m-cli')" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:5px 8px;font-family:'Sora',sans-serif;font-size:12px;color:var(--text);cursor:pointer;text-align:left;width:120px">Cliente...</button>
@@ -933,7 +934,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
           <div class="ms-drop" id="ms-drop-act-m-cult" style="display:none;position:absolute;top:calc(100% + 2px);left:0;z-index:50;background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:6px;max-height:220px;overflow:auto;min-width:180px;box-shadow:0 4px 12px rgba(0,0,0,.15)"></div>
         </div>
         <div class="ms-combo" style="position:relative">
-          <button type="button" class="fi" id="ms-btn-act-m-tipo" onclick="msToggle('act-m-tipo')" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:5px 8px;font-family:'Sora',sans-serif;font-size:12px;color:var(--text);cursor:pointer;text-align:left;width:120px">Tipo...</button>
+          <button type="button" class="fi" id="ms-btn-act-m-tipo" onclick="msToggle('act-m-tipo')" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:5px 8px;font-family:'Sora',sans-serif;font-size:12px;color:var(--text);cursor:pointer;text-align:left;width:160px">Tipo de Actividad...</button>
           <div class="ms-drop" id="ms-drop-act-m-tipo" style="display:none;position:absolute;top:calc(100% + 2px);left:0;z-index:50;background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:6px;max-height:220px;overflow:auto;min-width:180px;box-shadow:0 4px 12px rgba(0,0,0,.15)"></div>
         </div>
         <div class="ms-combo" style="position:relative">
@@ -1408,6 +1409,25 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
     </div>
     <div class="mf">
       <button class="btn bp" onclick="closeModal('modal-categorias-diag')">Listo</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL GESTIÓN DE TIPOS DE ACTIVIDAD ══ -->
+<div class="mo" id="modal-tipos-act">
+  <div class="modal" style="max-width:420px">
+    <div class="mh"><span class="mt">⚙️ Tipos de Actividad</span><button class="mx" onclick="closeModal('modal-tipos-act')">✕</button></div>
+    <div class="mb">
+      <p style="font-size:11px;color:var(--text3);margin-bottom:10px">Agregá, renombrá o eliminá los tipos. Relevamiento y Aplicación están protegidos (tienen pantalla propia) y no se pueden tocar. Las actividades que usen un tipo eliminado pasan a "Otro".</p>
+      <div id="tipos-act-lista"></div>
+      <div class="rf" style="gap:4px;margin-top:10px;border-top:1px solid var(--border);padding-top:10px">
+        <input type="text" id="tipo-act-nuevo-icono" class="fi" placeholder="📌" style="width:48px;text-align:center">
+        <input type="text" id="tipo-act-nuevo-nombre" class="fi" placeholder="Nombre del nuevo tipo" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();agregarTipoAct();}">
+        <button class="btn bp bxs" onclick="agregarTipoAct()">+ Agregar</button>
+      </div>
+    </div>
+    <div class="mf">
+      <button class="btn bp" onclick="closeModal('modal-tipos-act')">Listo</button>
     </div>
   </div>
 </div>
@@ -1978,15 +1998,20 @@ function planPill(it){
 // del tipo (A: Aplicación, R: Relevamiento, S: Siembra...) bien visible.
 function calPill(it){
   let cls='bg-blue';
-  if(it.estado==='Realizada')cls='bg-green';
+  const pendiente=it.estado!=='Realizada';
+  if(!pendiente)cls='bg-green';
   else{const u=urgenciaActividad({estado:it.estado,fecha:it.fecha,fechaFin:it.fechaFin});if(u&&u.k==='vencida')cls='bg-red';}
   const f=it.real||it.fecha||it.fechaFin;
   const txt=f?f.slice(8,10)+'/'+f.slice(5,7):'s/f';
   const letra=ACT_TIPO_LETRA[it.tipo]||(it.tipo||'?').slice(0,1).toUpperCase();
   const abrir=it.esRelev?`openModalRelev('${it.id}')`:`openModalActividad(null,null,null,'${it.id}')`;
   const tit=`${it.tipo} — ${it.estado}${it.fecha?' · inicio '+it.fecha:''}${it.fechaFin?' · límite '+it.fechaFin:''}${it.real?' · realizada '+it.real:''}${it.cultivo?' · '+it.cultivo:''}${it.mejoraProgramada?' · 🔧 Mejora programada':''}`;
-  const borde=it.mejoraProgramada?';border:2px solid #ef5350':'';
-  return`<a href="#" onclick="event.preventDefault();${abrir}" title="${tit}" style="width:100%"><span class="badge ${cls}" style="font-size:10px;margin:1px${borde};display:flex;gap:3px;align-items:center;justify-content:center;width:100%"><strong>${letra}</strong>·${txt}</span></a>`;
+  // Lo Pendiente (todavía no se hizo) tiene que distinguirse de un vistazo de
+  // lo Realizado — no solo por el color, que se puede confundir entre celdas
+  // chicas: lleva además un borde marcado y el 🕒 antes de la inicial.
+  const borde=it.mejoraProgramada?';border:2px solid #ef5350':(pendiente?';border:2px solid currentColor':'');
+  const marcaPendiente=pendiente?'🕒':'';
+  return`<a href="#" onclick="event.preventDefault();${abrir}" title="${tit}" style="width:100%"><span class="badge ${cls}" style="font-size:10px;margin:1px${borde};display:flex;gap:3px;align-items:center;justify-content:center;width:100%;${pendiente?'font-weight:700':''}">${marcaPendiente}<strong>${letra}</strong>·${txt}</span></a>`;
 }
 // momento ('pre'|'post'|null) viene de la columna donde se clickeó "+crear" —
 // queda fijo en la actividad, así no se mueve de columna si la fecha de la
@@ -2062,7 +2087,7 @@ function renderPlanificacion(){
   if(fCli)lotesOptPlan=lotesOptPlan.filter(l=>l.clienteId===fCli);
   msRender('plan-lote',lotesOptPlan.sort((a,b)=>naturalCmp(a.nombre,b.nombre)).map(l=>{const c=DB.clientes.find(x=>x.id===l.clienteId);return{value:l.id,label:l.nombre+(c?' — '+c.nombre:'')};}),'Lote',()=>renderPlanificacion());
   const fLotes=msValues('plan-lote');
-  const TIPO_ORDEN_PLAN=['Aplicación','Relevamiento','Siembra','Cosecha','Capacitación','Laboreo mecánico','Fertilización','Riego','Otro'];
+  const TIPO_ORDEN_PLAN=ordenTiposActivos();
   msRender('plan-tipo',TIPO_ORDEN_PLAN.filter(t=>ACT_TIPOS[t]).map(t=>({value:t,label:t})),'Tipo',()=>renderPlanificacion());
   const fTipos=msValues('plan-tipo');
   msRender('plan-estado',[{value:'Pendiente',label:'🕒 Pendiente'},{value:'Realizada',label:'✅ Realizada'}],'Estado',()=>renderPlanificacion());
@@ -2632,7 +2657,7 @@ function renderCalendario(){
   DB.relevamientos.forEach(r=>{if(r.cultivo)cultSet.add(baseCultivo(r.cultivo));});
   msRender('cal-cult',[...cultSet].filter(Boolean).sort().map(c=>({value:c,label:c})),'Cultivo',()=>renderCalendario());
   const fCults=msValues('cal-cult');
-  const TIPO_ORDEN_CAL=['Aplicación','Relevamiento','Siembra','Cosecha','Capacitación','Laboreo mecánico','Fertilización','Riego','Otro'];
+  const TIPO_ORDEN_CAL=ordenTiposActivos();
   msRender('cal-tipo',TIPO_ORDEN_CAL.filter(t=>ACT_TIPOS[t]).map(t=>({value:t,label:(ACT_TIPO_LETRA[t]?ACT_TIPO_LETRA[t]+' · ':'')+t})),'Tipo',()=>renderCalendario());
   const fTipos=msValues('cal-tipo');
   msRender('cal-estado',[{value:'Pendiente',label:'🕒 Pendiente'},{value:'Realizada',label:'✅ Realizada'}],'Estado',()=>renderCalendario());
@@ -2707,11 +2732,10 @@ function renderCalendario(){
         </td>${celdas}</tr>`;
     }).join('');
     if(hayFiltroContenido&&!total)return null;
-    return`<details style="margin-bottom:10px;border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;box-shadow:var(--shadow)">
+    return`<details open style="margin-bottom:10px;border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;box-shadow:var(--shadow)">
       <summary style="cursor:pointer;padding:10px 14px;font-weight:600;font-size:13px;background:var(--bg2);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
         <a href="#" onclick="event.preventDefault();event.stopPropagation();navTo('campo-detail',{campoId:'${campo.id}'})" style="color:inherit;text-decoration:underline;text-decoration-style:dotted" title="Ver ficha del campo">📍 ${campo.nombre}</a>
         <span class="muted" style="font-weight:400;font-size:11px">👤 ${cli?.nombre||'—'} · ${lotes.length} lote${lotes.length===1?'':'s'}</span>
-        <span class="badge ${total?'bg-blue':'bg-gray'}" style="font-size:10px">${total} actividad${total===1?'':'es'} en el rango</span>
         <a href="#" onclick="event.preventDefault();event.stopPropagation();calNuevoVarios('${campo.id}')" title="Cargar una misma actividad en todos los lotes de este campo — ideal para Capacitación, análisis de suelo, etc." style="font-size:11px;color:var(--accent);margin-left:auto">＋ Nueva (varios lotes)</a>
       </summary>
       <div class="tw"><table style="width:100%;border-collapse:collapse"><thead><tr>${th}</tr></thead><tbody>${cuerpo}</tbody></table></div>
@@ -2780,6 +2804,7 @@ async function _fbInitSync(){
           repararLoteHa();
           migrarAplicadosAActividades();
           purgarPapelera();
+          rebuildActTipos(); // por si otro dispositivo agregó/renombró un Tipo de Actividad
           asignarCodigosCortos();
           // Si dos dispositivos crearon algo casi al mismo tiempo, acá es donde
           // puede aparecer un código R#/A# repetido — se repara apenas se detecta.
@@ -3312,6 +3337,40 @@ function cultivosDeLote(loteId,camp){
     baseCultivo(getCultivo2DeLote(loteId,camp)),
     baseCultivo(getCultivoCobDeLote(loteId,camp)),
   ].filter(Boolean))];
+}
+// Igual que cultivosDeLote, pero sin mezclar — cada cultivo sale etiquetado
+// con su "ranura" (1ª / 2ª / cobertura), porque "Maíz de primera" y "Maíz de
+// segunda" son cosas distintas para filtrar: uno NO tiene que traer al otro
+// solo porque comparten el nombre del cultivo.
+function cultivosRolDeLote(loteId,camp){
+  const out=[];
+  const c1=baseCultivo(getCultivoDeLote(loteId,camp));
+  const c2=baseCultivo(getCultivo2DeLote(loteId,camp));
+  const cc=baseCultivo(getCultivoCobDeLote(loteId,camp));
+  if(c1)out.push({cultivo:c1,rol:'1',value:c1+'||1'});
+  if(c2)out.push({cultivo:c2,rol:'2',value:c2+'||2'});
+  if(cc)out.push({cultivo:cc,rol:'cob',value:cc+'||cob'});
+  return out;
+}
+const ROL_LABEL={'1':'1ª','2':'2ª','cob':'cobertura'};
+// Opciones {value,label} para un multiselect de Cultivo con ranura — junta lo
+// cargado en TODOS los lotes para la campaña (o campañas) dada(s).
+function opcionesCultivoRol(camps){
+  const lista=Array.isArray(camps)?camps:[camps];
+  const porValor=new Map();
+  DB.lotes.forEach(l=>{
+    lista.forEach(camp=>{
+      cultivosRolDeLote(l.id,camp).forEach(({cultivo,rol,value})=>{
+        if(!porValor.has(value))porValor.set(value,(rol==='cob'?'🌱 ':'')+cultivo+' ('+ROL_LABEL[rol]+')');
+      });
+    });
+  });
+  return[...porValor.entries()].map(([value,label])=>({value,label})).sort((a,b)=>a.label.localeCompare(b.label));
+}
+// ¿Este lote tiene, en esta campaña, el cultivo+ranura que indica "value"
+// (tal como lo devuelve opcionesCultivoRol, ej. "Maíz||2")?
+function loteTieneCultivoRol(loteId,camp,value){
+  return cultivosRolDeLote(loteId,camp).some(c=>c.value===value);
 }
 function setCultivoDeLote(loteId,camp,cultivo,cultivo2){
   if(!DB.loteCultivos)DB.loteCultivos={};
@@ -5728,6 +5787,8 @@ function abrirModalActividadMasiva(lotesIniciales=[],tipoInicial='',campInicial=
   if(cultCampSel){cultCampSel.innerHTML=(DB.campanas||[]).map(c=>`<option value="${c}"${c===campActiva?' selected':''}>${c}</option>`).join('');}
   tlMasivaRenderFiltroCultivo();
   document.getElementById('tl-masiva-lote-lista').innerHTML='<div class="muted" style="font-size:11px">Elegí Cliente, Campo y/o Cultivo para ver lotes — se combinan entre sí.</div>';
+  const tlActTipoSel=document.getElementById('tl-act-tipo');
+  if(tlActTipoSel)tlActTipoSel.innerHTML='<option value="">Seleccioná...</option>'+opcionesTipoActHTML();
   document.getElementById('tl-act-tipo').value=tipoInicial||'';
   // Si se abrió desde un casillero de mes puntual (Calendario), se precarga el
   // rango 1º al último día de ese mes — es solo un punto de partida, se ajusta
@@ -5763,12 +5824,12 @@ function tlMasivaClienteChange(){
   tlMasivaActualizarLotes();
 }
 // El combo de Cultivo sale de lo que hay REALMENTE cargado en los lotes (solapa
-// Clientes/Lotes) para la campaña de referencia — primera, segunda Y cobertura
-// por igual — y no solo de lo que algún relevamiento haya mencionado alguna vez.
+// Clientes/Lotes) para la campaña de referencia, y "Maíz de 1ª" y "Maíz de 2ª"
+// son dos opciones SEPARADAS — tildar una no trae la otra; si querés las dos,
+// tildás las dos a propósito.
 function tlMasivaRenderFiltroCultivo(){
   const camp=document.getElementById('tl-masiva-cultivo-camp')?.value||getCampanaActiva();
-  const cultivos=[...new Set(DB.lotes.flatMap(l=>cultivosDeLote(l.id,camp)))].sort();
-  const cultOpts=cultivos.map(c=>({value:c,label:c}));
+  const cultOpts=opcionesCultivoRol(camp);
   mselRender('msel-tlm-cultivo','tlm-cultivo-vals','Cultivo',cultOpts,tlMasivaActualizarLotes);
 }
 // Cambiar la campaña de referencia recalcula qué cultivos hay para elegir
@@ -5789,10 +5850,10 @@ function tlMasivaActualizarLotes(){
   if(cliIds.size)lotes=lotes.filter(l=>cliIds.has(l.clienteId));
   if(campoIds.size)lotes=lotes.filter(l=>campoIds.has(l.campoId));
   if(cultivos.size){
-    // El lote entra si CUALQUIERA de sus cultivos (primera/segunda/cobertura)
-    // está entre los tildados — así "Maíz" trae tanto los de primera como los
-    // de segunda sin tener que elegir una sola "ranura".
-    lotes=lotes.filter(l=>cultivosDeLote(l.id,campParaCultivo).some(c=>cultivos.has(c)));
+    // Cada opción tildada es un cultivo+ranura puntual (ej. "Maíz||2" = Maíz
+    // de 2ª) — el lote entra si tiene AL MENOS UNO de los tildados, pero nunca
+    // por tener el mismo cultivo en otra ranura que no tildaste.
+    lotes=lotes.filter(l=>[...cultivos].some(v=>loteTieneCultivoRol(l.id,campParaCultivo,v)));
   }
   lotes=lotes.sort((a,b)=>naturalCmp(a.nombre,b.nombre));
   if(!lotes.length){cont.innerHTML='<div class="muted" style="font-size:11px">Ningún lote cumple esa combinación de filtros.</div>';return;}
@@ -5954,14 +6015,11 @@ function renderTablero(){
   mselRender('msel-tl-mal','tl-mal-vals','Diagnóstico',malOpts,()=>renderTablero());
   const prodOpts=DB.productos.slice().sort((a,b)=>a.nombre.localeCompare(b.nombre)).map(p=>({value:p.id,label:p.nombre}));
   mselRender('msel-tl-prod','tl-prod-vals','Producto aplicado',prodOpts,()=>renderTablero());
-  // Multiselect cultivo — sale tanto de lo que algún relevamiento haya
-  // registrado como de lo que esté cargado en la solapa Clientes/Lotes
-  // (cultivo de primera, de segunda y de cobertura), para no perder un
-  // cultivo recién cargado que todavía no tuvo ningún relevamiento.
-  const cultOpts=[...new Set([
-    ...DB.relevamientos.map(r=>baseCultivo(r.cultivo)),
-    ...(DB.campanas||[]).flatMap(camp=>DB.lotes.flatMap(l=>cultivosDeLote(l.id,camp))),
-  ].filter(Boolean))].sort().map(v=>({value:v,label:v}));
+  // Multiselect cultivo — sale de lo que está cargado en la solapa
+  // Clientes/Lotes (Cultivo 1 / Cultivo 2da / Cobertura), con cada cultivo+
+  // ranura como opción separada: "Maíz (1ª)" y "Maíz (2ª)" nunca se mezclan
+  // solos, se traen juntos solo si tildás los dos.
+  const cultOpts=opcionesCultivoRol(DB.campanas||[]);
   mselRender('msel-tl-cult','tl-cult-vals','Cultivo',cultOpts,()=>renderTablero());
 
   // Obtener filtros
@@ -6023,14 +6081,13 @@ function renderTablero(){
     if(fcliIds.size&&!fcliIds.has(d.lote.clienteId))return false;
     if(fcampoIds.size&&!fcampoIds.has(d.lote.campoId))return false;
     if(festado&&d.estadoOp!==festado)return false;
-    // Filtro multiselect cultivo: el lote entra si algún relevamiento registró
-    // ese cultivo, O si lo tiene cargado en su solapa (primera/segunda/cobertura)
-    // en alguna de las campañas en foco — así entra aunque todavía no se le
-    // haya hecho ningún relevamiento con ese cultivo.
+    // Filtro multiselect cultivo: cada opción tildada es un cultivo+ranura
+    // puntual (ej. "Maíz" de 2ª) — el lote entra si lo tiene cargado así en
+    // su solapa, en alguna de las campañas en foco (o en cualquiera, si no
+    // filtraste por Campaña).
     if(fcults.size){
       const campsCheck=fcamps.size?[...fcamps]:(DB.campanas||[]);
-      const tieneCultivo=d.relevs.some(r=>fcults.has(baseCultivo(r.cultivo)))
-        ||campsCheck.some(camp=>cultivosDeLote(d.lote.id,camp).some(c=>fcults.has(c)));
+      const tieneCultivo=campsCheck.some(camp=>[...fcults].some(v=>loteTieneCultivoRol(d.lote.id,camp,v)));
       if(!tieneCultivo)return false;
     }
     if(fdificil){
@@ -6166,21 +6223,116 @@ openModalRelev=function(editId){
 };
 
 // ══ ACTIVIDADES ══
-const ACT_TIPOS={
-  'Siembra':      {icono:'🌱',dot:'act-dot-siembra',color:'bg-green'},
-  'Cosecha':      {icono:'🌾',dot:'act-dot-cosecha',color:'bg-amber'},
-  'Laboreo mecánico':{icono:'🚜',dot:'act-dot-otro',color:'bg-gray'},
-  'Fertilización':{icono:'🧪',dot:'act-dot-otro',color:'bg-gray'},
-  'Riego':        {icono:'💧',dot:'act-dot-otro',color:'bg-blue'},
-  'Incendio':     {icono:'🔥',dot:'act-dot-evento',color:'bg-red'},
-  'Granizo':      {icono:'🌨',dot:'act-dot-evento',color:'bg-red'},
-  'Inundación':   {icono:'🌊',dot:'act-dot-evento',color:'bg-red'},
-  'Helada':       {icono:'❄️',dot:'act-dot-evento',color:'bg-red'},
-  'Relevamiento': {icono:'🔍',dot:'act-dot-relevado',color:'bg-gray'},
-  'Aplicación':   {icono:'✅',dot:'act-dot-aplicado',color:'bg-blue'},
-  'Capacitación': {icono:'🎓',dot:'act-dot-otro',color:'bg-gray'},
-  'Otro':         {icono:'📝',dot:'act-dot-otro',color:'bg-gray'},
+// Tipos de Actividad: catálogo EDITABLE por el usuario (como las Categorías de
+// diagnóstico), guardado en DB.tiposActividad. Relevamiento y Aplicación están
+// protegidos (protegido:true) porque tienen pantallas y lógica propia por detrás
+// (diagnósticos, productos, cadena de seguimientos, código R#/A#) — no se pueden
+// borrar ni renombrar. El resto es libre: agregar, renombrar o eliminar.
+const TIPOS_ACT_DEFAULT=[
+  {nombre:'Relevamiento',  icono:'🔍',dot:'act-dot-relevado',color:'bg-gray', protegido:true},
+  {nombre:'Aplicación',    icono:'✅',dot:'act-dot-aplicado',color:'bg-blue', protegido:true},
+  {nombre:'Siembra',       icono:'🌱',dot:'act-dot-siembra', color:'bg-green'},
+  {nombre:'Cosecha',       icono:'🌾',dot:'act-dot-cosecha', color:'bg-amber'},
+  {nombre:'Laboreo mecánico',icono:'🚜',dot:'act-dot-otro',  color:'bg-gray'},
+  {nombre:'Fertilización', icono:'🧪',dot:'act-dot-otro',    color:'bg-gray'},
+  {nombre:'Riego',         icono:'💧',dot:'act-dot-otro',    color:'bg-blue'},
+  {nombre:'Capacitación',  icono:'🎓',dot:'act-dot-otro',    color:'bg-gray'},
+  {nombre:'Otro',          icono:'📝',dot:'act-dot-otro',    color:'bg-gray'},
+];
+// Tipos viejos de evento climático: ya no se pueden crear ni elegir desde
+// ningún lado, pero si algún dato antiguo todavía los tiene cargados, se
+// siguen mostrando con su ícono correcto en vez del genérico.
+const ACT_TIPOS_LEGACY={
+  'Incendio':   {icono:'🔥',dot:'act-dot-evento',color:'bg-red'},
+  'Granizo':    {icono:'🌨',dot:'act-dot-evento',color:'bg-red'},
+  'Inundación': {icono:'🌊',dot:'act-dot-evento',color:'bg-red'},
+  'Helada':     {icono:'❄️',dot:'act-dot-evento',color:'bg-red'},
 };
+function tiposActividad(){
+  if(!Array.isArray(DB.tiposActividad)||!DB.tiposActividad.length)DB.tiposActividad=TIPOS_ACT_DEFAULT.map(t=>({...t}));
+  return DB.tiposActividad;
+}
+// ACT_TIPOS se reconstruye cada vez que cambia el catálogo (alta/baja/edición)
+// para que el resto del código, que lo usa como objeto fijo (ACT_TIPOS[tipo]),
+// no tenga que cambiar — siempre refleja lo último guardado.
+let ACT_TIPOS={};
+function rebuildActTipos(){
+  ACT_TIPOS={...ACT_TIPOS_LEGACY};
+  tiposActividad().forEach(t=>{ACT_TIPOS[t.nombre]={icono:t.icono,dot:t.dot||'act-dot-otro',color:t.color||'bg-gray'};});
+}
+rebuildActTipos();
+// Orden en que se muestran los tipos ACTIVOS (no los legacy) en los distintos
+// filtros/selects — Aplicación y Relevamiento primero (son los más usados),
+// después el resto en el orden del catálogo, y "Otro" siempre al final.
+function ordenTiposActivos(){
+  const nombres=tiposActividad().map(t=>t.nombre);
+  const fijos=['Aplicación','Relevamiento'].filter(n=>nombres.includes(n));
+  const otro=nombres.includes('Otro')?['Otro']:[];
+  const resto=nombres.filter(n=>!fijos.includes(n)&&n!=='Otro');
+  return[...fijos,...resto,...otro];
+}
+function openModalTiposAct(){
+  renderTiposActLista();
+  document.getElementById('tipo-act-nuevo-icono').value='';
+  document.getElementById('tipo-act-nuevo-nombre').value='';
+  openModal('modal-tipos-act');
+}
+function renderTiposActLista(){
+  const cont=document.getElementById('tipos-act-lista');if(!cont)return;
+  cont.innerHTML=tiposActividad().map((t,i)=>`
+    <div class="rf" style="gap:4px;margin-bottom:6px">
+      <input type="text" class="fi" value="${t.icono}" style="width:48px;text-align:center" ${t.protegido?'disabled':''} onchange="editarTipoAct(${i},'icono',this.value)">
+      <input type="text" class="fi" value="${t.nombre}" style="flex:1" ${t.protegido?'disabled':''} onchange="editarTipoAct(${i},'nombre',this.value)">
+      ${t.protegido?'<span class="muted" style="font-size:10px;padding:0 4px" title="Tiene pantalla y lógica propia — no se puede tocar">🔒 protegido</span>':`<button class="btn bd bxs" onclick="eliminarTipoAct(${i})" title="Eliminar">✕</button>`}
+    </div>`).join('');
+}
+function editarTipoAct(i,campo,valor){
+  const tipos=tiposActividad();
+  const t=tipos[i];if(!t||t.protegido)return;
+  valor=(valor||'').trim();
+  if(campo==='nombre'){
+    if(!valor)return;
+    const anterior=t.nombre;
+    if(anterior===valor)return;
+    if(tipos.some((x,j)=>j!==i&&x.nombre===valor)){alert('Ya existe un tipo con ese nombre.');renderTiposActLista();return;}
+    t.nombre=valor;
+    // Actualizar las actividades que usaban el nombre viejo
+    (DB.actividades||[]).forEach(a=>{if(a.tipo===anterior)a.tipo=valor;});
+  } else {
+    t.icono=valor||'📝';
+  }
+  rebuildActTipos();
+  save();
+  renderTiposActLista();
+  if(document.getElementById('act-m-body'))renderActividadesMaster();
+}
+function agregarTipoAct(){
+  const icono=(document.getElementById('tipo-act-nuevo-icono').value||'📝').trim()||'📝';
+  const nombre=(document.getElementById('tipo-act-nuevo-nombre').value||'').trim();
+  if(!nombre){document.getElementById('tipo-act-nuevo-nombre').focus();return;}
+  const tipos=tiposActividad();
+  if(tipos.some(t=>t.nombre===nombre)){alert('Ya existe un tipo con ese nombre.');return;}
+  tipos.push({nombre,icono,dot:'act-dot-otro',color:'bg-gray'});
+  rebuildActTipos();
+  save();
+  document.getElementById('tipo-act-nuevo-icono').value='';
+  document.getElementById('tipo-act-nuevo-nombre').value='';
+  renderTiposActLista();
+  if(document.getElementById('act-m-body'))renderActividadesMaster();
+}
+function eliminarTipoAct(i){
+  const tipos=tiposActividad();
+  const t=tipos[i];if(!t||t.protegido)return;
+  confirmarAccion(`¿Eliminar el tipo "${t.nombre}"? Las actividades que lo usan pasan a "Otro".`,()=>{
+    tipos.splice(i,1);
+    const otro=tipos.find(x=>x.nombre==='Otro')||tipos[0];
+    (DB.actividades||[]).forEach(a=>{if(a.tipo===t.nombre)a.tipo=otro.nombre;});
+    rebuildActTipos();
+    save();
+    renderTiposActLista();
+    if(document.getElementById('act-m-body'))renderActividadesMaster();
+  });
+}
 // Inicial de cada tipo para identificarlo de un vistazo en espacios chicos
 // (pastillas del Calendario) sin tener que abrir cada una.
 const ACT_TIPO_LETRA={
@@ -6198,15 +6350,30 @@ const ACT_EXTRA={
 // Misma plantilla de campos extra que en Actividades, pero con ids propios
 // (r-act-extra-<idx>-...) para no chocar entre bloques ni con el modal de Actividad.
 let _rActBlockN=0;
-const R_ACT_TIPO_OPTS=`<option value="">— Ninguna por ahora —</option>
-    <option value="Relevamiento">🔍 Relevamiento de seguimiento (a futuro, para este mismo lote)</option>
-    <option value="Aplicación">✅ Aplicación (con las soluciones cargadas arriba)</option>
-    <option value="Siembra">🌱 Siembra</option>
-    <option value="Cosecha">🌾 Cosecha</option>
-    <option value="Laboreo mecánico">🚜 Laboreo mecánico</option>
-    <option value="Fertilización">🧪 Fertilización</option>
-    <option value="Riego">💧 Riego</option>
-    <option value="Otro">📝 Otro</option>`;
+// Opciones de Tipo de Actividad para los 3 selectores de la app (acá, el
+// modal de Actividad individual y el de "varios lotes") — generadas siempre
+// a partir del catálogo editable (tiposActividad), para que un tipo que
+// agregues o saques en "⚙️ Tipos de Actividad" aparezca/desaparezca al toque
+// en los tres. Relevamiento y Aplicación llevan una aclaración extra porque
+// tienen comportamiento propio.
+const TIPO_ACT_DESC_EXTRA={
+  'Relevamiento':'🔍 Relevamiento de seguimiento (a futuro, para este mismo lote)',
+  'Aplicación':'✅ Aplicación (con las soluciones cargadas arriba)',
+};
+function opcionesTipoActHTML(){
+  return ordenTiposActivos().map(nombre=>{
+    const t=ACT_TIPOS[nombre]||{};
+    const label=(t.icono||'📝')+' '+nombre;
+    return `<option value="${nombre}">${label}</option>`;
+  }).join('');
+}
+function R_ACT_TIPO_OPTS_HTML(){
+  return `<option value="">— Ninguna por ahora —</option>`+ordenTiposActivos().map(nombre=>{
+    const t=ACT_TIPOS[nombre]||{};
+    const label=TIPO_ACT_DESC_EXTRA[nombre]||((t.icono||'📝')+' '+nombre);
+    return `<option value="${nombre}">${label}</option>`;
+  }).join('');
+}
 function onRActTipoChange(idx){
   const tipo=document.getElementById('r-act-tipo-'+idx).value;
   document.getElementById('r-act-body-'+idx).style.display=tipo?'block':'none';
@@ -6227,7 +6394,7 @@ function addRActBlock(data=null,actId=null){
   d.style.cssText='border:1px solid var(--border);border-radius:var(--r);padding:10px;margin-bottom:10px';
   d.innerHTML=`
     <div class="rf" style="justify-content:space-between;gap:6px;margin-bottom:6px;flex-wrap:wrap">
-      <select id="r-act-tipo-${idx}" class="fi" onchange="onRActTipoChange(${idx})" style="flex:1;min-width:160px">${R_ACT_TIPO_OPTS}</select>
+      <select id="r-act-tipo-${idx}" class="fi" onchange="onRActTipoChange(${idx})" style="flex:1;min-width:160px">${R_ACT_TIPO_OPTS_HTML()}</select>
       ${actId?`<button class="btn bb bxs" onclick="abrirActividadDesdeRelev('${actId}')" title="Ir a esta actividad (después volvés acá)">🔗 Abrir</button>
       <button class="btn bs bxs" onclick="desprenderRActBlock(${idx})" title="Sigue existiendo con vida propia (la ves en Actividades), pero se saca de esta lista">🔓 Desadjuntar</button>
       <button class="btn bd bxs" onclick="eliminarActDesdeRelev(${idx})" title="La manda a la Papelera, pero queda marcada como asociada a este relevamiento">🗑️ Eliminar</button>`
@@ -6355,6 +6522,10 @@ function openModalActividad(loteId,cliId,campoId,editId=null){
   document.getElementById('act-fecha-real').value='';
   document.getElementById('act-mejora').checked=false;
   document.getElementById('act-origen-info').style.display='none';
+  // Tipo de actividad: se reconstruye cada vez a partir del catálogo editable
+  // (⚙️ Tipos de Actividad), para que un tipo agregado o quitado se refleje al toque.
+  const actTipoSel=document.getElementById('act-tipo');
+  if(actTipoSel){const pvTipo=actTipoSel.value;actTipoSel.innerHTML='<option value="">Seleccioná...</option>'+opcionesTipoActHTML();actTipoSel.value=pvTipo;}
   // Lote: se pide arriba solo si se abre desde la pantalla maestra (sin lote ya sabido)
   const loteWrap=document.getElementById('act-lote-wrap');
   if(loteWrap)loteWrap.style.display=_actLoteCtx?'none':'block';
@@ -6833,7 +7004,7 @@ function renderActividadesMaster(){
   // Aplicación y Relevamiento primero (son las más usadas) — y sin los tipos de
   // evento climático viejos (Incendio/Granizo/Inundación/Helada), que ya no se
   // pueden crear desde ningún lado; si aparecen en datos viejos igual se ven bien.
-  const TIPO_ORDEN=['Aplicación','Relevamiento','Siembra','Cosecha','Laboreo mecánico','Fertilización','Riego','Otro'];
+  const TIPO_ORDEN=ordenTiposActivos();
   const tipoOpts=TIPO_ORDEN.filter(t=>ACT_TIPOS[t]).map(t=>({value:t,label:t}));
   msRender('act-m-tipo',tipoOpts,'Tipo',()=>renderActividadesMaster());
   const fTipos=msValues('act-m-tipo');
@@ -7919,11 +8090,35 @@ function openModalCampana(editIdx){
   document.getElementById('camp-nombre').value=_editCampMode?(DB.campanas[editIdx]||''):'';
   openModal('modal-campana');
 }
+// Si renombrás una campaña, hay que arrastrar el nombre viejo a TODO lo que
+// la referencia por string — si no, un relevamiento con campaña="2025/26"
+// deja de aparecer en cualquier filtro de "2025/26 (nueva)" aunque sea la
+// misma campaña, y el cultivo cargado en Clientes/Lotes (que se guarda con
+// una clave lote||campaña) queda huérfano.
+function renombrarCampanaEnDatos(anterior,nuevo){
+  if(anterior===nuevo)return;
+  (DB.relevamientos||[]).forEach(r=>{if(r.campaña===anterior)r.campaña=nuevo;});
+  (DB.actividades||[]).forEach(a=>{if(a.campaña===anterior)a.campaña=nuevo;});
+  if(DB.loteCultivos){
+    const nuevoMapa={};
+    Object.entries(DB.loteCultivos).forEach(([k,v])=>{
+      const partes=k.split('||');
+      if(partes[1]===anterior)partes[1]=nuevo;
+      nuevoMapa[partes.join('||')]=v;
+    });
+    DB.loteCultivos=nuevoMapa;
+  }
+  if(DB.campanaActiva===anterior)DB.campanaActiva=nuevo;
+}
 function saveCampana(){
   const nombre=document.getElementById('camp-nombre').value.trim();
   if(!nombre){alert('El nombre es obligatorio');return;}
   if(_editCampMode){
+    const anterior=DB.campanas[_editCampId];
+    if(anterior===nombre){closeModal('modal-campana');return;}
+    if(DB.campanas.some((c,i)=>i!==_editCampId&&c===nombre)){alert('Ya existe esa campaña');return;}
     DB.campanas[_editCampId]=nombre;
+    renombrarCampanaEnDatos(anterior,nombre);
   } else {
     if(DB.campanas.includes(nombre)){alert('Ya existe esa campaña');return;}
     DB.campanas.push(nombre);
@@ -7935,9 +8130,19 @@ function saveCampana(){
   if(sel){const pv=sel.value;sel.innerHTML='<option value="">Seleccioná...</option>';DB.campanas.forEach(c=>sel.innerHTML+=`<option value="${c}"${c===pv?' selected':''}>${c}</option>`);}
 }
 function deleteCampana(idx){
-  confirmarAccion('¿Eliminar campaña?',()=>{
-    DB.campanas.splice(idx,1);save();renderCampanas();
-  });
+  const nombre=DB.campanas[idx];if(nombre===undefined)return;
+  const usosRelev=(DB.relevamientos||[]).filter(r=>r.campaña===nombre).length;
+  const usosAct=(DB.actividades||[]).filter(a=>a.campaña===nombre).length;
+  const usosCultivo=Object.keys(DB.loteCultivos||{}).filter(k=>k.split('||')[1]===nombre).length;
+  const totalUsos=usosRelev+usosAct+usosCultivo;
+  const msg=totalUsos
+    ?`¿Eliminar la campaña "${nombre}"? Tiene ${totalUsos} dato(s) cargado(s) con esa campaña (relevamientos, actividades y/o cultivos de lote). Esos datos NO se borran — siguen existiendo con ese nombre — pero la campaña deja de estar en la lista para elegir en cosas nuevas.`
+    :`¿Eliminar la campaña "${nombre}"?`;
+  confirmarAccion(msg,()=>{
+    DB.campanas.splice(idx,1);
+    if(DB.campanaActiva===nombre)DB.campanaActiva=DB.campanas[DB.campanas.length-1]||'';
+    save();renderCampanas();
+  },'Eliminar');
 }
 let _rotSort={col:null,dir:1};
 function clearFiltrosRot(){['rot-f-cli','rot-f-cult1','rot-f-cult2','rot-f-campo','rot-f-lote','rot-f-camps'].forEach(id=>msClear(id));_rotSort={col:null,dir:1};renderCampanas();}
@@ -8001,8 +8206,11 @@ function renderCampanas(){
   else filas.sort((a,b)=>a.cli.nombre.localeCompare(b.cli.nombre)||naturalCmp(a.l.nombre,b.l.nombre));
   const thead='<tr>'
     +`<th style="cursor:pointer;text-align:left;min-width:180px" onclick="rotSortBy('lote')">Cliente / Lote${sortIcon('lote')}</th>`
-    +camps.map(camp=>`<th class="${camp===campAct?'rot-camp-act':''}" style="cursor:pointer;min-width:220px" onclick="rotSortBy('${camp}')">`
-      +`${camp}${camp===campAct?' ★':''}<br><span style="font-size:9px;font-weight:400;opacity:.7">Cultivo 1 / Cultivo 2da / 🌱 Cobertura</span>${sortIcon(camp)}</th>`).join('')
+    +camps.map(camp=>`<th class="${camp===campAct?'rot-camp-act':''}" style="min-width:220px">`
+      +`<span style="cursor:pointer" onclick="rotSortBy('${camp}')">${camp}${camp===campAct?' ★':''}${sortIcon(camp)}</span>`
+      +` <button class="btn bs bxs" style="padding:0 4px;font-size:9px" onclick="event.stopPropagation();openModalCampana(${DB.campanas.indexOf(camp)})" title="Editar nombre de esta campaña">✏️</button>`
+      +`<button class="btn bd bxs" style="padding:0 4px;font-size:9px" onclick="event.stopPropagation();deleteCampana(${DB.campanas.indexOf(camp)})" title="Eliminar esta campaña">✕</button>`
+      +`<br><span style="font-size:9px;font-weight:400;opacity:.7">Cultivo 1 / Cultivo 2da / 🌱 Cobertura</span></th>`).join('')
     +'<th style="width:50px"></th></tr>';
   let prevCli='';
   const tbody=filas.map(({cli,l})=>{
@@ -8211,7 +8419,7 @@ function renderMalezas(){
   const q=(document.getElementById('mal-search')?.value||'').toLowerCase();
   const soloDificil=document.getElementById('mal-fdificil')?.checked||false;
   const fcatSel=document.getElementById('mal-fcategoria');
-  if(fcatSel){const pv=fcatSel.value;fcatSel.innerHTML='<option value="">Todas las categorías</option>'+opcionesCategoriasHTML(pv);}
+  if(fcatSel){const pv=fcatSel.value;fcatSel.innerHTML='<option value="">Todas las categorías de diagnóstico</option>'+opcionesCategoriasHTML(pv);}
   const fcat=fcatSel?.value||'';
 
   // Por defecto, al entrar a la pantalla se filtra por la campaña actual (una sola vez)
@@ -8964,6 +9172,7 @@ function confirmarImportacionBackup(){
   repararLoteHa();
   migrarAplicadosAActividades();
   purgarPapelera();
+  rebuildActTipos();
   asignarCodigosCortos();
   repararCodigosCortosDuplicados();
   localStorage.setItem('agrolotes_v2',JSON.stringify(DB));
