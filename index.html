@@ -1691,8 +1691,25 @@ let DB=(()=>{try{return JSON.parse(localStorage.getItem(SK))||ddb();}catch{retur
   let _huboCambios=repararLoteHa();
   if(migrarAplicadosAActividades())_huboCambios=true;
   if(purgarPapelera())_huboCambios=true;
+  if(asignarCodigosCortos())_huboCambios=true;
   if(_huboCambios)save();
 })();
+
+// ID corto y único por relevamiento/actividad (R1, R2... / A1, A2...) — para
+// poder nombrar una fila puntual en una conversación o búsqueda sin ambigüedad,
+// y para poder encontrarla escribiendo ese código en el buscador. Se asigna una
+// sola vez, en orden de creación, y queda fijo para siempre (no se recalcula ni
+// se reordena, así nunca cambia el código de algo que ya existía).
+function nextRelevCodigo(){DB._relSeq=(DB._relSeq||0)+1;return'R'+DB._relSeq;}
+function nextActCodigo(){DB._actSeq=(DB._actSeq||0)+1;return'A'+DB._actSeq;}
+function asignarCodigosCortos(){
+  let cambio=false;
+  const sinCodigoRelev=(DB.relevamientos||[]).filter(r=>!r.corto).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
+  sinCodigoRelev.forEach(r=>{r.corto=nextRelevCodigo();cambio=true;});
+  const sinCodigoAct=(DB.actividades||[]).filter(a=>!a.corto).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
+  sinCodigoAct.forEach(a=>{a.corto=nextActCodigo();cambio=true;});
+  return cambio;
+}
 
 // Relevamientos guardados antes de que se capturara la superficie del lote quedan
 // con loteHa=0/undefined, y eso rompe todas las sumas de hectáreas (lupa de
@@ -2953,7 +2970,8 @@ function guardarComoBorrador(){
       malezas,productos,obs,
       estado:estadoGuardado,
       borradorTs:programado?null:Date.now(),
-      createdAt:Date.now()
+      createdAt:Date.now(),
+      corto:nextRelevCodigo()
     };
     DB.relevamientos.push(obj);
     save();renderRelev();renderDashboard();
@@ -4352,6 +4370,9 @@ function saveRelev(){
     // en cada guardado porque este objeto reemplaza al registro entero y no
     // lo traía de vuelta, aunque el texto en Observaciones siguiera mencionándolo.
     origenRelevId:_editRelevId?(DB.relevamientos.find(r=>r.id===_editRelevId)?.origenRelevId||null):null,
+    // El código corto (R1, R2...) también hay que conservarlo al editar — por
+    // la misma razón que origenRelevId: este objeto reemplaza el registro entero.
+    corto:_editRelevId?(DB.relevamientos.find(r=>r.id===_editRelevId)?.corto||nextRelevCodigo()):nextRelevCodigo(),
     borradorTs:null,
   };
   const esNuevo=!_editRelevId;
@@ -4390,7 +4411,8 @@ function saveRelev(){
         clienteNombre:obj.clienteNombre,campoNombre:obj.campoNombre,loteNombre:obj.loteNombre,loteHa:obj.loteHa,
         malezas:[],productos:[],obs:`Relevamiento de seguimiento del ${obj.fecha||'(programado)'}`,
         estado:'Relevado',createdAt:Date.now(),
-        origenRelevId:obj.id
+        origenRelevId:obj.id,
+        corto:nextRelevCodigo()
       });
       tiposCreados.push('un relevamiento de seguimiento');
     } else {
@@ -4416,7 +4438,8 @@ function saveRelev(){
           datos,
           estado:'Pendiente',fechaRealizacion:null,
           relevId:obj.id,
-          createdAt:Date.now()
+          createdAt:Date.now(),
+          corto:nextActCodigo()
         };
         // Si es Aplicación, se lleva una FOTO del diagnóstico y los productos tal
         // como estaban en el relevamiento en este momento — de ahí en más vive
@@ -4458,6 +4481,7 @@ function duplicarRelev(id){
     fechaLimite:r.fechaLimite||null,
     estado:'Relevado',
     createdAt:Date.now(),
+    corto:nextRelevCodigo(),
     malezas:(r.malezas||[]).map(m=>({...m})),
     productos:(r.productos||[]).map(p=>({...p}))
   };
@@ -4683,7 +4707,7 @@ function getFiltrados(){
         if(!ligadas.some(a=>a.tipo===factiv))return false;
       }
     }
-    if(txt){const blob=[r.clienteNombre,r.campoNombre,r.loteNombre,r.cultivo,r.campaña,(r.malezas||[]).map(m=>{const cat=DB.malezas.find(c=>(c.comun&&c.comun===m.nombre)||c.cientifico===m.nombre);return[m.nombre,cat?.cientifico,cat?.comun].filter(Boolean).join(' ');}).join(' '),(r.productos||[]).map(p=>DB.productos.find(x=>x.id===p.productoId)?.nombre||'').join(' ')].join(' ').toLowerCase();if(!blob.includes(txt))return false;}
+    if(txt){const blob=[r.clienteNombre,r.campoNombre,r.loteNombre,r.cultivo,r.campaña,r.corto,(r.malezas||[]).map(m=>{const cat=DB.malezas.find(c=>(c.comun&&c.comun===m.nombre)||c.cientifico===m.nombre);return[m.nombre,cat?.cientifico,cat?.comun].filter(Boolean).join(' ');}).join(' '),(r.productos||[]).map(p=>DB.productos.find(x=>x.id===p.productoId)?.nombre||'').join(' ')].join(' ').toLowerCase();if(!blob.includes(txt))return false;}
     // Borradores sin filtros activos se muestran siempre arriba
     return true;
   }).sort((a,b)=>{
@@ -4784,7 +4808,7 @@ function renderRelev(){
     // Programado (todavía no). Si ya tiene una Actividad vinculada (ej. una
     // Aplicación), se muestra como link para identificarlo e ir directo a ella.
     const actLigada=(DB.actividades||[]).find(a=>a.relevId===r.id&&!a.borrado);
-    const ligadaLink=actLigada?` <a href="#" onclick="event.preventDefault();openModalActividad(null,null,null,'${actLigada.id}')" title="Ir a la actividad vinculada"><span class="badge ${estadoDe(actLigada)==='Realizada'?'bg-green':'bg-blue'}" style="font-size:9px">${(ACT_TIPOS[actLigada.tipo]||{}).icono||'📌'} ${actLigada.tipo}</span></a>`:'';
+    const ligadaLink=actLigada?` <a href="#" onclick="event.preventDefault();openModalActividad(null,null,null,'${actLigada.id}')" title="Ir a la actividad vinculada"><span class="badge ${estadoDe(actLigada)==='Realizada'?'bg-green':'bg-blue'}" style="font-size:9px">${(ACT_TIPOS[actLigada.tipo]||{}).icono||'📌'} ${actLigada.tipo}${actLigada.corto?' '+actLigada.corto:''}</span></a>`:'';
     const estadoBadge=eb?'<span class="badge bg-red">⚠ Borrador</span>'
       :`<select class="estado-sel" onchange="actMEditarEstado('${r.id}',true,this.value)" style="font-size:11px;padding:3px 6px;border-radius:6px;border:1px solid var(--border);background:var(--bg);font-family:'Sora',sans-serif;cursor:pointer;color:var(--text)">`
       +`<option value="Pendiente"${!realizado?' selected':''}>📅 Programado</option>`
@@ -4793,7 +4817,7 @@ function renderRelev(){
     const aplicarBtn='';
     return '<tr class="'+rc+'">'
       +`<td><input type="checkbox" ${_seleccionados.has(r.id)?'checked':''} onchange="toggleSeleccion('${r.id}',this)"></td>`
-      +`<td><span class="badge bg-purple">${r.campaña||'—'}</span></td>`
+      +`<td>${r.corto?`<span class="badge bg-gray mono" style="font-size:9px" title="Código corto — buscalo en el buscador">${r.corto}</span> `:''}<span class="badge bg-purple">${r.campaña||'—'}</span></td>`
       +`<td class="mono">${r.fecha||'<span class="badge bg-blue" style="font-size:9px">📅 Programado</span>'}</td>`
       +`<td><strong contenteditable="true" class="ie" onblur="ieRelev('${r.id}','clienteNombre',this)">${r.clienteNombre}</strong>${eb?' <span class="badge bg-red" style="font-size:9px">BORRADOR</span>':''}</td>`
       +`<td><a href="#" onclick="event.preventDefault();navTo('campo-detail',{campoId:'${r.campoId}'})" style="color:inherit;text-decoration:underline;text-decoration-style:dotted" title="Ver ficha del campo">${r.campoNombre}</a> › <a href="#" onclick="event.preventDefault();navTo('lote',{loteId:'${r.loteId}',cliId:'${r.clienteId}',campoId:'${r.campoId}'})" style="color:var(--accent);font-weight:500">${r.loteNombre}</a>${r.loteHa?` <span class="badge bg-green">${r.loteHa} ha</span>`:''}</td>`
@@ -5758,7 +5782,8 @@ function tlGuardarActividadMasiva(){
         id:uid(),fecha:fechaReal,fechaInicio:fechaA,fechaLimite:fechaFinA||null,campaña:campaña||getCampanaActiva(),
         cultivo:'',clienteId:lote.clienteId,campoId:lote.campoId,loteId:lote.id,
         clienteNombre:cli?.nombre||'',campoNombre:campo?.nombre||'',loteNombre:lote.nombre,loteHa:lote.ha||0,
-        malezas:[],productos:[],obs,mejoraProgramada:mejora,estado:'Relevado',createdAt:Date.now(),momento:_tlMasivaMomento||null
+        malezas:[],productos:[],obs,mejoraProgramada:mejora,estado:'Relevado',createdAt:Date.now(),momento:_tlMasivaMomento||null,
+        corto:nextRelevCodigo()
       });
       count++;
     });
@@ -5776,7 +5801,8 @@ function tlGuardarActividadMasiva(){
         tipo,fecha:fechaA,fechaFin:fechaFinA||null,campaña,obs,datos,
         estado:calcularEstadoActividad(fechaReal),fechaRealizacion:fechaReal,
         mejoraProgramada:mejora,
-        createdAt:Date.now(),momento:_tlMasivaMomento||null
+        createdAt:Date.now(),momento:_tlMasivaMomento||null,
+        corto:nextActCodigo()
       };
       if(tipo==='Aplicación'){actObj.diagnostico=[];actObj.cultivoSnapshot='';actObj.productos=[];actObj.historial=[];}
       DB.actividades.push(actObj);
@@ -6412,7 +6438,8 @@ function saveActividad(){
     fechaRealizacion,
     mejoraProgramada:!!document.getElementById('act-mejora')?.checked,
     relevId:relevIdPrevio||null,
-    createdAt:existente?existente.createdAt:Date.now()
+    createdAt:existente?existente.createdAt:Date.now(),
+    corto:existente?(existente.corto||nextActCodigo()):nextActCodigo()
   };
   // Cuerpo propio de una Aplicación: productos con vida independiente del
   // relevamiento, más un historial simple de qué cambió respecto a la vez anterior.
@@ -6474,7 +6501,7 @@ function saveActividad(){
 // (si el original tenía uno) para no confundir cuál corresponde a cuál.
 function duplicarActividad(id){
   const a=DB.actividades.find(x=>x.id===id);if(!a)return;
-  const copia={...a,id:uid(),estado:'Pendiente',fechaRealizacion:null,relevId:null,createdAt:Date.now(),datos:{...(a.datos||{})}};
+  const copia={...a,id:uid(),estado:'Pendiente',fechaRealizacion:null,relevId:null,createdAt:Date.now(),corto:nextActCodigo(),datos:{...(a.datos||{})}};
   DB.actividades.push(copia);
   save();
   mostrarSnackbar('✅ Actividad duplicada — ajustá lote/fechas si hace falta');
@@ -6731,7 +6758,8 @@ function renderActividadesMaster(){
       clienteId:a.clienteId,campoId:a.campoId,cultivo:a.campaña?getCultivoDeLote(a.loteId,a.campaña):'',
       campaña:a.campaña,obs:a.obs,relevId:a.relevId,sort:a.fecha||a.fechaFin||'0000',
       creada:fechaLocalDeTs(a.createdAt),creadaTs:a.createdAt||0,
-      mejoraProgramada:!!a.mejoraProgramada
+      mejoraProgramada:!!a.mejoraProgramada,
+      cortoCodigo:a.corto||''
     };
   });
   const filasRelev=DB.relevamientos.filter(r=>r.estado!=='Borrador'&&!r.borrado).map(r=>{
@@ -6750,8 +6778,9 @@ function renderActividadesMaster(){
       campaña:r.campaña,obs:'',relevId:r.id,sort:r.fecha||r.fechaInicio||r.fechaLimite||'0000',
       creada:fechaLocalDeTs(r.createdAt),creadaTs:r.createdAt||0,
       origenRelevId:(r.origenRelevId&&DB.relevamientos.some(x=>x.id===r.origenRelevId))?r.origenRelevId:null,
-      actividadLigada:tieneAplic?{id:tieneAplic.id,tipo:tieneAplic.tipo,estado:estadoDe(tieneAplic)}:null,
-      mejoraProgramada:!!r.mejoraProgramada
+      actividadLigada:tieneAplic?{id:tieneAplic.id,tipo:tieneAplic.tipo,estado:estadoDe(tieneAplic),corto:tieneAplic.corto||''}:null,
+      mejoraProgramada:!!r.mejoraProgramada,
+      cortoCodigo:r.corto||''
     };
   });
   filas=filas.concat(filasRelev);
@@ -6790,7 +6819,7 @@ function renderActividadesMaster(){
       if(!dentroDesde||!dentroHasta)return false;
     }
     if(q){
-      const blob=[f.loteNombre,f.campoNombre,f.clienteNombre,f.tipo,f.obs,f.cultivo].join(' ').toLowerCase();
+      const blob=[f.loteNombre,f.campoNombre,f.clienteNombre,f.tipo,f.obs,f.cultivo,f.cortoCodigo].join(' ').toLowerCase();
       if(!blob.includes(q))return false;
     }
     return true;
@@ -6845,7 +6874,7 @@ function renderActividadesMaster(){
     const fechaRealCell=`<input type="date" class="fi" style="font-size:10px;padding:2px 3px;width:86px" value="${f.fechaRealizacion||''}" onchange="${f.esRelev?`actMEditarFechaRealizacion('${f.id}',true,this.value)`:`actMEditarFechaRealizacion('${f.id}',false,this.value)`}">`;
     const loteLink=`<a href="#" onclick="event.preventDefault();navTo('lote',{loteId:'${f.loteId}',cliId:'${f.clienteId}',campoId:'${f.campoId}'})" style="color:var(--accent);font-weight:500">${f.loteNombre}</a>`;
     // Indicador: este relevamiento ¿ya tiene una actividad (ej. Aplicación) vinculada y viva?
-    const ligadaBadge=(f.esRelev&&f.actividadLigada)?` <a href="#" onclick="event.preventDefault();openModalActividad(null,null,null,'${f.actividadLigada.id}')" title="Ir a la actividad vinculada"><span class="badge ${f.actividadLigada.estado==='Realizada'?'bg-green':'bg-blue'}" style="font-size:9px">${(ACT_TIPOS[f.actividadLigada.tipo]||{}).icono||'📌'} ${f.actividadLigada.tipo}</span></a>`:'';
+    const ligadaBadge=(f.esRelev&&f.actividadLigada)?` <a href="#" onclick="event.preventDefault();openModalActividad(null,null,null,'${f.actividadLigada.id}')" title="Ir a la actividad vinculada"><span class="badge ${f.actividadLigada.estado==='Realizada'?'bg-green':'bg-blue'}" style="font-size:9px">${(ACT_TIPOS[f.actividadLigada.tipo]||{}).icono||'📌'} ${f.actividadLigada.tipo}${f.actividadLigada.corto?' '+f.actividadLigada.corto:''}</span></a>`:'';
     // Si es la fila de un Relevamiento, el botón busca su Aplicación vinculada
     // (o avisa que hace falta generarla). Si es la fila de una Aplicación, arma
     // la OT directo con sus propios datos — ya no depende del relevamiento.
@@ -6862,16 +6891,23 @@ function renderActividadesMaster(){
     const abrirJs=f.esRelev?`editRelevFromMaster('${f.id}')`:`openModalActividad(null,null,null,'${f.id}')`;
     const tipoLink=`<a href="#" onclick="event.preventDefault();${abrirJs}" style="color:inherit;text-decoration:underline;text-decoration-style:dotted;cursor:pointer" title="Abrir">${f.icono} ${f.tipo}</a>`;
     // Relevamiento que es seguimiento de otro: link al de origen
-    const origenLink=(f.esRelev&&f.origenRelevId)?` <a href="#" onclick="event.preventDefault();editRelevFromMaster('${f.origenRelevId}')" title="Es seguimiento de otro relevamiento — ir al de origen"><span class="badge bg-purple" style="font-size:9px">↩ origen</span></a>`:'';
+    const origenCorto=(f.esRelev&&f.origenRelevId)?(DB.relevamientos.find(x=>x.id===f.origenRelevId)?.corto||''):'';
+    const origenLink=(f.esRelev&&f.origenRelevId)?` <a href="#" onclick="event.preventDefault();editRelevFromMaster('${f.origenRelevId}')" title="Es seguimiento de otro relevamiento — ir al de origen"><span class="badge bg-purple" style="font-size:9px">↩ origen${origenCorto?' '+origenCorto:''}</span></a>`:'';
     // Toda la fila se oscurece si es Pendiente pero todavía no es accionable
     // (fecha de inicio a futuro) — para verla de entrada, no solo por el texto
     // chico de la columna Vencimiento.
     const filaBg=(u&&!u.accionable)?' style="background:rgba(120,120,120,.16)'+(f.mejoraProgramada?';border-left:3px solid #ef5350':'')+'"':(f.mejoraProgramada?' style="border-left:3px solid #ef5350"':'');
     const mejoraBadgeF=f.mejoraProgramada?` <span class="mejora-pill" title="Mejora programada">🔧</span>`:'';
     const chk=`<input type="checkbox" ${_actMSelected.has(f.id)?'checked':''} onchange="actMToggleSel('${f.id}',${f.esRelev},this.checked)">`;
+    // Código corto (R1, A1...) de esta fila, y del relevamiento vinculado si
+    // esta fila es una Actividad derivada de uno — así se ve de un vistazo
+    // qué relevamiento le dio origen, sin tener que entrar a averiguarlo.
+    const codigoBadge=f.cortoCodigo?`<span class="badge bg-gray mono" style="font-size:9px;margin-right:4px" title="Código corto — buscalo escribiéndolo en el buscador">${f.cortoCodigo}</span>`:'';
+    const relevVinculado=(f.relevId&&!f.esRelev)?DB.relevamientos.find(x=>x.id===f.relevId):null;
+    const linkRelevVinculado=relevVinculado?` <a href="#" onclick="event.preventDefault();editRelevFromMaster('${f.relevId}')" title="Ver relevamiento de origen" style="font-size:10px">🔗${relevVinculado.corto?' '+relevVinculado.corto:''}</a>`:'';
     const celdas=[
       {k:'chk',w:28,html:`<td class="ph">${chk}</td>`},
-      {k:'tipo',w:115,html:`<td style="font-size:12px">${tipoLink}${origenLink}${ligadaBadge}${mejoraBadgeF}${f.relevId&&!f.esRelev?` <a href="#" onclick="event.preventDefault();editRelevFromMaster('${f.relevId}')" title="Ver relevamiento de origen" style="font-size:10px">🔗</a>`:''}</td>`},
+      {k:'tipo',w:115,html:`<td style="font-size:12px">${codigoBadge}${tipoLink}${origenLink}${ligadaBadge}${mejoraBadgeF}${linkRelevVinculado}</td>`},
       {k:'lote',w:95,html:`<td>${loteLink}</td>`},
       {k:'cliente',w:125,html:`<td style="font-size:12px">${f.clienteNombre} <span class="muted">— </span><a href="#" onclick="event.preventDefault();navTo('campo-detail',{campoId:'${f.campoId}'})" style="color:var(--text2);text-decoration:underline;text-decoration-style:dotted" title="Ver ficha del campo">${f.campoNombre}</a></td>`},
       {k:'creada',w:68,html:`<td class="mono muted" style="font-size:10px">${f.creada||'—'}</td>`},
@@ -7081,13 +7117,15 @@ function actMCrearParaSeleccionados(){
         cultivo:'',clienteId,campoId,loteId,
         clienteNombre:cli?.nombre||'',campoNombre:campo?.nombre||'',loteNombre:lote.nombre,loteHa:lote.ha||0,
         malezas:[],productos:[],obs:'',estado:'Relevado',createdAt:Date.now(),
-        origenRelevId:relevId||undefined
+        origenRelevId:relevId||undefined,
+        corto:nextRelevCodigo()
       });
     } else {
       const actObj={
         id:uid(),loteId,clienteId,campoId,
         tipo,fecha:fIni,fechaFin:fLim,campaña:origen?.campaña||getCampanaActiva(),obs:'',datos:{},
-        estado:'Pendiente',fechaRealizacion:null,relevId:relevId||null,createdAt:Date.now()
+        estado:'Pendiente',fechaRealizacion:null,relevId:relevId||null,createdAt:Date.now(),
+        corto:nextActCodigo()
       };
       if(tipo==='Aplicación'){
         // Vinculada a un relevamiento real: se lleva su foto de diagnóstico y
@@ -7223,7 +7261,7 @@ function renderActItem(item,loteId,cliId,campoId){
     const prodStr=(r.productos||[]).map(p=>{const pr=DB.productos.find(x=>x.id===p.productoId);return pr?`<span class="badge ${TC[pr.tipo]||'bg-gray'}" style="font-size:10px">${pr.nombre}</span>`:''}).join('')||'Sin productos';
     const estEf=estadoEfectivo(r);
     const actLigada=(DB.actividades||[]).find(a=>a.relevId===r.id&&!a.borrado);
-    const ligadaLink=actLigada?` <a href="#" onclick="event.preventDefault();openModalActividad(null,null,null,'${actLigada.id}')" title="Ir a la actividad vinculada"><span class="badge ${estadoDe(actLigada)==='Realizada'?'bg-green':'bg-blue'}" style="font-size:9px">${(ACT_TIPOS[actLigada.tipo]||{}).icono||'📌'} ${actLigada.tipo}</span></a>`:'';
+    const ligadaLink=actLigada?` <a href="#" onclick="event.preventDefault();openModalActividad(null,null,null,'${actLigada.id}')" title="Ir a la actividad vinculada"><span class="badge ${estadoDe(actLigada)==='Realizada'?'bg-green':'bg-blue'}" style="font-size:9px">${(ACT_TIPOS[actLigada.tipo]||{}).icono||'📌'} ${actLigada.tipo}${actLigada.corto?' '+actLigada.corto:''}</span></a>`:'';
     extra=`<div style="margin-top:6px;font-size:11px">
       <div style="margin-bottom:3px">🌿 ${malStr}</div>
       <div>🧴 ${prodStr}</div>
@@ -7237,9 +7275,11 @@ function renderActItem(item,loteId,cliId,campoId){
   }
   // Actividad derivada de un relevamiento: link directo a su origen
   const origenDeRelev=(item._esRelev&&item._relev?.origenRelevId&&DB.relevamientos.some(x=>x.id===item._relev.origenRelevId))?item._relev.origenRelevId:null;
-  const linkOrigenRelev=origenDeRelev?` <a href="#" onclick="event.preventDefault();openModalRelev('${origenDeRelev}')" title="Es seguimiento de otro relevamiento — ir al de origen"><span class="badge bg-purple" style="font-size:9px">↩ origen</span></a>`:'';
+  const origenDeRelevCorto=origenDeRelev?(DB.relevamientos.find(x=>x.id===origenDeRelev)?.corto||''):'';
+  const linkOrigenRelev=origenDeRelev?` <a href="#" onclick="event.preventDefault();openModalRelev('${origenDeRelev}')" title="Es seguimiento de otro relevamiento — ir al de origen"><span class="badge bg-purple" style="font-size:9px">↩ origen${origenDeRelevCorto?' '+origenDeRelevCorto:''}</span></a>`:'';
   const abrirItemJs=item._esRelev?`openModalRelev('${item._relev.id}')`:`openModalActividad('${loteId}','${cliId}','${campoId}','${item.id}')`;
-  const linkOrigen=(!item._esRelev&&item.relevId)?` <a href="#" onclick="event.preventDefault();openModalRelev('${item.relevId}')" title="Ver relevamiento de origen" style="font-size:10px">🔗</a>`:'';
+  const relevVinculadoCorto=(!item._esRelev&&item.relevId)?(DB.relevamientos.find(x=>x.id===item.relevId)?.corto||''):'';
+  const linkOrigen=(!item._esRelev&&item.relevId)?` <a href="#" onclick="event.preventDefault();openModalRelev('${item.relevId}')" title="Ver relevamiento de origen" style="font-size:10px">🔗${relevVinculadoCorto?' '+relevVinculadoCorto:''}</a>`:'';
   const obsStr=item.obs?`<div class="act-obs">💬 ${item.obs}</div>`:'';
   const estadoBadgeAct=item.estado&&item.estado!=='Realizada'?
     `<span class="badge bg-blue" style="font-size:10px">🕒 Pendiente</span>`:'';
@@ -7263,11 +7303,13 @@ function renderActItem(item,loteId,cliId,campoId){
         <button class="btn bs bxs" onclick="openModalActividad('${loteId}','${cliId}','${campoId}','${item.id}')" title="Editar">✏️</button>
         <button class="btn bd bxs" onclick="deleteActividad('${item.id}','${loteId}','${cliId}','${campoId}')" title="Eliminar">✕</button>`);
   const mejoraBadge=item.mejoraProgramada?`<span class="mejora-pill" title="Mejora programada — no es una tarea común">🔧 Mejora</span>`:'';
+  const codigoItem=item._esRelev?(item._relev?.corto||''):(item.corto||'');
+  const codigoBadge=codigoItem?`<span class="badge bg-gray mono" style="font-size:9px" title="Código corto — buscalo en el buscador">${codigoItem}</span> `:'';
   return`<div class="act-item${item.estado==='Pendiente'?' act-pendiente':''}">
     <div class="act-dot ${meta.dot}"></div>
     <div class="act-card${item.estado==='Pendiente'?' act-pendiente':''}${item.mejoraProgramada?' act-mejora':''}">
       <div class="act-hdr">
-        <span class="act-tipo"><a href="#" onclick="event.preventDefault();${abrirItemJs}" style="color:inherit;text-decoration:underline;text-decoration-style:dotted" title="Abrir">${meta.icono} ${item.tipo}</a></span>${linkOrigen}${linkOrigenRelev}
+        ${codigoBadge}<span class="act-tipo"><a href="#" onclick="event.preventDefault();${abrirItemJs}" style="color:inherit;text-decoration:underline;text-decoration-style:dotted" title="Abrir">${meta.icono} ${item.tipo}</a></span>${linkOrigen}${linkOrigenRelev}
         <span class="mono muted" style="font-size:11px">${item.fechaDisplay||(item.fecha?'desde '+item.fecha:'')||'sin fecha'}${item.fechaFin?' · hasta '+item.fechaFin:''}</span>${diasBadge}
         ${item.campaña?`<span class="badge bg-purple" style="font-size:10px">${item.campaña}</span>`:''}
         ${(r?.cultivo||(r?getCultivoDeLote(r.loteId,r.campaña):''))?`<span class="badge bg-amber" style="font-size:10px">${r.cultivo||getCultivoDeLote(r.loteId,r.campaña)}</span>`:''}
