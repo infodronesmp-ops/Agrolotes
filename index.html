@@ -4347,6 +4347,11 @@ function saveRelev(){
     estado:'Relevado',
     borradorTs:null,
     createdAt:_editRelevId?(DB.relevamientos.find(r=>r.id===_editRelevId)?.createdAt||Date.now()):Date.now(),
+    // Si este relevamiento es "de seguimiento" de otro (origenRelevId), ese
+    // link se tiene que conservar al editarlo/completarlo — antes se perdía
+    // en cada guardado porque este objeto reemplaza al registro entero y no
+    // lo traía de vuelta, aunque el texto en Observaciones siguiera mencionándolo.
+    origenRelevId:_editRelevId?(DB.relevamientos.find(r=>r.id===_editRelevId)?.origenRelevId||null):null,
     borradorTs:null,
   };
   const esNuevo=!_editRelevId;
