@@ -1711,6 +1711,53 @@ function asignarCodigosCortos(){
   return cambio;
 }
 
+// Un relevamiento puede venir de otro (origenRelevId), que a su vez puede venir
+// de otro más, formando una cadena de cualquier largo — y una Actividad puede
+// colgar de cualquier escalón de esa cadena. Estas dos funciones recorren toda
+// la "familia" conectada (hacia atrás y hacia adelante) para poder: (a) mostrar
+// la cadena completa de códigos clickeables en vez de solo el escalón directo, y
+// (b) que buscar el código de CUALQUIER integrante de la familia encuentre a
+// todos los demás — relevamientos y actividades por igual.
+function familiaRelevIds(relevId){
+  const vistos=new Set();
+  const pila=[relevId];
+  while(pila.length){
+    const id=pila.pop();
+    if(!id||vistos.has(id))continue;
+    vistos.add(id);
+    const r=DB.relevamientos.find(x=>x.id===id);
+    if(r&&r.origenRelevId)pila.push(r.origenRelevId);
+    DB.relevamientos.forEach(x=>{if(x.origenRelevId===id)pila.push(x.id);});
+  }
+  return vistos;
+}
+function codigosFamilia(relevId){
+  if(!relevId)return[];
+  const codigos=[];
+  familiaRelevIds(relevId).forEach(id=>{
+    const r=DB.relevamientos.find(x=>x.id===id);
+    if(r?.corto)codigos.push(r.corto);
+    (DB.actividades||[]).filter(a=>a.relevId===id&&!a.borrado).forEach(a=>{if(a.corto)codigos.push(a.corto);});
+  });
+  return codigos;
+}
+// Cadena de códigos clickeables desde un relevamiento hacia sus ancestros (el
+// propio relevamiento incluido), para mostrar de un vistazo toda la historia:
+// "R3 ↩ R2 ↩ R1", cada uno abriendo su propio relevamiento.
+function cadenaRelevHTML(relevId){
+  if(!relevId)return'';
+  const cadena=[];
+  let cur=DB.relevamientos.find(x=>x.id===relevId);
+  const vistos=new Set();
+  while(cur&&!vistos.has(cur.id)){
+    vistos.add(cur.id);
+    cadena.push(cur);
+    cur=cur.origenRelevId?DB.relevamientos.find(x=>x.id===cur.origenRelevId):null;
+  }
+  if(!cadena.length)return'';
+  return cadena.map(r=>`<a href="#" onclick="event.preventDefault();openModalRelev('${r.id}')" title="Ver ${r.corto||'relevamiento'}" style="font-size:9px">${r.corto||'?'}</a>`).join(' <span class="muted">↩</span> ');
+}
+
 // Relevamientos guardados antes de que se capturara la superficie del lote quedan
 // con loteHa=0/undefined, y eso rompe todas las sumas de hectáreas (lupa de
 // diagnósticos, listados, dashboard). Acá se completan con la superficie actual del lote.
@@ -4707,7 +4754,7 @@ function getFiltrados(){
         if(!ligadas.some(a=>a.tipo===factiv))return false;
       }
     }
-    if(txt){const blob=[r.clienteNombre,r.campoNombre,r.loteNombre,r.cultivo,r.campaña,r.corto,(r.malezas||[]).map(m=>{const cat=DB.malezas.find(c=>(c.comun&&c.comun===m.nombre)||c.cientifico===m.nombre);return[m.nombre,cat?.cientifico,cat?.comun].filter(Boolean).join(' ');}).join(' '),(r.productos||[]).map(p=>DB.productos.find(x=>x.id===p.productoId)?.nombre||'').join(' ')].join(' ').toLowerCase();if(!blob.includes(txt))return false;}
+    if(txt){const blob=[r.clienteNombre,r.campoNombre,r.loteNombre,r.cultivo,r.campaña,r.corto,...codigosFamilia(r.id),(r.malezas||[]).map(m=>{const cat=DB.malezas.find(c=>(c.comun&&c.comun===m.nombre)||c.cientifico===m.nombre);return[m.nombre,cat?.cientifico,cat?.comun].filter(Boolean).join(' ');}).join(' '),(r.productos||[]).map(p=>DB.productos.find(x=>x.id===p.productoId)?.nombre||'').join(' ')].join(' ').toLowerCase();if(!blob.includes(txt))return false;}
     // Borradores sin filtros activos se muestran siempre arriba
     return true;
   }).sort((a,b)=>{
@@ -6819,7 +6866,12 @@ function renderActividadesMaster(){
       if(!dentroDesde||!dentroHasta)return false;
     }
     if(q){
-      const blob=[f.loteNombre,f.campoNombre,f.clienteNombre,f.tipo,f.obs,f.cultivo,f.cortoCodigo].join(' ').toLowerCase();
+      // Códigos de toda la "familia" (relevamiento de origen + sus seguimientos +
+      // la actividad que cualquiera de ellos haya generado) — así buscar el código
+      // de un relevamiento también encuentra la Aplicación derivada de él, y viceversa.
+      const relevIdFamilia=f.esRelev?f.id:(f.relevId||null);
+      const codigosFam=relevIdFamilia?codigosFamilia(relevIdFamilia):[];
+      const blob=[f.loteNombre,f.campoNombre,f.clienteNombre,f.tipo,f.obs,f.cultivo,f.cortoCodigo,...codigosFam].join(' ').toLowerCase();
       if(!blob.includes(q))return false;
     }
     return true;
@@ -6890,9 +6942,9 @@ function renderActividadesMaster(){
     // El nombre del tipo abre la ficha directo (sin pasar por el lápiz)
     const abrirJs=f.esRelev?`editRelevFromMaster('${f.id}')`:`openModalActividad(null,null,null,'${f.id}')`;
     const tipoLink=`<a href="#" onclick="event.preventDefault();${abrirJs}" style="color:inherit;text-decoration:underline;text-decoration-style:dotted;cursor:pointer" title="Abrir">${f.icono} ${f.tipo}</a>`;
-    // Relevamiento que es seguimiento de otro: link al de origen
-    const origenCorto=(f.esRelev&&f.origenRelevId)?(DB.relevamientos.find(x=>x.id===f.origenRelevId)?.corto||''):'';
-    const origenLink=(f.esRelev&&f.origenRelevId)?` <a href="#" onclick="event.preventDefault();editRelevFromMaster('${f.origenRelevId}')" title="Es seguimiento de otro relevamiento — ir al de origen"><span class="badge bg-purple" style="font-size:9px">↩ origen${origenCorto?' '+origenCorto:''}</span></a>`:'';
+    // Relevamiento que es seguimiento de otro: cadena completa de origen (R3 ↩ R2 ↩ R1), cada uno cliqueable
+    const origenCadena=(f.esRelev&&f.origenRelevId)?cadenaRelevHTML(f.origenRelevId):'';
+    const origenLink=origenCadena?` <span class="badge bg-purple" style="font-size:9px">↩ ${origenCadena}</span>`:'';
     // Toda la fila se oscurece si es Pendiente pero todavía no es accionable
     // (fecha de inicio a futuro) — para verla de entrada, no solo por el texto
     // chico de la columna Vencimiento.
@@ -6903,8 +6955,8 @@ function renderActividadesMaster(){
     // esta fila es una Actividad derivada de uno — así se ve de un vistazo
     // qué relevamiento le dio origen, sin tener que entrar a averiguarlo.
     const codigoBadge=f.cortoCodigo?`<span class="badge bg-gray mono" style="font-size:9px;margin-right:4px" title="Código corto — buscalo escribiéndolo en el buscador">${f.cortoCodigo}</span>`:'';
-    const relevVinculado=(f.relevId&&!f.esRelev)?DB.relevamientos.find(x=>x.id===f.relevId):null;
-    const linkRelevVinculado=relevVinculado?` <a href="#" onclick="event.preventDefault();editRelevFromMaster('${f.relevId}')" title="Ver relevamiento de origen" style="font-size:10px">🔗${relevVinculado.corto?' '+relevVinculado.corto:''}</a>`:'';
+    const relevVinculadoCadena=(f.relevId&&!f.esRelev)?cadenaRelevHTML(f.relevId):'';
+    const linkRelevVinculado=relevVinculadoCadena?` <span style="font-size:10px">🔗 ${relevVinculadoCadena}</span>`:'';
     const celdas=[
       {k:'chk',w:28,html:`<td class="ph">${chk}</td>`},
       {k:'tipo',w:115,html:`<td style="font-size:12px">${codigoBadge}${tipoLink}${origenLink}${ligadaBadge}${mejoraBadgeF}${linkRelevVinculado}</td>`},
@@ -7273,13 +7325,13 @@ function renderActItem(item,loteId,cliId,campoId){
     const dataStr=Object.entries(item.datos).map(([k,v])=>`<span class="badge bg-gray" style="font-size:10px">${v}</span>`).join(' ');
     extra=`<div style="margin-top:5px">${dataStr}</div>`;
   }
-  // Actividad derivada de un relevamiento: link directo a su origen
+  // Actividad derivada de un relevamiento: cadena completa de origen (R3 ↩ R2 ↩ R1), cada uno cliqueable
   const origenDeRelev=(item._esRelev&&item._relev?.origenRelevId&&DB.relevamientos.some(x=>x.id===item._relev.origenRelevId))?item._relev.origenRelevId:null;
-  const origenDeRelevCorto=origenDeRelev?(DB.relevamientos.find(x=>x.id===origenDeRelev)?.corto||''):'';
-  const linkOrigenRelev=origenDeRelev?` <a href="#" onclick="event.preventDefault();openModalRelev('${origenDeRelev}')" title="Es seguimiento de otro relevamiento — ir al de origen"><span class="badge bg-purple" style="font-size:9px">↩ origen${origenDeRelevCorto?' '+origenDeRelevCorto:''}</span></a>`:'';
+  const origenDeRelevCadena=origenDeRelev?cadenaRelevHTML(origenDeRelev):'';
+  const linkOrigenRelev=origenDeRelevCadena?` <span class="badge bg-purple" style="font-size:9px">↩ ${origenDeRelevCadena}</span>`:'';
   const abrirItemJs=item._esRelev?`openModalRelev('${item._relev.id}')`:`openModalActividad('${loteId}','${cliId}','${campoId}','${item.id}')`;
-  const relevVinculadoCorto=(!item._esRelev&&item.relevId)?(DB.relevamientos.find(x=>x.id===item.relevId)?.corto||''):'';
-  const linkOrigen=(!item._esRelev&&item.relevId)?` <a href="#" onclick="event.preventDefault();openModalRelev('${item.relevId}')" title="Ver relevamiento de origen" style="font-size:10px">🔗${relevVinculadoCorto?' '+relevVinculadoCorto:''}</a>`:'';
+  const relevVinculadoCadena=(!item._esRelev&&item.relevId)?cadenaRelevHTML(item.relevId):'';
+  const linkOrigen=relevVinculadoCadena?` <span style="font-size:10px">🔗 ${relevVinculadoCadena}</span>`:'';
   const obsStr=item.obs?`<div class="act-obs">💬 ${item.obs}</div>`:'';
   const estadoBadgeAct=item.estado&&item.estado!=='Realizada'?
     `<span class="badge bg-blue" style="font-size:10px">🕒 Pendiente</span>`:'';
