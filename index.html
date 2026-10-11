@@ -1692,6 +1692,7 @@ let DB=(()=>{try{return JSON.parse(localStorage.getItem(SK))||ddb();}catch{retur
   if(migrarAplicadosAActividades())_huboCambios=true;
   if(purgarPapelera())_huboCambios=true;
   if(asignarCodigosCortos())_huboCambios=true;
+  if(repararCodigosCortosDuplicados())_huboCambios=true;
   if(_huboCambios)save();
 })();
 
@@ -1700,14 +1701,61 @@ let DB=(()=>{try{return JSON.parse(localStorage.getItem(SK))||ddb();}catch{retur
 // y para poder encontrarla escribiendo ese código en el buscador. Se asigna una
 // sola vez, en orden de creación, y queda fijo para siempre (no se recalcula ni
 // se reordena, así nunca cambia el código de algo que ya existía).
-function nextRelevCodigo(){DB._relSeq=(DB._relSeq||0)+1;return'R'+DB._relSeq;}
-function nextActCodigo(){DB._actSeq=(DB._actSeq||0)+1;return'A'+DB._actSeq;}
+// IMPORTANTE: el número no se saca de un contador guardado aparte (DB._relSeq/
+// _actSeq) — ese contador puede desincronizarse entre dos pestañas/dispositivos
+// que editen casi al mismo tiempo (cada uno suma desde su propia copia local,
+// antes de que la nube les devuelva la del otro), y ahí dos registros distintos
+// terminan con el MISMO código. Para evitarlo, el número sale siempre del máximo
+// REALMENTE usado en los datos en este momento + 1 — así se autocorrige solo
+// cada vez que se pide uno nuevo, en vez de confiar en un contador que puede
+// haber quedado viejo.
+function _maxCodigoUsado(lista,prefijo){
+  let max=0;
+  (lista||[]).forEach(x=>{
+    const m=/^[A-Za-z]+(\d+)$/.exec(x.corto||'');
+    if(m){const n=parseInt(m[1],10);if(n>max)max=n;}
+  });
+  return max;
+}
+function nextRelevCodigo(){
+  DB._relSeq=Math.max(DB._relSeq||0,_maxCodigoUsado(DB.relevamientos,'R'))+1;
+  return'R'+DB._relSeq;
+}
+function nextActCodigo(){
+  DB._actSeq=Math.max(DB._actSeq||0,_maxCodigoUsado(DB.actividades,'A'))+1;
+  return'A'+DB._actSeq;
+}
 function asignarCodigosCortos(){
   let cambio=false;
   const sinCodigoRelev=(DB.relevamientos||[]).filter(r=>!r.corto).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
   sinCodigoRelev.forEach(r=>{r.corto=nextRelevCodigo();cambio=true;});
   const sinCodigoAct=(DB.actividades||[]).filter(a=>!a.corto).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
   sinCodigoAct.forEach(a=>{a.corto=nextActCodigo();cambio=true;});
+  return cambio;
+}
+// Repara códigos duplicados que hayan quedado de versiones anteriores (dos
+// registros distintos con el mismo R# o A#, típicamente por haber usado la app
+// desde 2 dispositivos/pestañas casi en simultáneo antes de este arreglo). Se
+// queda con el código actual en el más antiguo (por fecha de creación) y le
+// asigna uno nuevo, garantizado único, a cada duplicado más nuevo — sin tocar
+// ni perder ningún dato de ninguno de los dos.
+function repararCodigosCortosDuplicados(){
+  let cambio=false;
+  function repararLista(lista,next){
+    const porCodigo=new Map();
+    (lista||[]).forEach(x=>{
+      if(!x.corto)return;
+      if(!porCodigo.has(x.corto))porCodigo.set(x.corto,[]);
+      porCodigo.get(x.corto).push(x);
+    });
+    porCodigo.forEach(grupo=>{
+      if(grupo.length<2)return;
+      grupo.sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
+      grupo.slice(1).forEach(x=>{x.corto=next();cambio=true;});
+    });
+  }
+  repararLista(DB.relevamientos,nextRelevCodigo);
+  repararLista(DB.actividades,nextActCodigo);
   return cambio;
 }
 
@@ -2732,11 +2780,16 @@ async function _fbInitSync(){
           repararLoteHa();
           migrarAplicadosAActividades();
           purgarPapelera();
+          asignarCodigosCortos();
+          // Si dos dispositivos crearon algo casi al mismo tiempo, acá es donde
+          // puede aparecer un código R#/A# repetido — se repara apenas se detecta.
+          const _huboDupFix=repararCodigosCortosDuplicados();
           localStorage.setItem(SK,JSON.stringify(DB));
           localStorage.setItem(SK+'_ts',fbTs);
           renderDashboard();
           _fbShowSyncStatus('ok');
           mostrarSnackbar('✅ Datos sincronizados desde la nube');
+          if(_huboDupFix){_fbSyncPending=true;_fbSync();}
           return;
         }
       }
@@ -8879,6 +8932,8 @@ function confirmarImportacionBackup(){
   repararLoteHa();
   migrarAplicadosAActividades();
   purgarPapelera();
+  asignarCodigosCortos();
+  repararCodigosCortosDuplicados();
   localStorage.setItem('agrolotes_v2',JSON.stringify(DB));
   localStorage.removeItem('agrolotes_v2_ts');
   _pendingImportData=null;
