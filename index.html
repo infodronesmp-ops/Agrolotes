@@ -355,6 +355,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
     <button class="nb" onclick="navTo('planificacion')"><span>📊</span> Planificación</button>
     <button class="nb" onclick="navTo('historial')"><span>📜</span> Historial y Rotación</button>
     <button class="nb" onclick="navTo('papelera')"><span>🗑️</span> Papelera</button>
+    <button class="nb" onclick="navTo('tareas-recurrentes')"><span>🔁</span> Tareas recurrentes</button>
     <button class="nb" onclick="navTo('facturacion')"><span>🧾</span> Facturación</button>
     <button class="nb" onclick="navTo('ot')"><span>📋</span> Órdenes de trabajo</button>
   </div>
@@ -385,7 +386,12 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
         <div class="t2" id="tb-sub">Vista general</div>
       </div>
     </div>
-    <div class="rf ph" id="tb-actions"></div>
+    <div class="rf ph" id="tb-actions">
+      <button class="btn bs bsm" style="position:relative" onclick="verTareasRecurrentesPendientes()" title="Tareas recurrentes generadas y todavía pendientes">
+        🔔
+        <span id="campanita-badge" style="display:none;position:absolute;top:-6px;right:-6px;background:var(--red);color:#fff;border-radius:10px;min-width:16px;height:16px;font-size:10px;font-weight:700;align-items:center;justify-content:center;padding:0 3px;line-height:1">0</span>
+      </button>
+    </div>
   </div>
   <div class="content">
 
@@ -456,6 +462,11 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
           <option value="Programado">📅 Programado</option>
           <option value="Relevado con tratamiento">Realizado con tratamiento</option>
           <option value="Relevado sin tratamiento">Realizado sin tratamiento</option></select>
+        <select id="f-origen" onchange="renderRelev()" title="De dónde salió el relevamiento">
+          <option value="">Origen: todos</option>
+          <option value="recurrente">🔁 Solo tareas recurrentes</option>
+          <option value="manual">Solo cargados a mano</option>
+        </select>
         <select id="f-activ" onchange="renderRelev()">
           <option value="">Actividad...</option>
           <option value="CON:">✓ Con actividad</option>
@@ -655,7 +666,8 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
 
     <!-- CULTIVOS -->
     <div class="page" id="page-cultivos">
-      <div class="rf mb16 ph"><button class="btn bp bsm" onclick="openModalCultivo()">+ Nuevo cultivo</button></div>
+      <div class="rf mb16 ph" style="gap:6px"><button class="btn bp bsm" onclick="openModalCultivo()">+ Nuevo cultivo</button>
+        <button class="btn bs bsm" onclick="openModalCierreCultivo()">📅 Cierre de campaña por cultivo</button></div>
       <div class="card">
         <div class="ch"><span class="ct">Cultivos</span></div>
         <div class="cb" id="cult-body"></div>
@@ -906,6 +918,19 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
       <div class="card">
         <div class="ch"><span class="ct" id="papelera-ct">Papelera</span></div>
         <div class="cb" id="papelera-body"></div>
+      </div>
+    </div>
+
+    <!-- TAREAS RECURRENTES -->
+    <div class="page" id="page-tareas-recurrentes">
+      <div class="ph" style="margin-bottom:10px;font-size:12px;color:var(--text3)">Plantillas que, cada campaña, generan solas un relevamiento "Programado" en los lotes que cumplan la condición de cultivo — para esos chequeos que se repiten todos los años y no hay que andar acordándose. Se generan automáticamente al entrar a la app y al cambiar la Campaña activa; nunca duplican lo ya generado.</div>
+      <div class="ph" style="margin-bottom:10px">
+        <button class="btn bp bsm" onclick="openModalTareaRecurrente()">+ Nueva tarea recurrente</button>
+        <button class="btn bs bsm" onclick="const n=generarTareasRecurrentesActivas();if(n===0)mostrarSnackbar('Ya estaban todas generadas para esta campaña','blue');renderTareasRecurrentes()">🔁 Generar ahora para la campaña activa</button>
+      </div>
+      <div class="card">
+        <div class="ch"><span class="ct" id="tr-ct">Tareas recurrentes</span></div>
+        <div class="cb" id="tr-body"></div>
       </div>
     </div>
 
@@ -1353,6 +1378,21 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
   </div>
 </div>
 
+<!-- ══ MODAL CIERRE DE CAMPAÑA POR CULTIVO ══ -->
+<div class="mo" id="modal-cierre-cultivo">
+  <div class="modal" style="max-width:640px">
+    <div class="mh"><span class="mt">📅 Cierre de campaña por cultivo</span><button class="mx" onclick="closeModal('modal-cierre-cultivo')">✕</button></div>
+    <div class="mb">
+      <p class="muted" style="font-size:12px;margin-bottom:10px">Define, para cada cultivo, cuándo se considera "terminada" la campaña en un lote que lo tiene — si hay cultivo de 2ª en el lote, manda la fila "Como cultivo de 2ª"; si no hay 2ª, manda "Como cultivo único/1ª". El año (1º/2º) es respecto de la campaña (ej: en "2025/26", 1º = 2025, 2º = 2026). Un lote puntual puede después pisar esto con una fecha real distinta.</p>
+      <div id="cierre-cultivo-body"></div>
+    </div>
+    <div class="mf">
+      <button class="btn bs" onclick="closeModal('modal-cierre-cultivo')">Cerrar</button>
+      <button class="btn bp" onclick="guardarCierreCultivo()">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <!-- ══ MODAL CAMPAÑA ══ -->
 <div class="mo" id="modal-campana">
   <div class="modal" style="max-width:380px">
@@ -1365,6 +1405,58 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
     <div class="mf">
       <button class="btn bs" onclick="closeModal('modal-campana')">Cancelar</button>
       <button class="btn bp" onclick="saveCampana()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL TAREA RECURRENTE ══ -->
+<div class="mo" id="modal-tarea-recurrente">
+  <div class="modal" style="max-width:460px">
+    <div class="mh"><span class="mt" id="mtr-title">Nueva tarea recurrente</span><button class="mx" onclick="closeModal('modal-tarea-recurrente')">✕</button></div>
+    <div class="mb">
+      <div class="fg">
+        <div class="field"><label>Nombre *</label><input type="text" id="tr-nombre" class="fi" placeholder="Ej: Nacimiento de lecherón pre-girasol/maíz"></div>
+        <div class="field" style="display:flex;gap:8px">
+          <div style="flex:1"><label>Cultivo</label><select id="tr-cultivo" class="fi"><option value="cualquiera">Cualquiera</option></select></div>
+          <div style="flex:1"><label>Rol en el lote</label>
+            <select id="tr-rol" class="fi">
+              <option value="cualquiera">Cualquiera (1ª, 2ª o cobertura)</option>
+              <option value="1">1ª</option>
+              <option value="2">2ª</option>
+              <option value="cob">Cobertura</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label>Ventana de fechas (se repite todos los años)</label>
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+            <span class="muted" style="font-size:11px">Desde día</span>
+            <input type="number" id="tr-dia-ini" class="fi" min="1" max="31" style="width:55px">
+            <span class="muted" style="font-size:11px">mes</span>
+            <input type="number" id="tr-mes-ini" class="fi" min="1" max="12" style="width:55px">
+            <span class="muted" style="font-size:11px">hasta día</span>
+            <input type="number" id="tr-dia-fin" class="fi" min="1" max="31" style="width:55px">
+            <span class="muted" style="font-size:11px">mes</span>
+            <input type="number" id="tr-mes-fin" class="fi" min="1" max="12" style="width:55px">
+          </div>
+        </div>
+        <div class="field">
+          <label>¿En qué año de la campaña cae esta ventana? <span class="muted">(una campaña como "2025/26" cruza dos años calendario — decí a cuál de los dos cae la fecha, para que no se confunda con meses parecidos del otro año)</span></label>
+          <select id="tr-anio-ventana" class="fi">
+            <option value="1">Primer año de la campaña (ej: la siembra gruesa, 2025 en una campaña "2025/26")</option>
+            <option value="2">Segundo año de la campaña (ej: cosecha, maíz de 2ª tardío, 2026 en una campaña "2025/26")</option>
+          </select>
+        </div>
+        <div class="field"><label>Observación precargada <span class="muted">(se vuelca en el relevamiento generado, para dar contexto de qué estás buscando — editable después)</span></label>
+          <textarea id="tr-obs" class="fi" rows="3" placeholder="Ej: Revisar nacimiento de lecherón. Si hay presencia, evaluar aplicación con dron o siembra aérea."></textarea>
+        </div>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer"><input type="checkbox" id="tr-mejora"> 🔧 Marcar el relevamiento generado como Mejora programada</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer"><input type="checkbox" id="tr-activo" checked> Activa (si se destilda, deja de generar pero no se borra)</label>
+      </div>
+    </div>
+    <div class="mf">
+      <button class="btn bs" onclick="closeModal('modal-tarea-recurrente')">Cancelar</button>
+      <button class="btn bp" onclick="saveTareaRecurrente()">Guardar</button>
     </div>
   </div>
 </div>
@@ -1456,21 +1548,22 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
 </div>
 
 <!-- ══ MODAL CORTE DE CAMPAÑA (declarado a mano por lote, desde el Calendario) ══ -->
-<div class="mo" id="modal-corte-campana">
+<div class="mo" id="modal-cierre-lote">
   <div class="modal" style="max-width:380px">
-    <div class="mh"><span class="mt">📌 Corte de campaña</span><button class="mx" onclick="closeModal('modal-corte-campana')">✕</button></div>
+    <div class="mh"><span class="mt">📅 Cierre de campaña del lote</span><button class="mx" onclick="closeModal('modal-cierre-lote')">✕</button></div>
     <div class="mb">
-      <p id="corte-campana-lbl" style="font-size:13px;font-weight:500;margin-bottom:10px"></p>
-      <div class="field"><label>A partir de acá, este lote pasa a campaña *</label>
-        <select id="corte-campana-sel" class="fi"><option value="">Seleccioná...</option></select>
+      <p id="cierre-lote-lbl" style="font-size:13px;font-weight:500;margin-bottom:6px"></p>
+      <p class="muted" id="cierre-lote-default" style="font-size:11px;margin-bottom:10px"></p>
+      <div class="field"><label>Fecha de cierre real</label>
+        <input type="date" id="cierre-lote-fecha" class="fi">
       </div>
-      <p class="muted" style="font-size:11px;margin-top:8px">Queda vigente hasta que declares el próximo corte para este lote — no hace falta poner fecha de cierre.</p>
+      <p class="muted" style="font-size:11px;margin-top:8px">Se calcula sola según el cultivo que termina la campaña en este lote (el de 2ª si tiene, sino el de 1ª). Cambiala solo si ese año en particular se adelantó o se atrasó (ej: la cosecha se corrió por lluvia).</p>
     </div>
     <div class="mf" style="justify-content:space-between">
-      <button class="btn bd" id="corte-campana-quitar" onclick="calQuitarCorte()" style="display:none">Quitar corte</button>
+      <button class="btn bd" id="cierre-lote-default-btn" onclick="usarCierreDefaultLote()" style="display:none">Usar el valor por defecto</button>
       <span style="margin-left:auto;display:flex;gap:8px">
-        <button class="btn bs" onclick="closeModal('modal-corte-campana')">Cancelar</button>
-        <button class="btn bp" onclick="calGuardarCorte()">Guardar</button>
+        <button class="btn bs" onclick="closeModal('modal-cierre-lote')">Cancelar</button>
+        <button class="btn bp" onclick="guardarCierreLote()">Guardar</button>
       </span>
     </div>
   </div>
@@ -1664,7 +1757,20 @@ let _fbReady=true;
 // Arrancar sincronización inmediatamente (no hay login que esperar)
 setTimeout(_fbInitSync,0);
 
-function ddb(){return{clientes:[],campos:[],lotes:[],productos:[],relevamientos:[],actividades:[],campanas:['2022/23','2023/24','2024/25','2025/26','2026/27'],cultivos:['Soja','Trigo','Maíz','Cebada','Girasol','Sorgo','Barbecho'],malezas:[],ots:[],loteCultivos:{},campanaActiva:'2025/26',subcoadyuvantes:[]};}
+function ddb(){return{clientes:[],campos:[],lotes:[],productos:[],relevamientos:[],actividades:[],campanas:['2022/23','2023/24','2024/25','2025/26','2026/27'],cultivos:['Soja','Trigo','Maíz','Cebada','Girasol','Sorgo','Barbecho'],malezas:[],ots:[],loteCultivos:{},campanaActiva:'2025/26',subcoadyuvantes:[],tareasRecurrentes:[],cierreCultivo:cierreCultivoDefault(),cierreOverride:{}};}
+// Defaults de cierre de campaña por cultivo (editables en "📅 Cierre de
+// campaña por cultivo", en Cultivos). soloDia/Mes/Anio = cuando el cultivo es
+// el único o el de 1ª (sin 2ª); segDia/Mes/Anio = cuando actúa como cultivo
+// de 2ª. Anio 1 ó 2 = primer o segundo año calendario de la campaña (ej. en
+// "2025/26", 1=2025, 2=2026). Soja y Sorgo quedan sin regla por ahora.
+function cierreCultivoDefault(){
+  return{
+    'Trigo':{soloDia:31,soloMes:12,soloAnio:1,segDia:31,segMes:12,segAnio:1},
+    'Cebada':{soloDia:31,soloMes:12,soloAnio:1,segDia:31,segMes:12,segAnio:1},
+    'Maíz':{soloDia:30,soloMes:8,soloAnio:2,segDia:30,segMes:8,segAnio:2},
+    'Girasol':{soloDia:15,soloMes:4,soloAnio:2,segDia:15,segMes:5,segAnio:2},
+  };
+}
 // Cargar datos: primero localStorage (instantáneo), luego Firebase actualiza si hay datos más nuevos
 // Fecha de HOY en horario LOCAL — nunca usar toISOString() solo para esto,
 // porque esa función siempre da la fecha en UTC (en Argentina, de noche ya
@@ -1688,6 +1794,9 @@ let DB=(()=>{try{return JSON.parse(localStorage.getItem(SK))||ddb();}catch{retur
   if(!DB.loteCultivos||typeof DB.loteCultivos!=='object')DB.loteCultivos={};
   if(!DB.campanaActiva)DB.campanaActiva=(DB.campanas||[]).slice(-1)[0]||'2025/26';
   if(!Array.isArray(DB.subcoadyuvantes))DB.subcoadyuvantes=[];
+  if(!Array.isArray(DB.tareasRecurrentes))DB.tareasRecurrentes=[];
+  if(!DB.cierreCultivo||typeof DB.cierreCultivo!=='object')DB.cierreCultivo=cierreCultivoDefault();
+  if(!DB.cierreOverride||typeof DB.cierreOverride!=='object')DB.cierreOverride={};
   if(!Array.isArray(DB.cultivos))DB.cultivos=def.cultivos;
   if(!Array.isArray(DB.malezas))DB.malezas=def.malezas;
   if(!Array.isArray(DB.ots))DB.ots=[];
@@ -1788,6 +1897,197 @@ function repararCodigosCortosDuplicados(){
   repararLista(DB.relevamientos,nextRelevCodigo);
   repararLista(DB.actividades,nextActCodigo);
   return cambio;
+}
+
+// ══ TAREAS RECURRENTES ══
+// Plantillas que, todos los años, generan solas un relevamiento "Programado"
+// para los lotes que cumplan una condición de cultivo, dentro de una ventana
+// de fechas fija (ej. "del 20/9 al 10/10, en lotes que van a Girasol o Maíz").
+// No se dispara una sola vez y listo: cada vez que se genera, se evita
+// duplicar (mismo lote + campaña + plantilla ya generado antes).
+//
+// La campaña (ej. "2025/26") tiene dos años calendario. Como una misma
+// campaña puede tener ventanas en cualquiera de los dos (ej: maíz de 2ª
+// sembrado en diciembre del primer año, pero controlado en agosto/septiembre
+// del segundo — casi un año después, todavía "de esta campaña"), el AÑO no se
+// adivina por el mes: cada plantilla dice explícitamente a cuál de los dos
+// años de la campaña cae su ventana (t.anioVentana: 1 o 2).
+function aniosDeCampana(camp){
+  const m=/^(\d{4})\/(\d{2})$/.exec(camp||'');
+  const hoy=new Date().getFullYear();
+  if(!m)return[hoy,hoy+1];
+  return[parseInt(m[1],10),parseInt(m[1].slice(0,2)+m[2],10)];
+}
+function ventanaFechasTarea(t,camp){
+  const p=n=>String(n).padStart(2,'0');
+  const[y1,y2]=aniosDeCampana(camp);
+  const yIni=(t.anioVentana===2)?y2:y1;
+  let yFin=yIni;
+  // Si el mes de fin "retrocede" respecto al de inicio, la ventana cruza de
+  // diciembre a enero — el fin cae un año calendario después del inicio.
+  if(t.mesFin<t.mesIni||(t.mesFin===t.mesIni&&t.diaFin<t.diaIni))yFin=yIni+1;
+  return{ini:`${yIni}-${p(t.mesIni)}-${p(t.diaIni)}`,fin:`${yFin}-${p(t.mesFin)}-${p(t.diaFin)}`};
+}
+// ¿Este lote, en esta campaña, tiene el cultivo+rol que pide la plantilla?
+// rol 'cualquiera' matchea cualquier cultivo cargado en cualquiera de las 3
+// ranuras (1ª, 2ª o cobertura); si se especifica cultivo, tiene que coincidir.
+function cultivoCumpleTarea(loteId,camp,t){
+  const roles=cultivosRolDeLote(loteId,camp);
+  return roles.some(r=>{
+    if(t.rol&&t.rol!=='cualquiera'&&r.rol!==t.rol)return false;
+    if(t.cultivo&&t.cultivo!=='cualquiera'&&baseCultivo(r.cultivo)!==baseCultivo(t.cultivo))return false;
+    return true;
+  });
+}
+// Corre el motor para una campaña puntual: recorre lotes x plantillas activas
+// y crea el relevamiento "Programado" que falte. Devuelve cuántos generó.
+function generarTareasRecurrentes(camp){
+  if(!camp)return 0;
+  let generadas=0;
+  (DB.tareasRecurrentes||[]).filter(t=>t.activo!==false).forEach(t=>{
+    DB.lotes.forEach(l=>{
+      if(!cultivoCumpleTarea(l.id,camp,t))return;
+      // Ya se evaluó este lote para esta plantilla en esta campaña — no
+      // vuelve a generar aunque lo hayas borrado (eso fue una decisión tuya
+      // para ESTA campaña; la próxima campaña genera uno nuevo igual).
+      const yaExiste=(DB.relevamientos||[]).some(r=>r.loteId===l.id&&r.campaña===camp&&r.tareaRecurrenteId===t.id);
+      if(yaExiste)return;
+      const cli=DB.clientes.find(c=>c.id===l.clienteId);
+      const campo=DB.campos.find(c=>c.id===l.campoId);
+      const {ini,fin}=ventanaFechasTarea(t,camp);
+      const rolInfo=cultivosRolDeLote(l.id,camp).find(r=>(!t.rol||t.rol==='cualquiera'||r.rol===t.rol)&&(!t.cultivo||t.cultivo==='cualquiera'||baseCultivo(r.cultivo)===baseCultivo(t.cultivo)));
+      DB.relevamientos.push({
+        id:uid(),fecha:null,fechaInicio:ini,fechaLimite:fin,campaña:camp,
+        cultivo:rolInfo?.cultivo||'',
+        clienteId:l.clienteId,campoId:l.campoId,loteId:l.id,
+        clienteNombre:cli?.nombre||'',campoNombre:campo?.nombre||'',
+        loteNombre:l.nombre||'',loteHa:l.ha||0,
+        malezas:[],productos:[],
+        obs:t.obs||'',
+        mejoraProgramada:!!t.mejora,
+        estado:'Relevado',
+        tareaRecurrenteId:t.id,
+        origenRelevId:null,
+        corto:nextRelevCodigo(),
+        createdAt:Date.now(),
+      });
+      generadas++;
+    });
+  });
+  if(generadas>0)save();
+  return generadas;
+}
+// Relevamientos generados por una plantilla que todavía están Programados
+// (sin fecha de realización) — lo que muestra la campanita de notificación.
+function tareasRecurrentesPendientes(){
+  return(DB.relevamientos||[]).filter(r=>r.tareaRecurrenteId&&!r.fecha&&!r.borrado);
+}
+function actualizarCampanitaTareas(){
+  const n=tareasRecurrentesPendientes().length;
+  const b=document.getElementById('campanita-badge');
+  if(b){b.style.display=n>0?'flex':'none';b.textContent=n>99?'99+':n;}
+}
+// Se llama al entrar a la app y cada vez que cambia la campaña activa — así
+// no hace falta acordarse de generar nada a mano.
+function generarTareasRecurrentesActivas(){
+  const camp=getCampanaActiva();
+  const n=generarTareasRecurrentes(camp);
+  actualizarCampanitaTareas();
+  if(n>0){
+    mostrarSnackbar(`🔁 Se generaron ${n} tarea(s) recurrente(s) para ${camp}`,'blue');
+    refrescarVistasActividad();
+  }
+  return n;
+}
+// Abre Relevamientos ya filtrado para encontrar rápido todas las pendientes
+// generadas por tareas recurrentes, y en qué lotes están.
+function verTareasRecurrentesPendientes(){
+  navTo('relevamientos');
+  setTimeout(()=>{
+    const sel=document.getElementById('f-origen');
+    if(sel){sel.value='recurrente';renderRelev();}
+  },0);
+}
+let _editTareaRecId=null;
+function openModalTareaRecurrente(id=null){
+  _editTareaRecId=id;
+  const sc=document.getElementById('tr-cultivo');
+  if(sc){const pv=sc.value;sc.innerHTML='<option value="cualquiera">Cualquiera</option>';(DB.cultivos||[]).forEach(c=>sc.innerHTML+=`<option value="${c}">${c}</option>`);sc.value=pv||'cualquiera';}
+  const t=id?(DB.tareasRecurrentes||[]).find(x=>x.id===id):null;
+  document.getElementById('mtr-title').textContent=t?'Editar tarea recurrente':'Nueva tarea recurrente';
+  document.getElementById('tr-nombre').value=t?.nombre||'';
+  document.getElementById('tr-cultivo').value=t?.cultivo||'cualquiera';
+  document.getElementById('tr-rol').value=t?.rol||'cualquiera';
+  document.getElementById('tr-dia-ini').value=t?.diaIni||'';
+  document.getElementById('tr-mes-ini').value=t?.mesIni||'';
+  document.getElementById('tr-dia-fin').value=t?.diaFin||'';
+  document.getElementById('tr-mes-fin').value=t?.mesFin||'';
+  document.getElementById('tr-anio-ventana').value=t?.anioVentana||1;
+  document.getElementById('tr-obs').value=t?.obs||'';
+  document.getElementById('tr-mejora').checked=!!t?.mejora;
+  document.getElementById('tr-activo').checked=t?t.activo!==false:true;
+  openModal('modal-tarea-recurrente');
+}
+function saveTareaRecurrente(){
+  const nombre=document.getElementById('tr-nombre').value.trim();
+  const diaIni=parseInt(document.getElementById('tr-dia-ini').value,10);
+  const mesIni=parseInt(document.getElementById('tr-mes-ini').value,10);
+  const diaFin=parseInt(document.getElementById('tr-dia-fin').value,10);
+  const mesFin=parseInt(document.getElementById('tr-mes-fin').value,10);
+  if(!nombre){alert('Completá el nombre');return;}
+  if(!diaIni||!mesIni||!diaFin||!mesFin){alert('Completá la ventana de fechas completa (día y mes, desde y hasta)');return;}
+  const obj={
+    id:_editTareaRecId||uid(),nombre,
+    cultivo:document.getElementById('tr-cultivo').value,
+    rol:document.getElementById('tr-rol').value,
+    diaIni,mesIni,diaFin,mesFin,
+    anioVentana:parseInt(document.getElementById('tr-anio-ventana').value,10)===2?2:1,
+    obs:document.getElementById('tr-obs').value.trim(),
+    mejora:!!document.getElementById('tr-mejora').checked,
+    activo:!!document.getElementById('tr-activo').checked,
+    createdAt:_editTareaRecId?((DB.tareasRecurrentes||[]).find(x=>x.id===_editTareaRecId)?.createdAt||Date.now()):Date.now(),
+  };
+  if(!Array.isArray(DB.tareasRecurrentes))DB.tareasRecurrentes=[];
+  if(_editTareaRecId){const i=DB.tareasRecurrentes.findIndex(x=>x.id===_editTareaRecId);if(i>=0)DB.tareasRecurrentes[i]=obj;else DB.tareasRecurrentes.push(obj);}
+  else DB.tareasRecurrentes.push(obj);
+  save();closeModal('modal-tarea-recurrente');renderTareasRecurrentes();
+  generarTareasRecurrentesActivas();
+}
+function eliminarTareaRecurrente(id){
+  const t=(DB.tareasRecurrentes||[]).find(x=>x.id===id);if(!t)return;
+  const generados=(DB.relevamientos||[]).filter(r=>r.tareaRecurrenteId===id&&!r.borrado).length;
+  const msg=generados
+    ?`¿Eliminar la plantilla "${t.nombre}"? Ya generó ${generados} relevamiento(s) — esos quedan como están, solo se borra la plantilla (no va a generar más).`
+    :`¿Eliminar la plantilla "${t.nombre}"?`;
+  confirmarAccion(msg,()=>{
+    DB.tareasRecurrentes=DB.tareasRecurrentes.filter(x=>x.id!==id);
+    save();renderTareasRecurrentes();
+  },'Eliminar');
+}
+function renderTareasRecurrentes(){
+  const cont=document.getElementById('tr-body');if(!cont)return;
+  const lista=DB.tareasRecurrentes||[];
+  document.getElementById('tr-ct').textContent=`Tareas recurrentes (${lista.length})`;
+  if(!lista.length){cont.innerHTML='<div class="empty"><div class="empty-icon">🔁</div><div class="empty-t">Sin tareas recurrentes</div><div class="empty-s">Creá la primera con "+ Nueva tarea recurrente"</div></div>';return;}
+  const campAct=getCampanaActiva();
+  const ROL_LBL={'cualquiera':'cualquiera','1':'1ª','2':'2ª','cob':'cobertura'};
+  cont.innerHTML='<div class="tw"><table><thead><tr>'
+    +'<th>Nombre</th><th>Condición</th><th>Ventana</th><th>Generadas (campaña activa)</th><th>Estado</th><th class="ph"></th>'
+    +'</tr></thead><tbody>'
+    +lista.map(t=>{
+      const generadasCamp=(DB.relevamientos||[]).filter(r=>r.tareaRecurrenteId===t.id&&r.campaña===campAct&&!r.borrado).length;
+      const pendCamp=(DB.relevamientos||[]).filter(r=>r.tareaRecurrenteId===t.id&&r.campaña===campAct&&!r.borrado&&!r.fecha).length;
+      const p=n=>String(n).padStart(2,'0');
+      return'<tr>'
+        +`<td><strong>${t.nombre}</strong>${t.mejora?' <span class="mejora-pill" title="Marca el relevamiento generado como Mejora programada">🔧</span>':''}</td>`
+        +`<td><span class="badge bg-amber">${t.cultivo==='cualquiera'?'Cualquier cultivo':t.cultivo}</span> <span class="badge bg-gray">${ROL_LBL[t.rol]||'cualquiera'}</span></td>`
+        +`<td class="mono">${p(t.diaIni)}/${p(t.mesIni)} → ${p(t.diaFin)}/${p(t.mesFin)} <span class="muted" style="font-size:10px">(${t.anioVentana===2?'2º año':'1º año'} de la campaña)</span></td>`
+        +`<td>${generadasCamp} <span class="muted" style="font-size:10px">(${pendCamp} pendiente${pendCamp===1?'':'s'})</span></td>`
+        +`<td>${t.activo!==false?'<span class="badge bg-green">Activa</span>':'<span class="badge bg-gray">Pausada</span>'}</td>`
+        +`<td class="rf ph"><button class="btn bs bxs" onclick="openModalTareaRecurrente('${t.id}')" title="Editar">✏️</button><button class="btn bd bxs" onclick="eliminarTareaRecurrente('${t.id}')" title="Eliminar">✕</button></td>`
+        +'</tr>';
+    }).join('')
+    +'</tbody></table></div>';
 }
 
 // Un relevamiento puede venir de otro (origenRelevId), que a su vez puede venir
@@ -2527,72 +2827,40 @@ function calItemsDeLote(loteId){
   items.forEach(i=>{i.ref=i.real||i.fecha||i.fechaFin||'';});
   return items;
 }
-// Corte de campaña por lote: 100% declarado a mano, nunca inferido. Cada
-// lote guarda lote.cortesCampana = [{desde:'YYYY-MM', campaña:'2026/27'}, ...]
-// — vos marcás el mes en que arranca cada campaña para ESE lote puntual, y
-// queda vigente hasta que declares la siguiente (no hace falta fecha de
-// cierre). Si todavía no declaraste ningún corte para un lote, no hay nada
-// de qué agarrarse — se deja en blanco para que lo cargues vos.
-// Campaña que corresponde a un lote en un mes dado, y por qué.
-// Regla (100% determinada por lo que el usuario ya cargó, nunca inferida de
-// fechas de actividades):
-//  1) Si hay un corte 📌 declarado para este lote vigente en ese mes (el
-//     último con desde<=ym), esa es la campaña — es la declaración explícita.
-//  2) Si el mes es anterior a todos los cortes declarados para este lote,
-//     corresponde la campaña previa a la del primer corte, según el orden
-//     de DB.campanas (por eso un pin "de acá en adelante es 26/27" también
-//     define, por descarte, que antes era la campaña anterior de la lista).
-//  3) Si el lote no tiene ningún corte declarado, cae en la campaña activa
-//     global — igual que en el resto de la app — hasta que el usuario
-//     declare el primer corte para ese lote.
-function loteCampanaSugerida(lote,ym){
-  const cortes=(lote?.cortesCampana||[]).slice().sort((a,b)=>a.desde.localeCompare(b.desde));
-  let idx=-1;
-  for(let i=0;i<cortes.length;i++){if(cortes[i].desde<=ym)idx=i;else break;}
-  if(idx>=0)return{campana:cortes[idx].campaña,motivo:'corte'};
-  if(cortes.length){
-    const camps=DB.campanas||[];
-    const pos=camps.indexOf(cortes[0].campaña);
-    if(pos>0)return{campana:camps[pos-1],motivo:'anterior'};
-    return{campana:'',motivo:'sinAnterior'};
-  }
-  return{campana:getCampanaActiva(),motivo:'activa'};
-}
-function loteCampanaEnMes(lote,ym){return loteCampanaSugerida(lote,ym).campana;}
-let _corteCtx={loteId:'',ym:''};
-function calAbrirCorte(loteId,ym){
+// loteCampanaSugerida/loteCampanaEnMes: definidas más abajo, junto con el
+// resto del cálculo de "cierre de campaña por lote" (cultivoGobernanteDeLote,
+// fechaCierreCampanaLote, etc.) — reemplazan al viejo "corte" manual 📌.
+let _cierreLoteCtx={loteId:'',camp:''};
+function openModalCierreLote(loteId,camp){
   const lote=DB.lotes.find(l=>l.id===loteId);if(!lote)return;
-  _corteCtx={loteId,ym};
-  const mesLbl=calMesesRango().find(m=>m.ym===ym)?.label||ym;
-  document.getElementById('corte-campana-lbl').textContent=`${lote.nombre} — a partir de ${mesLbl}`;
-  const existente=(lote.cortesCampana||[]).find(c=>c.desde===ym);
-  const sel=document.getElementById('corte-campana-sel');
-  sel.innerHTML='<option value="">Seleccioná...</option>'+(DB.campanas||[]).map(c=>`<option value="${c}"${existente&&existente.campaña===c?' selected':''}>${c}</option>`).join('');
-  document.getElementById('corte-campana-quitar').style.display=existente?'inline-flex':'none';
-  openModal('modal-corte-campana');
+  _cierreLoteCtx={loteId,camp};
+  document.getElementById('cierre-lote-lbl').textContent=`${lote.nombre} — campaña ${camp}`;
+  const def=fechaCierreDefaultLote(loteId,camp);
+  document.getElementById('cierre-lote-default').textContent=def
+    ?`Calculado por defecto: ${def.split('-').reverse().join('/')}`
+    :'Todavía no hay cultivo cargado como para calcular un default.';
+  const over=(DB.cierreOverride||{})[loteId+'||'+camp];
+  document.getElementById('cierre-lote-fecha').value=over||def||'';
+  document.getElementById('cierre-lote-default-btn').style.display=over?'inline-flex':'none';
+  openModal('modal-cierre-lote');
 }
-function calGuardarCorte(){
-  const{loteId,ym}=_corteCtx;
-  const lote=DB.lotes.find(l=>l.id===loteId);if(!lote)return;
-  const camp=document.getElementById('corte-campana-sel').value;
-  if(!camp){alert('Elegí una campaña');return;}
-  if(!Array.isArray(lote.cortesCampana))lote.cortesCampana=[];
-  lote.cortesCampana=lote.cortesCampana.filter(c=>c.desde!==ym);
-  lote.cortesCampana.push({desde:ym,campaña:camp});
-  lote.cortesCampana.sort((a,b)=>a.desde.localeCompare(b.desde));
-  save();
-  closeModal('modal-corte-campana');
-  mostrarSnackbar('📌 Corte de campaña guardado');
-  renderCalendario();
+function guardarCierreLote(){
+  const{loteId,camp}=_cierreLoteCtx;
+  const fecha=document.getElementById('cierre-lote-fecha').value;
+  if(!fecha){alert('Elegí una fecha');return;}
+  setCierreOverrideLote(loteId,camp,fecha);
+  closeModal('modal-cierre-lote');
+  mostrarSnackbar('📅 Cierre de campaña guardado');
+  renderCampanas();
+  if(document.getElementById('cal-body'))renderCalendario();
 }
-function calQuitarCorte(){
-  const{loteId,ym}=_corteCtx;
-  const lote=DB.lotes.find(l=>l.id===loteId);if(!lote)return;
-  lote.cortesCampana=(lote.cortesCampana||[]).filter(c=>c.desde!==ym);
-  save();
-  closeModal('modal-corte-campana');
-  mostrarSnackbar('📌 Corte de campaña eliminado');
-  renderCalendario();
+function usarCierreDefaultLote(){
+  const{loteId,camp}=_cierreLoteCtx;
+  setCierreOverrideLote(loteId,camp,null);
+  closeModal('modal-cierre-lote');
+  mostrarSnackbar('📅 Vuelve a usar el cierre calculado por defecto');
+  renderCampanas();
+  if(document.getElementById('cal-body'))renderCalendario();
 }
 let _calCamposCache={}; // campoId -> ids de lotes mostrados, para el "+ Nueva (varios lotes)"
 function calNuevoVarios(campoId){
@@ -2616,10 +2884,9 @@ function calCrear(loteId,ym){
   const lote=DB.lotes.find(l=>l.id===loteId);
   const{campana:campSugerida,motivo}=loteCampanaSugerida(lote,ym);
   const hints={
-    corte:'📌 Según el corte de campaña que declaraste para este lote — la cambiás acá si hace falta.',
-    anterior:'📌 Es anterior al corte que declaraste para este lote, así que te traigo la campaña previa — la cambiás acá si hace falta.',
-    activa:'Campaña activa — la cambiás acá si corresponde otra.',
-    sinAnterior:''
+    cierre:'📅 Según el cierre de campaña calculado para este lote — la cambiás acá si hace falta.',
+    sinDato:'Todavía no hay cultivo cargado para este lote en esa campaña, así que te traigo la campaña activa — revisala.',
+    activa:'Campaña activa — la cambiás acá si corresponde otra.'
   };
   abrirModalActividadMasiva([loteId],'',campSugerida,null,ini,fin,hints[motivo]||'',!campSugerida);
 }
@@ -2718,24 +2985,20 @@ function renderCalendario(){
       const celdas=meses.map((m,mi)=>{
         const arr=porMes[m.ym];
         const fondo=m.esActual?'background:var(--accent-bg)':zebra;
-        // El corte de campaña es 100% lo que vos declaraste con el 📌 — nunca
-        // inferido. Si este mes es exactamente donde arranca uno, se marca con
-        // una línea vertical gruesa a la izquierda (la frontera entre el mes
-        // anterior y este) más el nombre de la campaña que arranca ahí. El
-        // resto de los meses llevan una división tenue, solo para separar
-        // columnas a simple vista.
-        const corteAqui=(l.cortesCampana||[]).find(c=>c.desde===m.ym);
-        const borde=corteAqui?'border-left:5px solid var(--accent)':(mi?'border-left:1px solid var(--border)':'');
-        const etiqueta=corteAqui?`<div style="font-size:8px;font-weight:700;color:var(--accent);white-space:nowrap;text-align:center" title="Campaña declarada desde acá para ${l.nombre}">➜ ${corteAqui.campaña}</div>`:'';
-        const pinTitle=corteAqui?`Corte declarado: ${corteAqui.campaña} desde ${m.label}. Tocá para cambiarlo o quitarlo.`:`Marcar que ${l.nombre} pasa de campaña a partir de ${m.label}`;
-        // El pin es un uso esporádico — chiquito, en la esquina, casi invisible
-        // hasta que hay un corte declarado ahí. La cruz de "agregar actividad"
-        // es lo que se toca todo el tiempo, así que se lleva casi todo el
-        // espacio de la celda, como un botón bien claro.
-        const pin=`<a href="#" onclick="event.preventDefault();calAbrirCorte('${l.id}','${m.ym}')" title="${pinTitle}" style="position:absolute;top:2px;right:3px;font-size:9px;line-height:1;${corteAqui?'opacity:.85':'opacity:.22'}">📌</a>`;
+        // El cambio de campaña ya no se marca a mano (el viejo 📌) — se
+        // calcula solo a partir del cierre de campaña de cada lote. Si este
+        // mes es exactamente donde pasa de una campaña a la siguiente, se
+        // marca con una línea vertical gruesa más el nombre de la campaña
+        // que arranca ahí. El resto de los meses llevan una división tenue,
+        // solo para separar columnas a simple vista.
+        const campaEsteMes=loteCampanaEnMes(l,m.ym);
+        const campaMesAnterior=mi>0?loteCampanaEnMes(l,meses[mi-1].ym):null;
+        const cambiaAqui=mi>0&&campaEsteMes!==campaMesAnterior;
+        const borde=cambiaAqui?'border-left:5px solid var(--accent)':(mi?'border-left:1px solid var(--border)':'');
+        const etiqueta=cambiaAqui?`<div style="font-size:8px;font-weight:700;color:var(--accent);white-space:nowrap;text-align:center" title="A partir de ${m.label}, este lote pasa a la campaña ${campaEsteMes} (cierre de la anterior calculado para este lote)">➜ ${campaEsteMes}</div>`:'';
         const add=`<a href="#" onclick="event.preventDefault();calCrear('${l.id}','${m.ym}')" title="Agregar actividad en ${m.label} para ${l.nombre} (precarga todo el mes, se ajusta a mano)" class="btn bs bxs" style="display:flex;align-items:center;justify-content:center;width:100%;margin-top:3px;font-weight:700">＋ Actividad</a>`;
         const pills=arr.length?`<div style="display:flex;flex-direction:column;gap:2px;align-items:center">${arr.map(calPill).join('')}</div>`:'';
-        return`<td style="position:relative;padding:6px 8px 7px;vertical-align:top;${fondo};${borde}">${etiqueta}${pills}${add}${pin}</td>`;
+        return`<td style="position:relative;padding:6px 8px 7px;vertical-align:top;${fondo};${borde}">${etiqueta}${pills}${add}</td>`;
       }).join('');
       return`<tr style="border-top:1px solid var(--border)">
         <td style="padding:6px 8px;position:sticky;left:0;${zebra||'background:var(--card)'}">
@@ -2820,11 +3083,15 @@ async function _fbInitSync(){
           // Si dos dispositivos crearon algo casi al mismo tiempo, acá es donde
           // puede aparecer un código R#/A# repetido — se repara apenas se detecta.
           const _huboDupFix=repararCodigosCortosDuplicados();
+          if(!Array.isArray(DB.tareasRecurrentes))DB.tareasRecurrentes=[];
+          if(!DB.cierreCultivo||typeof DB.cierreCultivo!=='object')DB.cierreCultivo=cierreCultivoDefault();
+          if(!DB.cierreOverride||typeof DB.cierreOverride!=='object')DB.cierreOverride={};
           localStorage.setItem(SK,JSON.stringify(DB));
           localStorage.setItem(SK+'_ts',fbTs);
           renderDashboard();
           _fbShowSyncStatus('ok');
           mostrarSnackbar('✅ Datos sincronizados desde la nube');
+          generarTareasRecurrentesActivas();
           if(_huboDupFix){_fbSyncPending=true;_fbSync();}
           return;
         }
@@ -2872,6 +3139,7 @@ const PM={
   actividades:{t:'Actividades',s:'Relevamientos y actividades de todos los lotes — realizadas y programadas'},
   planificacion:{t:'Planificación',s:'Qué tiene cada lote en la campaña — y qué falta cargar'},
   papelera:{t:'Papelera',s:'Relevamientos y actividades eliminados — se guardan 30 días por si hace falta restaurarlos'},
+  'tareas-recurrentes':{t:'Tareas recurrentes',s:'Plantillas que generan solas un relevamiento programado cada campaña, para no tener que acordarse'},
   historial:{t:'Historial y Rotación',s:'Cultivo y diagnósticos por lote, campaña a campaña — para decidir la rotación con precedentes'},
   calendario:{t:'Calendario de Actividades',s:'Por campo y lote, qué hay cargado mes a mes — últimos 2 meses y los próximos 9'},
   facturacion:{t:'Facturación',s:'Visitas realizadas (cliente + campo + fecha) para saber cómo facturar cada recorrida'},
@@ -2920,6 +3188,7 @@ function navTo(id,params={}){
   if(id==='historial')    renderHistorial();
   if(id==='facturacion')  renderFacturacion();
   if(id==='cultivo-detail')abrirCultivoDetail(params.cultivo,params.campaña);
+  if(id==='tareas-recurrentes')renderTareasRecurrentes();
 }
 
 // ══ MODALES ══
@@ -3329,7 +3598,7 @@ function fo(v){
 
 // ══ CULTIVO POR LOTE Y CAMPAÑA ══
 function getCampanaActiva(){return DB.campanaActiva||(DB.campanas||[]).slice(-1)[0]||'';}
-function setCampanaActiva(camp){DB.campanaActiva=camp;save();renderCampanas();mostrarSnackbar('📅 Campaña activa: '+camp,'blue');}
+function setCampanaActiva(camp){DB.campanaActiva=camp;save();renderCampanas();mostrarSnackbar('📅 Campaña activa: '+camp,'blue');generarTareasRecurrentesActivas();}
 function getCultivoDeLote(loteId,camp){
   const key=loteId+'||'+camp;
   if(DB.loteCultivos?.[key])return DB.loteCultivos[key];
@@ -3383,6 +3652,72 @@ function opcionesCultivoRol(camps){
 function loteTieneCultivoRol(loteId,camp,value){
   return cultivosRolDeLote(loteId,camp).some(c=>c.value===value);
 }
+// ══ CIERRE DE CAMPAÑA POR LOTE ══
+// Reemplaza al viejo "corte de campaña" manual (el pin 📌 del Calendario,
+// retirado). Ahora se calcula solo: el cultivo que "termina" la campaña en
+// ese lote es el de 2ª si hay, sino el de 1ª — y una tabla de cierres
+// típicos por cultivo (DB.cierreCultivo, editable desde Cultivos) dice
+// cuándo cierra. Un lote puntual puede pisar ese default con una fecha real
+// (DB.cierreOverride) cuando la cosecha se corrió ese año en particular.
+function cultivoGobernanteDeLote(loteId,camp){
+  const roles=cultivosRolDeLote(loteId,camp);
+  const seg=roles.find(r=>r.rol==='2');
+  if(seg)return{cultivo:seg.cultivo,esSegunda:true};
+  const uno=roles.find(r=>r.rol==='1');
+  if(uno)return{cultivo:uno.cultivo,esSegunda:false};
+  return null;
+}
+function fechaCierreDefaultLote(loteId,camp){
+  const g=cultivoGobernanteDeLote(loteId,camp);
+  if(!g)return null;
+  const regla=(DB.cierreCultivo||{})[baseCultivo(g.cultivo)];
+  if(!regla)return null;
+  const dia=g.esSegunda?regla.segDia:regla.soloDia;
+  const mes=g.esSegunda?regla.segMes:regla.soloMes;
+  const anioIdx=g.esSegunda?regla.segAnio:regla.soloAnio;
+  if(!dia||!mes)return null;
+  const[y1,y2]=aniosDeCampana(camp);
+  const anio=anioIdx===2?y2:y1;
+  return`${anio}-${String(mes).padStart(2,'0')}-${String(dia).padStart(2,'0')}`;
+}
+// La fecha "real" para un lote+campaña: lo que vos hayas editado a mano, o
+// si no, el default calculado.
+function fechaCierreCampanaLote(loteId,camp){
+  const key=loteId+'||'+camp;
+  const over=(DB.cierreOverride||{})[key];
+  return over||fechaCierreDefaultLote(loteId,camp);
+}
+function setCierreOverrideLote(loteId,camp,fecha){
+  if(!DB.cierreOverride)DB.cierreOverride={};
+  const key=loteId+'||'+camp;
+  if(fecha)DB.cierreOverride[key]=fecha;
+  else delete DB.cierreOverride[key];
+  save();
+}
+// A qué campaña corresponde un lote en un mes dado (YYYY-MM) — ya no es una
+// declaración manual (el viejo 📌), se deduce sola: cada campaña "vive" desde
+// julio de su primer año hasta su fecha de cierre para ESE lote (si todavía
+// no hay cultivo cargado como para calcular un cierre, se la deja abierta
+// hasta que la campaña siguiente arranque).
+function loteCampanaSugerida(lote,ym){
+  if(!lote)return{campana:getCampanaActiva(),motivo:'activa'};
+  const camps=(DB.campanas||[]).slice().sort((a,b)=>aniosDeCampana(a)[0]-aniosDeCampana(b)[0]);
+  if(!camps.length)return{campana:getCampanaActiva(),motivo:'activa'};
+  let idx=-1;
+  for(let i=0;i<camps.length;i++){
+    const inicioYM=aniosDeCampana(camps[i])[0]+'-07';
+    if(inicioYM<=ym)idx=i;else break;
+  }
+  if(idx<0)return{campana:camps[0],motivo:'activa'};
+  while(idx<camps.length){
+    const cierre=fechaCierreCampanaLote(lote.id,camps[idx]);
+    const cierreYM=cierre?cierre.slice(0,7):null;
+    if(!cierreYM||cierreYM>=ym)return{campana:camps[idx],motivo:cierre?'cierre':'sinDato'};
+    idx++;
+  }
+  return{campana:camps[camps.length-1],motivo:'activa'};
+}
+function loteCampanaEnMes(lote,ym){return loteCampanaSugerida(lote,ym).campana;}
 function setCultivoDeLote(loteId,camp,cultivo,cultivo2){
   if(!DB.loteCultivos)DB.loteCultivos={};
   const key=loteId+'||'+camp;
@@ -4683,6 +5018,8 @@ function refrescarVistasActividad(){
   if(document.getElementById('act-m-body'))renderActividadesMaster();
   if(document.getElementById('lote-detail-content')&&_loteDetailCtx)renderLoteDetail(_loteDetailCtx.loteId,_loteDetailCtx.cliId,_loteDetailCtx.campoId);
   if(document.getElementById('papelera-body'))renderPapelera();
+  if(document.getElementById('tr-body'))renderTareasRecurrentes();
+  actualizarCampanitaTareas();
 }
 function deleteRelev(id){
   confirmarAccion('¿Eliminar relevamiento? Queda 30 días en la papelera por si te arrepentís.',()=>{
@@ -4728,7 +5065,7 @@ function generarOTDesdeSeleccion(){
 }
 
 function clearFiltros(){
-  ['f-txt','f-mal','f-prod','f-estado','f-desde','f-hasta','f-plan-desde','f-plan-hasta','f-creada-desde','f-creada-hasta','f-agrupar','f-activ','f-barbecho'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['f-txt','f-mal','f-prod','f-estado','f-desde','f-hasta','f-plan-desde','f-plan-hasta','f-creada-desde','f-creada-hasta','f-agrupar','f-activ','f-barbecho','f-origen'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   _mselGet('f-cli-vals').clear();
   _mselGet('f-camp-vals').clear();
   _mselGet('f-campo-vals').clear();
@@ -4858,6 +5195,7 @@ function getFiltrados(){
   const planHasta=document.getElementById('f-plan-hasta')?.value||'';
   const creadaDesde=document.getElementById('f-creada-desde')?.value||'';
   const creadaHasta=document.getElementById('f-creada-hasta')?.value||'';
+  const origen=document.getElementById('f-origen')?.value||'';
   const factiv=document.getElementById('f-activ')?.value||'';
   return DB.relevamientos.filter(r=>{
     if(r.borrado)return false;
@@ -4871,6 +5209,8 @@ function getFiltrados(){
     if(cults.size && !cults.has(baseCultivo(r.cultivo)))return false;
     if(fBarbecho==='si' && !esBarbecho(r.cultivo))return false;
     if(fBarbecho==='no' && esBarbecho(r.cultivo))return false;
+    if(origen==='recurrente' && !r.tareaRecurrenteId)return false;
+    if(origen==='manual' && r.tareaRecurrenteId)return false;
     // Filtro estado: comparar contra estado efectivo
     if(estado && estadoEfectivo(r)!==estado)return false;
     // Fecha de Realización: un relevamiento Programado (sin fecha todavía) no
@@ -4997,7 +5337,7 @@ function renderRelev(){
   // Ha únicas por loteId: evita contar doble cuando un lote tiene varios relevamientos
   const hasPorLote=new Map();rsb.forEach(r=>{if(!hasPorLote.has(r.loteId))hasPorLote.set(r.loteId,r.loteHa||0);});
   const haFil=[...hasPorLote.values()].reduce((s,h)=>s+h,0);
-  const hayF=['f-txt','f-mal','f-prod','f-estado','f-desde','f-hasta','f-plan-desde','f-plan-hasta','f-creada-desde','f-creada-hasta','f-barbecho'].some(id=>document.getElementById(id)?.value)
+  const hayF=['f-txt','f-mal','f-prod','f-estado','f-desde','f-hasta','f-plan-desde','f-plan-hasta','f-creada-desde','f-creada-hasta','f-barbecho','f-origen'].some(id=>document.getElementById(id)?.value)
     || _mselGet('f-cli-vals').size>0 || _mselGet('f-camp-vals').size>0 || _mselGet('f-campo-vals').size>0 || _mselGet('f-lote-vals').size>0 || _mselGet('f-cult-vals').size>0;
   if(hb){hb.style.display=hayF?'flex':'none';if(hayF)hb.innerHTML=`<strong>${rsb.length}</strong> relevamiento(s) · <strong>${haFil.toFixed(1)} ha</strong> (${hasPorLote.size} lote(s)) · <span style="color:var(--text3)">${[...new Set(rsb.map(r=>r.clienteNombre))].join(', ')||'—'}</span><button class="btn bp bxs mla" onclick="_seleccionados.clear();rsb.forEach(r=>_seleccionados.add(r.id));generarOTDesdeSeleccion()" style="font-size:11px">📋 OT con filtrados</button>`;}
   document.getElementById('relev-count').textContent=`Relevamientos (${rs.length})`;
@@ -5029,7 +5369,7 @@ function renderRelev(){
     const aplicarBtn='';
     return '<tr class="'+rc+'">'
       +`<td><input type="checkbox" ${_seleccionados.has(r.id)?'checked':''} onchange="toggleSeleccion('${r.id}',this)"></td>`
-      +`<td>${r.corto?`<span class="badge bg-gray mono" style="font-size:9px" title="Código corto — buscalo en el buscador">${r.corto}</span> `:''}<span class="badge bg-purple">${r.campaña||'—'}</span></td>`
+      +`<td>${r.corto?`<span class="badge bg-gray mono" style="font-size:9px" title="Código corto — buscalo en el buscador">${r.corto}</span> `:''}${r.tareaRecurrenteId?`<span class="badge bg-blue" style="font-size:9px" title="Generado por una tarea recurrente">🔁</span> `:''}<span class="badge bg-purple">${r.campaña||'—'}</span></td>`
       +`<td class="mono">${r.fecha||'<span class="badge bg-blue" style="font-size:9px">📅 Programado</span>'}</td>`
       +`<td class="mono">${r.fechaInicio||'<span class="muted">—</span>'}</td>`
       +`<td class="mono">${r.fechaLimite||'<span class="muted">—</span>'}</td>`
@@ -8037,6 +8377,54 @@ function renderCultivos(){
       </td></tr>`).join('')}
     </tbody></table></div>`;
 }
+// ══ CIERRE DE CAMPAÑA POR CULTIVO (catálogo editable) ══
+function openModalCierreCultivo(){
+  const cont=document.getElementById('cierre-cultivo-body');
+  if(!DB.cultivos.length){cont.innerHTML='<div class="muted">Cargá cultivos primero.</div>';openModal('modal-cierre-cultivo');return;}
+  const num=(v)=>v===undefined||v===null?'':v;
+  cont.innerHTML='<div class="tw"><table><thead><tr>'
+    +'<th>Cultivo</th><th colspan="2">Como único / 1ª — día y mes</th><th>Año</th><th colspan="2">Como cultivo de 2ª — día y mes</th><th>Año</th>'
+    +'</tr></thead><tbody>'
+    +DB.cultivos.map(c=>{
+      const r=(DB.cierreCultivo||{})[c]||{};
+      return`<tr>
+        <td><strong>${c}</strong></td>
+        <td><input type="number" min="1" max="31" class="fi" data-cc="${c}" data-f="soloDia" value="${num(r.soloDia)}" style="width:55px" placeholder="día"></td>
+        <td><input type="number" min="1" max="12" class="fi" data-cc="${c}" data-f="soloMes" value="${num(r.soloMes)}" style="width:55px" placeholder="mes"></td>
+        <td><select class="fi" data-cc="${c}" data-f="soloAnio" style="width:65px">
+          <option value="1"${(r.soloAnio||1)===1?' selected':''}>1º</option>
+          <option value="2"${r.soloAnio===2?' selected':''}>2º</option>
+        </select></td>
+        <td><input type="number" min="1" max="31" class="fi" data-cc="${c}" data-f="segDia" value="${num(r.segDia)}" style="width:55px" placeholder="día"></td>
+        <td><input type="number" min="1" max="12" class="fi" data-cc="${c}" data-f="segMes" value="${num(r.segMes)}" style="width:55px" placeholder="mes"></td>
+        <td><select class="fi" data-cc="${c}" data-f="segAnio" style="width:65px">
+          <option value="1"${(r.segAnio||1)===1?' selected':''}>1º</option>
+          <option value="2"${r.segAnio===2?' selected':''}>2º</option>
+        </select></td>
+      </tr>`;
+    }).join('')
+    +'</tbody></table></div>';
+  openModal('modal-cierre-cultivo');
+}
+function guardarCierreCultivo(){
+  if(!DB.cierreCultivo)DB.cierreCultivo={};
+  DB.cultivos.forEach(c=>{
+    const dia=v=>{const el=document.querySelector(`[data-cc="${c}"][data-f="${v}"]`);return el?parseInt(el.value,10)||null:null;};
+    const soloDia=dia('soloDia'),soloMes=dia('soloMes'),segDia=dia('segDia'),segMes=dia('segMes');
+    const soloAnioEl=document.querySelector(`[data-cc="${c}"][data-f="soloAnio"]`);
+    const segAnioEl=document.querySelector(`[data-cc="${c}"][data-f="segAnio"]`);
+    if(!soloDia&&!soloMes&&!segDia&&!segMes){delete DB.cierreCultivo[c];return;}
+    DB.cierreCultivo[c]={
+      soloDia,soloMes,soloAnio:soloAnioEl?parseInt(soloAnioEl.value,10):1,
+      segDia,segMes,segAnio:segAnioEl?parseInt(segAnioEl.value,10):1,
+    };
+  });
+  save();
+  closeModal('modal-cierre-cultivo');
+  mostrarSnackbar('📅 Cierres de campaña por cultivo guardados');
+  renderCampanas();
+  if(document.getElementById('cal-body'))renderCalendario();
+}
 
 // ══ FICHA DE CULTIVO ══
 // Misma ficha sin importar de dónde se llegue (catálogo de Cultivos o el
@@ -8279,6 +8667,10 @@ function renderCampanas(){
             style="width:100%;background:transparent;border:1px dashed #6a9c6a;border-radius:4px;font-size:9px;padding:1px 4px;color:#6a9c6a">
             <option value="">🌱 —</option>${cultOpts}
           </select>
+        </div>
+        <div style="margin-top:3px;font-size:9px;color:var(--text3);display:flex;align-items:center;gap:3px">
+          📅 ${(()=>{const c=fechaCierreCampanaLote(l.id,camp);return c?c.split('-').reverse().join('/'):'sin dato';})()}${(DB.cierreOverride||{})[l.id+'||'+camp]?' <span title="Editado a mano, distinto del default">✎</span>':''}
+          <a href="#" onclick="event.preventDefault();openModalCierreLote('${l.id}','${camp}')" title="Editar cierre de campaña de este lote" style="margin-left:auto;opacity:.6">✏️</a>
         </div>
       </td>`;
     }).join('');
@@ -9143,6 +9535,8 @@ function crc32(buf){
 // ══ INIT ══
 renderDashboard();
 restaurarBorradorSiExiste();
+generarTareasRecurrentesActivas();
+actualizarCampanitaTareas();
 window.addEventListener('beforeunload',()=>{
   if(_fbSyncPending&&_docRef&&_fbReady){localStorage.setItem(SK+'_ts',Date.now());_fbSync();}
 });
@@ -9210,15 +9604,18 @@ function confirmarImportacionBackup(){
   const {_version,_exportedAt,_app,...dbData}=parsed;
   Object.keys(DB).forEach(k=>delete DB[k]);
   Object.assign(DB,dbData);
-  ['clientes','campos','lotes','relevamientos','productos','malezas','actividades','ots','campanas','cultivos'].forEach(k=>{
+  ['clientes','campos','lotes','relevamientos','productos','malezas','actividades','ots','campanas','cultivos','tareasRecurrentes'].forEach(k=>{
     if(!Array.isArray(DB[k]))DB[k]=[];
   });
+  if(!DB.cierreCultivo||typeof DB.cierreCultivo!=='object')DB.cierreCultivo=cierreCultivoDefault();
+  if(!DB.cierreOverride||typeof DB.cierreOverride!=='object')DB.cierreOverride={};
   repararLoteHa();
   migrarAplicadosAActividades();
   purgarPapelera();
   rebuildActTipos();
   asignarCodigosCortos();
   repararCodigosCortosDuplicados();
+  generarTareasRecurrentesActivas();
   localStorage.setItem('agrolotes_v2',JSON.stringify(DB));
   localStorage.removeItem('agrolotes_v2_ts');
   _pendingImportData=null;
