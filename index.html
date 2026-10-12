@@ -353,7 +353,6 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
     <button class="nb" onclick="navTo('actividades')"><span>🗓️</span> Actividades</button>
     <button class="nb" onclick="navTo('calendario')"><span>📆</span> Calendario</button>
     <button class="nb" onclick="navTo('planificacion')"><span>📊</span> Planificación</button>
-    <button class="nb" onclick="navTo('historial')"><span>📜</span> Historial y Rotación</button>
     <button class="nb" onclick="navTo('papelera')"><span>🗑️</span> Papelera</button>
     <button class="nb" onclick="navTo('tareas-recurrentes')"><span>🔁</span> Tareas recurrentes</button>
     <button class="nb" onclick="navTo('facturacion')"><span>🧾</span> Facturación</button>
@@ -1466,6 +1465,10 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
         </div>
         <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer"><input type="checkbox" id="tr-mejora"> 🔧 Marcar la actividad generada como Mejora programada</label>
         <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer"><input type="checkbox" id="tr-activo" checked> Activa (si se destilda, deja de generar pero no se borra)</label>
+        <div id="tr-instancias-wrap" style="display:none;margin-top:4px">
+          <label>Instancias generadas, vigentes</label>
+          <div id="tr-instancias"></div>
+        </div>
       </div>
     </div>
     <div class="mf">
@@ -2139,7 +2142,54 @@ function openModalTareaRecurrente(id=null){
   document.getElementById('tr-mejora').checked=!!t?.mejora;
   document.getElementById('tr-activo').checked=t?t.activo!==false:true;
   onTrAlcanceChange();
+  renderTrInstancias(t);
   openModal('modal-tarea-recurrente');
+}
+// Instancias vigentes (no borradas) generadas por esta plantilla — para
+// verlas, abrirlas o eliminarlas sin tener que ir a buscarlas a Actividades/
+// Relevamientos. Por lote se acota a la campaña activa (si no, puede ser una
+// lista larga); General normalmente tiene 0 o 1.
+function renderTrInstancias(t){
+  const wrap=document.getElementById('tr-instancias-wrap');
+  if(!t){wrap.style.display='none';return;}
+  let vivas;
+  if(t.alcance==='general'){
+    vivas=(DB.actividades||[]).filter(a=>a.tareaRecurrenteId===t.id&&!a.borrado).map(a=>({
+      id:a.id,esRelev:false,txt:`${(ACT_TIPOS[a.tipo]||{}).icono||'📝'} ${a.tipo} — ${a.fechaRealizacion?'✅ Realizada '+a.fechaRealizacion:'🕒 Pendiente, desde '+(a.fecha||'?')}`
+    }));
+  } else {
+    const camp=getCampanaActiva();
+    vivas=(DB.relevamientos||[]).filter(r=>r.tareaRecurrenteId===t.id&&r.campaña===camp&&!r.borrado).map(r=>({
+      id:r.id,esRelev:true,txt:`🔬 ${r.loteNombre||'?'} — ${r.fecha?'✅ Realizado '+r.fecha:'🕒 Pendiente'}`
+    }));
+  }
+  if(!vivas.length){wrap.style.display='none';return;}
+  wrap.style.display='block';
+  document.getElementById('tr-instancias').innerHTML=vivas.map(v=>
+    `<div style="display:flex;align-items:center;gap:6px;font-size:11px;padding:3px 0">
+      <a href="#" onclick="event.preventDefault();${v.esRelev?`closeModal('modal-tarea-recurrente');openModalRelev('${v.id}')`:`closeModal('modal-tarea-recurrente');openModalActividad(null,null,null,'${v.id}')`}" style="color:var(--accent);flex:1">${v.txt}</a>
+      <button class="btn bd bxs" title="Eliminar esta instancia" onclick="${v.esRelev?`trEliminarInstancia('${v.id}',true)`:`trEliminarInstancia('${v.id}',false)`}">✕</button>
+    </div>`
+  ).join('');
+}
+// Eliminar una instancia generada, sin salir del modal de la plantilla — y
+// si es General, dispara ahí mismo la generación del ciclo siguiente (misma
+// regla que al eliminarla desde Actividades).
+function trEliminarInstancia(id,esRelev){
+  confirmarAccion('¿Eliminar esta actividad generada? Queda 30 días en la papelera.',()=>{
+    if(esRelev){
+      const r=DB.relevamientos.find(x=>x.id===id);
+      if(r){r.borrado=true;r.fechaBorrado=hoyLocal();r.borradoTs=Date.now();}
+    } else {
+      const a=DB.actividades.find(x=>x.id===id);
+      if(a){a.borrado=true;a.fechaBorrado=hoyLocal();a.borradoTs=Date.now();}
+      if(a?.tareaRecurrenteId)generarTareasRecurrentesGenerales();
+    }
+    save();
+    refrescarVistasActividad();
+    const t=_editTareaRecId?(DB.tareasRecurrentes||[]).find(x=>x.id===_editTareaRecId):null;
+    renderTrInstancias(t);
+  });
 }
 function saveTareaRecurrente(){
   const nombre=document.getElementById('tr-nombre').value.trim();
@@ -2617,7 +2667,8 @@ function renderPapelera(){
   const relevs=(DB.relevamientos||[]).filter(r=>r.borrado).map(r=>({
     tipo:'Relevamiento',icono:'🔬',id:r.id,esRelev:true,
     loteNombre:r.loteNombre||'',clienteNombre:r.clienteNombre||'—',campoNombre:r.campoNombre||'—',
-    fechaBorrado:r.fechaBorrado,borradoTs:r.borradoTs||0,creadaTs:r.createdAt||0,relevId:null
+    fechaBorrado:r.fechaBorrado,borradoTs:r.borradoTs||0,creadaTs:r.createdAt||0,relevId:null,
+    tareaRecurrenteId:r.tareaRecurrenteId||null
   }));
   const acts=(DB.actividades||[]).filter(a=>a.borrado).map(a=>{
     const l=DB.lotes.find(x=>x.id===a.loteId);
@@ -2625,8 +2676,9 @@ function renderPapelera(){
     const campo=DB.campos.find(x=>x.id===a.campoId);
     return{
       tipo:a.tipo,icono:(ACT_TIPOS[a.tipo]||{}).icono||'📝',id:a.id,esRelev:false,
-      loteNombre:l?.nombre||a.loteId||'',clienteNombre:cli?.nombre||'—',campoNombre:campo?.nombre||'—',
-      fechaBorrado:a.fechaBorrado,borradoTs:a.borradoTs||0,creadaTs:a.createdAt||0,relevId:a.relevId||null
+      loteNombre:l?.nombre||(a.loteId?a.loteId:'— (general)'),clienteNombre:cli?.nombre||'—',campoNombre:campo?.nombre||'—',
+      fechaBorrado:a.fechaBorrado,borradoTs:a.borradoTs||0,creadaTs:a.createdAt||0,relevId:a.relevId||null,
+      tareaRecurrenteId:a.tareaRecurrenteId||null
     };
   });
   let items=[...relevs,...acts];
@@ -2688,6 +2740,13 @@ function renderPapelera(){
         origen=madre
           ?`<a href="#" onclick="event.preventDefault();openModalRelev('${madre.id}')" style="color:var(--accent);font-size:11px" title="Abrir el relevamiento de origen">🔗 Relevamiento ${madre.fecha||'(programado)'}${madre.borrado?' (también eliminado)':''}</a>`
           :'<span class="muted" style="font-size:11px">relevamiento ya purgado</span>';
+      }
+      if(it.tareaRecurrenteId){
+        const plantilla=(DB.tareasRecurrentes||[]).find(x=>x.id===it.tareaRecurrenteId);
+        const tr=plantilla
+          ?`<a href="#" onclick="event.preventDefault();navTo('tareas-recurrentes');openModalTareaRecurrente('${plantilla.id}')" style="color:var(--accent);font-size:11px" title="Abrir la tarea recurrente que la generó">🔁 ${plantilla.nombre}</a>`
+          :'<span class="muted" style="font-size:11px">🔁 tarea recurrente ya eliminada</span>';
+        origen=origen==='<span class="muted">—</span>'?tr:origen+' · '+tr;
       }
       return`<tr>
         <td style="padding:6px 8px">${it.icono} ${it.tipo}</td>
@@ -3105,8 +3164,8 @@ function renderCalendario(){
     meses.forEach(m=>porMesGen[m.ym]=[]);
     itemsGeneralesF.forEach(it=>{porMesGen[it.ref.slice(0,7)].push(it);});
     Object.values(porMesGen).forEach(arr=>arr.sort((a,b)=>a.ref.localeCompare(b.ref)||a.tipo.localeCompare(b.tipo)));
-    const thGen=`<th style="text-align:left;padding:8px;position:sticky;left:0;background:var(--bg2);border-bottom:1px solid var(--border)">General</th>`
-      +meses.map((m,mi)=>`<th style="text-align:center;padding:8px;min-width:128px;border-bottom:1px solid var(--border);${mi?'border-left:1px solid var(--border)':''}${m.esActual?';background:var(--accent-bg)':';background:var(--bg2)'}">${m.label}</th>`).join('');
+    const thGen=`<th style="width:140px;text-align:left;padding:8px;position:sticky;left:0;background:var(--bg2);border-bottom:1px solid var(--border)">General</th>`
+      +meses.map((m,mi)=>`<th style="text-align:center;padding:8px;border-bottom:1px solid var(--border);${mi?'border-left:1px solid var(--border)':''}${m.esActual?';background:var(--accent-bg)':';background:var(--bg2)'}">${m.label}</th>`).join('');
     const celdasGen=meses.map((m,mi)=>{
       const arr=porMesGen[m.ym];
       const fondo=m.esActual?'background:var(--accent-bg)':'';
@@ -3118,7 +3177,7 @@ function renderCalendario(){
       <summary style="cursor:pointer;padding:10px 14px;font-weight:600;font-size:13px;background:var(--bg2);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
         📌 Recordatorios generales <span class="muted" style="font-weight:400;font-size:11px">— actividades que no están ligadas a ningún lote en particular (ej. charlas de rotación, muestreos de suelo)</span>
       </summary>
-      <div class="tw"><table style="width:100%;border-collapse:collapse"><thead><tr>${thGen}</tr></thead><tbody><tr style="border-top:1px solid var(--border)">${celdasGen}</tr></tbody></table></div>
+      <div class="tw"><table style="width:100%;border-collapse:collapse;table-layout:fixed"><thead><tr>${thGen}</tr></thead><tbody><tr style="border-top:1px solid var(--border)">${celdasGen}</tr></tbody></table></div>
     </details>`;
   }
 
@@ -3132,8 +3191,8 @@ function renderCalendario(){
   if(!campos.length){cont.innerHTML=generalBlockHTML||'<div class="empty"><div class="empty-icon">📆</div><div class="empty-t">Sin campos para mostrar</div></div>';return;}
 
   _calCamposCache={};
-  const th=`<th style="text-align:left;padding:8px;position:sticky;left:0;background:var(--bg2);border-bottom:1px solid var(--border)">Lote</th>`
-    +meses.map((m,mi)=>`<th style="text-align:center;padding:8px;min-width:128px;border-bottom:1px solid var(--border);${mi?'border-left:1px solid var(--border)':''}${m.esActual?';background:var(--accent-bg)':';background:var(--bg2)'}">`
+  const th=`<th style="width:140px;text-align:left;padding:8px;position:sticky;left:0;background:var(--bg2);border-bottom:1px solid var(--border)">Lote</th>`
+    +meses.map((m,mi)=>`<th style="text-align:center;padding:8px;border-bottom:1px solid var(--border);${mi?'border-left:1px solid var(--border)':''}${m.esActual?';background:var(--accent-bg)':';background:var(--bg2)'}">`
       +`<a href="#" onclick="event.preventDefault();calVerMesEnActividades('${m.ym}')" style="color:inherit;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:3px" title="Ver el detalle de ${m.label} en Actividades, con todos los clientes">${m.label}<span style="font-size:9px;opacity:.6">🔍</span></a></th>`).join('');
 
   cont.innerHTML=generalBlockHTML+campos.map(campo=>{
@@ -3188,7 +3247,7 @@ function renderCalendario(){
         <span class="muted" style="font-weight:400;font-size:11px">👤 ${cli?.nombre||'—'} · ${lotes.length} lote${lotes.length===1?'':'s'}</span>
         <a href="#" onclick="event.preventDefault();event.stopPropagation();calNuevoVarios('${campo.id}')" title="Cargar una misma actividad en todos los lotes de este campo — ideal para Capacitación, análisis de suelo, etc." style="font-size:11px;color:var(--accent);margin-left:auto">＋ Nueva (varios lotes)</a>
       </summary>
-      <div class="tw"><table style="width:100%;border-collapse:collapse"><thead><tr>${th}</tr></thead><tbody>${cuerpo}</tbody></table></div>
+      <div class="tw"><table style="width:100%;border-collapse:collapse;table-layout:fixed"><thead><tr>${th}</tr></thead><tbody>${cuerpo}</tbody></table></div>
     </details>`;
   }).filter(Boolean).join('');
   if(!cont.innerHTML)cont.innerHTML='<div class="empty"><div class="empty-icon">📆</div><div class="empty-t">No hay nada que coincida con esos filtros</div></div>';
@@ -4748,6 +4807,15 @@ function openModalRelev(editId=null){
         document.getElementById('r-origen-info').innerHTML=`🔗 Este relevamiento es seguimiento de <a href="#" onclick="event.preventDefault();openModalRelev('${origen.id}')" style="color:var(--accent);font-weight:500">otro del ${origen.fecha||'(programado)'}</a>`
           +((r.malezas||[]).length?'':` <button class="btn bs bxs" style="margin-left:8px" onclick="copiarDatosDeOrigen('${origen.id}')">📋 Copiar su diagnóstico</button>`);
       }
+    }
+    // Si salió de una tarea recurrente, link directo a la plantilla que lo generó.
+    if(r.tareaRecurrenteId){
+      const plantilla=(DB.tareasRecurrentes||[]).find(x=>x.id===r.tareaRecurrenteId);
+      const oi=document.getElementById('r-origen-info');
+      oi.style.display='block';
+      oi.innerHTML=(oi.innerHTML||'')+(oi.innerHTML?'<br>':'')+(plantilla
+        ?`🔁 Generado por la tarea recurrente <a href="#" onclick="event.preventDefault();closeModal('modal-relev');navTo('tareas-recurrentes');openModalTareaRecurrente('${plantilla.id}')" style="color:var(--accent);font-weight:500">${plantilla.nombre}</a>`
+        :`🔁 Generado por una tarea recurrente ya eliminada`);
     }
   }
   openModal('modal-relev');
@@ -7132,6 +7200,15 @@ function openModalActividad(loteId,cliId,campoId,editId=null){
             <button class="btn bs bxs" style="margin-left:8px" onclick="desprenderActDelRelev()" title="La actividad sigue existiendo, pero deja de estar ligada a ese relevamiento">🔓 Desadjuntar</button>`;
         }
       }
+      // Si salió de una tarea recurrente (por lote o general), link directo a la plantilla.
+      if(a.tareaRecurrenteId){
+        const plantilla=(DB.tareasRecurrentes||[]).find(x=>x.id===a.tareaRecurrenteId);
+        const oi2=document.getElementById('act-origen-info');
+        oi2.style.display='block';
+        oi2.innerHTML=(oi2.innerHTML||'')+(oi2.innerHTML?'<div style="margin-top:6px">':'<div>')+(plantilla
+          ?`🔁 Generada por la tarea recurrente <a href="#" onclick="event.preventDefault();closeModal('modal-actividad');navTo('tareas-recurrentes');openModalTareaRecurrente('${plantilla.id}')" style="color:var(--accent);font-weight:500">${plantilla.nombre}</a>`
+          :`🔁 Generada por una tarea recurrente ya eliminada`)+'</div>';
+      }
       onActTipoChange();
       if(!_actLoteCtx){
         _actLoteCtx={loteId:a.loteId||null,cliId:a.clienteId||null,campoId:a.campoId||null};
@@ -7412,6 +7489,11 @@ function deleteActividad(id,loteId,cliId,campoId){
     const a=DB.actividades.find(x=>x.id===id);
     if(a){a.borrado=true;a.fechaBorrado=hoyLocal();a.borradoTs=Date.now();}
     save();
+    // Si era una Actividad General generada por una tarea recurrente, al
+    // eliminarla se habilita el ciclo siguiente — y se genera ya mismo (no
+    // se espera a que llegue la fecha), para que la tengas precargada y la
+    // puedas administrar con anticipación, igual que ya pasa con las de lote.
+    if(a?.tareaRecurrenteId)generarTareasRecurrentesGenerales();
     refrescarVistasActividad();
   });
 }
