@@ -2004,27 +2004,33 @@ function ventanaFechasTareaGeneral(t,cicloAnio){
   if(t.mesFin<t.mesIni||(t.mesFin===t.mesIni&&t.diaFin<t.diaIni))yFin=cicloAnio+1;
   return{ini:`${cicloAnio}-${p(t.mesIni)}-${p(t.diaIni)}`,fin:`${yFin}-${p(t.mesFin)}-${p(t.diaFin)}`};
 }
-// ¿A qué año calendario pertenece el ciclo "vigente" de esta plantilla, hoy?
-// Si ya pasamos la fecha de inicio de la ventana de este año, el ciclo es
-// este año; si todavía no llegó, el ciclo vigente es el del año pasado (que
-// puede seguir abierto/vencido hasta que lo completes o elimines).
-function cicloAnioVigenteTarea(t,hoyStr){
-  hoyStr=hoyStr||hoyLocal();
-  const yNow=parseInt(hoyStr.slice(0,4),10);
-  const p=n=>String(n).padStart(2,'0');
-  const iniEsteAnio=`${yNow}-${p(t.mesIni)}-${p(t.diaIni)}`;
-  return hoyStr>=iniEsteAnio?yNow:yNow-1;
-}
-// Motor para las plantillas generales: por cada una, se fija si ya existe una
-// actividad (viva o en Papelera) para el ciclo vigente — si no existe, la crea.
-// Al eliminarla (pasa a Papelera, sigue contando como "ya existe para este
-// ciclo"), no se regenera hasta que llegue el ciclo del año que viene.
+// Motor para las plantillas generales. La regla (tal cual la pediste) es:
+// "mientras haya una viva, no se toca; recién cuando la elimino se genera la
+// del ciclo que sigue" — el avance de un ciclo al otro lo dispara SOLO
+// eliminarla, nunca el solo paso del calendario. Por eso, a diferencia de las
+// "por lote" (que preguntan "¿existe algo para HOY?"), estas preguntan
+// "¿sigue viva la última que generé?":
+//  - Si la plantilla todavía no generó nada: se crea la primera, para el año
+//    calendario de HOY (si la ventana de este año ya pasó, igual se genera
+//    con esa fecha — se va a ver vencida, que es lo correcto; si todavía no
+//    llegó, se ve como pendiente a futuro, igual que ya pasa con las "por
+//    lote" pre-cargadas con anticipación).
+//  - Si la última generada sigue viva (no la borraste): no se toca.
+//  - Si la última generada está borrada: se genera la del año siguiente al
+//    de esa última (no el "año de hoy" — así nunca se salta un ciclo ni
+//    genera de más si todavía no llegaste a completarla).
 function generarTareasRecurrentesGenerales(){
   let generadas=0;
+  const yHoy=parseInt(hoyLocal().slice(0,4),10);
   (DB.tareasRecurrentes||[]).filter(t=>t.activo!==false&&t.alcance==='general').forEach(t=>{
-    const cicloAnio=cicloAnioVigenteTarea(t);
-    const yaExiste=(DB.actividades||[]).some(a=>a.tareaRecurrenteId===t.id&&a.tareaRecurrenteCicloAnio===cicloAnio);
-    if(yaExiste)return;
+    const existentes=(DB.actividades||[]).filter(a=>a.tareaRecurrenteId===t.id);
+    let cicloAnio;
+    if(!existentes.length){
+      cicloAnio=yHoy;
+    } else {
+      if(existentes.some(a=>!a.borrado))return; // sigue viva — no se genera nada nuevo
+      cicloAnio=Math.max(...existentes.map(a=>a.tareaRecurrenteCicloAnio||0))+1;
+    }
     const{ini,fin}=ventanaFechasTareaGeneral(t,cicloAnio);
     DB.actividades.push({
       id:uid(),loteId:null,clienteId:null,campoId:null,
@@ -2080,7 +2086,18 @@ function generarTareasRecurrentesActivas(){
 function verTareasRecurrentesPendientes(){
   const pend=tareasRecurrentesPendientes();
   if(pend.some(p=>!p.loteId)){
+    // Hay al menos una pendiente de alcance General (sin lote) — esas no
+    // viven en Relevamientos, así que hay que ir a Actividades. Para no
+    // mandarte a una lista larga sin filtrar, se deja solo "Pendiente"
+    // tildado (así aparece junto con cualquier otra actividad pendiente,
+    // y entre esas están las generales que buscás — identificalas por el
+    // badge 🔁 y la etiqueta "general" en la columna Lote).
     navTo('actividades');
+    setTimeout(()=>{
+      if(typeof _msState!=='object')return;
+      _msState['act-m-estado']=new Set(['Pendiente']);
+      renderActividadesMaster();
+    },0);
     return;
   }
   navTo('relevamientos');
