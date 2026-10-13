@@ -354,7 +354,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
     <button class="nb" onclick="navTo('calendario')"><span>📆</span> Calendario</button>
     <button class="nb" onclick="navTo('planificacion')"><span>📊</span> Planificación</button>
     <button class="nb" onclick="navTo('papelera')"><span>🗑️</span> Papelera</button>
-    <button class="nb" onclick="navTo('tareas-recurrentes')"><span>🔁</span> Tareas recurrentes</button>
+    <button class="nb" onclick="navTo('tareas-recurrentes')"><span>🔁</span> Actividades recurrentes</button>
     <button class="nb" onclick="navTo('facturacion')"><span>🧾</span> Facturación</button>
     <button class="nb" onclick="navTo('ot')"><span>📋</span> Órdenes de trabajo</button>
   </div>
@@ -386,7 +386,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
       </div>
     </div>
     <div class="rf ph" id="tb-actions">
-      <button class="btn bs bsm" style="position:relative" onclick="verTareasRecurrentesPendientes()" title="Tareas recurrentes generadas y todavía pendientes">
+      <button class="btn bs bsm" style="position:relative" onclick="verTareasRecurrentesPendientes()" title="Actividades recurrentes generadas y todavía pendientes">
         🔔
         <span id="campanita-badge" style="display:none;position:absolute;top:-6px;right:-6px;background:var(--red);color:#fff;border-radius:10px;min-width:16px;height:16px;font-size:10px;font-weight:700;align-items:center;justify-content:center;padding:0 3px;line-height:1">0</span>
       </button>
@@ -463,7 +463,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
           <option value="Relevado sin tratamiento">Realizado sin tratamiento</option></select>
         <select id="f-origen" onchange="renderRelev()" title="De dónde salió el relevamiento">
           <option value="">Origen: todos</option>
-          <option value="recurrente">🔁 Solo tareas recurrentes</option>
+          <option value="recurrente">🔁 Solo actividades recurrentes</option>
           <option value="manual">Solo cargados a mano</option>
         </select>
         <select id="f-activ" onchange="renderRelev()">
@@ -822,8 +822,14 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
     <!-- CALENDARIO DE ACTIVIDADES -->
     <div class="page" id="page-calendario">
       <div class="filters ph" style="gap:6px;flex-wrap:wrap;margin-bottom:10px;align-items:center">
-        <select id="cal-cli" class="fi" style="width:160px" onchange="renderCalendario()"><option value="">Todos los clientes</option></select>
-        <select id="cal-campo" class="fi" style="width:160px" onchange="renderCalendario()"><option value="">Todos los campos</option></select>
+        <div class="ms-combo" style="position:relative">
+          <button type="button" class="fi" id="ms-btn-cal-cli" onclick="msToggle('cal-cli')" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:5px 8px;font-family:'Sora',sans-serif;font-size:12px;color:var(--text);cursor:pointer;text-align:left;width:140px">Cliente...</button>
+          <div class="ms-drop" id="ms-drop-cal-cli" style="display:none;position:absolute;top:calc(100% + 2px);left:0;z-index:50;background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:6px;max-height:220px;overflow:auto;min-width:180px;box-shadow:0 4px 12px rgba(0,0,0,.15)"></div>
+        </div>
+        <div class="ms-combo" style="position:relative">
+          <button type="button" class="fi" id="ms-btn-cal-campo" onclick="msToggle('cal-campo')" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:5px 8px;font-family:'Sora',sans-serif;font-size:12px;color:var(--text);cursor:pointer;text-align:left;width:140px">Campo...</button>
+          <div class="ms-drop" id="ms-drop-cal-campo" style="display:none;position:absolute;top:calc(100% + 2px);left:0;z-index:50;background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:6px;max-height:220px;overflow:auto;min-width:180px;box-shadow:0 4px 12px rgba(0,0,0,.15)"></div>
+        </div>
         <div class="ms-combo" style="position:relative">
           <button type="button" class="fi" id="ms-btn-cal-lote" onclick="msToggle('cal-lote')" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:5px 8px;font-family:'Sora',sans-serif;font-size:12px;color:var(--text);cursor:pointer;text-align:left;width:120px">Lote...</button>
           <div class="ms-drop" id="ms-drop-cal-lote" style="display:none;position:absolute;top:calc(100% + 2px);left:0;z-index:50;background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:6px;max-height:220px;overflow:auto;min-width:180px;box-shadow:0 4px 12px rgba(0,0,0,.15)"></div>
@@ -845,9 +851,14 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
           <option value="si">🔧 Solo mejoras</option>
           <option value="no">Solo comunes</option>
         </select>
+        <select id="cal-vacio-mes" class="fi" style="width:140px" onchange="renderCalendario()"><option value="">Mes: (sin filtro)</option></select>
+        <select id="cal-vacio-modo" class="fi" style="width:110px" onchange="renderCalendario()">
+          <option value="vacio">Vacíos</option>
+          <option value="novacio">No vacíos</option>
+        </select>
         <button class="btn bs bsm" onclick="clearFiltrosCal()">Limpiar</button>
       </div>
-      <div class="ph" style="font-size:11px;color:var(--text3);margin-bottom:8px">Un bloque por campo — tocá el encabezado para desplegar sus lotes y ver sus actividades mes a mes (2 meses atrás, el actual resaltado, y 9 por delante). 🟢 realizada · 🔵 pendiente en horario · 🔴 pendiente y vencida · cada pastilla lleva la inicial del tipo (A: Aplicación, R: Relevamiento, S: Siembra, Co: Cosecha...) — clic en cualquiera para abrirla. "＋ Actividad" carga una para ese lote con el mes ya precargado de 1º a último día; "＋ Nueva (varios lotes)" hace lo mismo en todos los lotes del campo a la vez — ideal para Capacitación o análisis de suelo. El 📌 (arriba a la derecha de cada casillero, uso ocasional) marca a mano a partir de qué mes ese lote pasa a otra campaña — queda como una línea gruesa vertical y vale hasta que declares el próximo corte; mientras no marques nada, el "＋" no sugiere ninguna campaña sola. Tocá el nombre de un mes (🔍) para ver el detalle de todos tus clientes ese mes, en Actividades.</div>
+      <div class="ph" style="font-size:11px;color:var(--text3);margin-bottom:8px">Un bloque por campo — tocá el encabezado para desplegar sus lotes y ver sus actividades mes a mes (2 meses atrás, el actual resaltado, y 9 por delante). 🟢 realizada · 🔵 pendiente en horario · 🔴 pendiente y vencida · cada pastilla lleva la inicial del tipo (A: Aplicación, R: Relevamiento, S: Siembra, Co: Cosecha...) — clic en cualquiera para abrirla. "＋ Actividad" carga una para ese lote con el mes ya precargado de 1º a último día; "＋ Nueva (varios lotes)" hace lo mismo en todos los lotes del campo a la vez — ideal para Capacitación o análisis de suelo. La línea gruesa vertical con "➜ campaña" marca, sola y automática, el mes en que cada lote cambia de campaña (según el cierre de campaña calculado para su cultivo — editable en Cultivos o en Rotación). Tocá el nombre de un mes (🔍) para ver el detalle de todos tus clientes ese mes, en Actividades. El filtro "Mes: / Vacíos / No vacíos" encuentra qué lotes todavía no tienen nada cargado (o ya tienen algo) en un mes puntual.</div>
       <div id="cal-body"></div>
     </div>
 
@@ -924,11 +935,12 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
     <div class="page" id="page-tareas-recurrentes">
       <div class="ph" style="margin-bottom:10px;font-size:12px;color:var(--text3)">Esto NO es un tipo de registro nuevo, separado de Actividad — es una plantilla. Según el <strong>alcance</strong> que elijas, carga sola uno de estos dos: <strong>Por lote</strong>: cada campaña, un <strong>Relevamiento</strong> "Programado" en cada lote que cumpla la condición de cultivo. <strong>General</strong>: una sola <strong>Actividad</strong> (del tipo que elijas: charla, muestreo, etc.), no ligada a ningún lote, que se repite cada año por fecha calendario (nada que ver con campaña ni con cultivo). En ambos casos el registro generado es un Relevamiento/Actividad de siempre — aparece en Relevamientos/Actividades igual que uno cargado a mano, con la etiqueta 🔁 para identificar que salió de acá. Se generan automáticamente al entrar a la app, al cambiar la Campaña activa, o apenas llega la fecha; nunca duplican lo ya generado — si lo eliminás, recién se vuelve a generar en el próximo ciclo (próxima campaña o próximo año, según el caso).</div>
       <div class="ph" style="margin-bottom:10px">
-        <button class="btn bp bsm" onclick="openModalTareaRecurrente()">+ Nueva tarea recurrente</button>
+        <button class="btn bp bsm" onclick="openModalTareaRecurrente()">+ Nueva actividad recurrente</button>
         <button class="btn bs bsm" onclick="const n=generarTareasRecurrentesActivas();if(n===0)mostrarSnackbar('Ya estaban todas generadas','blue');renderTareasRecurrentes()">🔁 Generar ahora</button>
       </div>
       <div class="card">
-        <div class="ch"><span class="ct" id="tr-ct">Tareas recurrentes</span></div>
+        <div class="ch"><span class="ct" id="tr-ct">Actividades recurrentes</span></div>
+        <div id="tr-filtros-bar" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:0 14px 10px"></div>
         <div class="cb" id="tr-body"></div>
       </div>
     </div>
@@ -1008,6 +1020,13 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
           <span class="muted" style="font-size:10px">a</span>
           <input type="date" id="act-m-plan-hasta" class="fi" style="width:118px;font-size:11px" onchange="renderActividadesMaster()">
         </span>
+        <select id="act-m-periodo" class="fi" style="width:140px" onchange="actMPeriodoRapido(this.value)">
+          <option value="">Período rápido...</option>
+          <option value="semana">Esta semana</option>
+          <option value="semanaProx">Próxima semana</option>
+          <option value="mes">Este mes</option>
+          <option value="mesProx">Próximo mes</option>
+        </select>
         <select id="act-m-agrupar" class="fi" style="width:150px" onchange="onActMGrupoChange(1)">
           <option value="" selected>Sin agrupar</option>
           <option value="urgencia">Grupo 1: Vencimiento</option>
@@ -1411,7 +1430,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
 <!-- ══ MODAL TAREA RECURRENTE ══ -->
 <div class="mo" id="modal-tarea-recurrente">
   <div class="modal" style="max-width:460px">
-    <div class="mh"><span class="mt" id="mtr-title">Nueva tarea recurrente</span><button class="mx" onclick="closeModal('modal-tarea-recurrente')">✕</button></div>
+    <div class="mh"><span class="mt" id="mtr-title">Nueva actividad recurrente</span><button class="mx" onclick="closeModal('modal-tarea-recurrente')">✕</button></div>
     <div class="mb">
       <div class="fg">
         <div class="field"><label>Nombre *</label><input type="text" id="tr-nombre" class="fi" placeholder="Ej: Nacimiento de lecherón pre-girasol/maíz"></div>
@@ -1422,7 +1441,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
             <option value="general">General (sin lote) — genera una sola Actividad, no ligada a ningún lote</option>
           </select>
         </div>
-        <div id="tr-lote-fields">
+        <div id="tr-cultivo-rol-wrap">
           <div class="field" style="display:flex;gap:8px">
             <div style="flex:1"><label>Cultivo</label><select id="tr-cultivo" class="fi"><option value="cualquiera">Cualquiera</option></select></div>
             <div style="flex:1"><label>Rol en el lote</label>
@@ -1434,10 +1453,11 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
               </select>
             </div>
           </div>
+          <div class="muted" id="tr-cultivo-rol-hint" style="font-size:10px;margin-top:-6px;margin-bottom:6px;display:none">Condición que tienen que cumplir los lotes para que, al llegar el momento, puedas generarles el relevamiento individual.</div>
         </div>
         <div id="tr-general-fields" style="display:none">
           <div class="field"><label>Tipo de actividad a generar</label>
-            <select id="tr-tipo-actividad" class="fi"></select>
+            <select id="tr-tipo-actividad" class="fi" onchange="onTrAlcanceChange()"></select>
           </div>
         </div>
         <div class="field">
@@ -1474,6 +1494,20 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
     <div class="mf">
       <button class="btn bs" onclick="closeModal('modal-tarea-recurrente')">Cancelar</button>
       <button class="btn bp" onclick="saveTareaRecurrente()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL RELEVAMIENTO GENERAL (placeholder que genera por lote a demanda) ══ -->
+<div class="mo" id="modal-relev-general">
+  <div class="modal" style="max-width:460px">
+    <div class="mh"><span class="mt">🔍 Relevamiento (general)</span><button class="mx" onclick="closeModal('modal-relev-general')">✕</button></div>
+    <div class="mb">
+      <div class="fg" id="mrg-body"></div>
+    </div>
+    <div class="mf">
+      <button class="btn bs" onclick="closeModal('modal-relev-general')">Cerrar</button>
+      <button class="btn bp" id="mrg-generar-btn" onclick="generarRelevamientosDesdeGeneral()">Generar relevamientos por lote</button>
     </div>
   </div>
 </div>
@@ -2008,18 +2042,20 @@ function ventanaFechasTareaGeneral(t,cicloAnio){
   return{ini:`${cicloAnio}-${p(t.mesIni)}-${p(t.diaIni)}`,fin:`${yFin}-${p(t.mesFin)}-${p(t.diaFin)}`};
 }
 // Motor para las plantillas generales. La regla (tal cual la pediste) es:
-// "mientras haya una viva, no se toca; recién cuando la elimino se genera la
-// del ciclo que sigue" — el avance de un ciclo al otro lo dispara SOLO
-// eliminarla, nunca el solo paso del calendario. Por eso, a diferencia de las
-// "por lote" (que preguntan "¿existe algo para HOY?"), estas preguntan
-// "¿sigue viva la última que generé?":
+// "mientras haya una viva, no se toca; recién cuando la cierro (la elimino, o
+// la marco Realizada) se genera la del ciclo que sigue" — el avance de un
+// ciclo al otro lo dispara SOLO cerrarla, nunca el solo paso del calendario.
+// Por eso, a diferencia de las "por lote" (que preguntan "¿existe algo para
+// HOY?"), estas preguntan "¿sigue viva (pendiente) la última que generé?":
 //  - Si la plantilla todavía no generó nada: se crea la primera, para el año
 //    calendario de HOY (si la ventana de este año ya pasó, igual se genera
 //    con esa fecha — se va a ver vencida, que es lo correcto; si todavía no
 //    llegó, se ve como pendiente a futuro, igual que ya pasa con las "por
 //    lote" pre-cargadas con anticipación).
-//  - Si la última generada sigue viva (no la borraste): no se toca.
-//  - Si la última generada está borrada: se genera la del año siguiente al
+//  - Si la última generada sigue pendiente (ni borrada ni realizada): no se
+//    toca.
+//  - Si la última generada está borrada o Realizada (queda su trazabilidad,
+//    solo cambia si sigue "abierta"): se genera la del año siguiente al
 //    de esa última (no el "año de hoy" — así nunca se salta un ciclo ni
 //    genera de más si todavía no llegaste a completarla).
 function generarTareasRecurrentesGenerales(){
@@ -2031,7 +2067,7 @@ function generarTareasRecurrentesGenerales(){
     if(!existentes.length){
       cicloAnio=yHoy;
     } else {
-      if(existentes.some(a=>!a.borrado))return; // sigue viva — no se genera nada nuevo
+      if(existentes.some(a=>!a.borrado&&!a.fechaRealizacion))return; // sigue viva (pendiente) — no se genera nada nuevo
       cicloAnio=Math.max(...existentes.map(a=>a.tareaRecurrenteCicloAnio||0))+1;
     }
     const{ini,fin}=ventanaFechasTareaGeneral(t,cicloAnio);
@@ -2078,7 +2114,7 @@ function generarTareasRecurrentesActivas(){
   const n=n1+n2;
   actualizarCampanitaTareas();
   if(n>0){
-    mostrarSnackbar(`🔁 Se generaron ${n} tarea(s) recurrente(s)`,'blue');
+    mostrarSnackbar(`🔁 Se generaron ${n} actividad(es) recurrente(s)`,'blue');
     refrescarVistasActividad();
   }
   return n;
@@ -2116,7 +2152,9 @@ let _editTareaRecId=null;
 // maneja 100% por año calendario, sin campaña de por medio).
 function onTrAlcanceChange(){
   const general=document.getElementById('tr-alcance').value==='general';
-  document.getElementById('tr-lote-fields').style.display=general?'none':'block';
+  const esRelevGeneral=general&&document.getElementById('tr-tipo-actividad').value==='RelevGeneral';
+  document.getElementById('tr-cultivo-rol-wrap').style.display=(!general||esRelevGeneral)?'block':'none';
+  document.getElementById('tr-cultivo-rol-hint').style.display=esRelevGeneral?'block':'none';
   document.getElementById('tr-general-fields').style.display=general?'block':'none';
   document.getElementById('tr-anio-ventana-wrap').style.display=general?'none':'block';
 }
@@ -2125,9 +2163,16 @@ function openModalTareaRecurrente(id=null){
   const sc=document.getElementById('tr-cultivo');
   if(sc){const pv=sc.value;sc.innerHTML='<option value="cualquiera">Cualquiera</option>';(DB.cultivos||[]).forEach(c=>sc.innerHTML+=`<option value="${c}">${c}</option>`);sc.value=pv||'cualquiera';}
   const st=document.getElementById('tr-tipo-actividad');
-  if(st){const pv=st.value;st.innerHTML=ordenTiposActivos().filter(n=>n!=='Relevamiento').map(nombre=>{const tt=ACT_TIPOS[nombre]||{};return`<option value="${nombre}">${tt.icono||'📝'} ${nombre}</option>`;}).join('');st.value=pv||st.value;}
+  // "Relevamiento" normal (el que crea un registro por lote en el acto) no
+  // tiene sentido acá — pero sí una opción especial "RelevGeneral": genera UNA
+  // sola Actividad general por ciclo que, en vez de quedar suelta, lista los
+  // lotes que cumplen la condición y permite generar los relevamientos
+  // individuales con un clic cuando llega el momento (ver abrirRelevGeneral).
+  if(st){const pv=st.value;st.innerHTML='<option value="RelevGeneral">🔍 Relevamiento (genera por lote, a demanda)</option>'
+    +ordenTiposActivos().filter(n=>n!=='Relevamiento').map(nombre=>{const tt=ACT_TIPOS[nombre]||{};return`<option value="${nombre}">${tt.icono||'📝'} ${nombre}</option>`;}).join('');
+    st.value=pv||st.value;}
   const t=id?(DB.tareasRecurrentes||[]).find(x=>x.id===id):null;
-  document.getElementById('mtr-title').textContent=t?'Editar tarea recurrente':'Nueva tarea recurrente';
+  document.getElementById('mtr-title').textContent=t?'Editar actividad recurrente':'Nueva actividad recurrente';
   document.getElementById('tr-nombre').value=t?.nombre||'';
   document.getElementById('tr-alcance').value=t?.alcance==='general'?'general':'lote';
   document.getElementById('tr-cultivo').value=t?.cultivo||'cualquiera';
@@ -2155,7 +2200,8 @@ function renderTrInstancias(t){
   let vivas;
   if(t.alcance==='general'){
     vivas=(DB.actividades||[]).filter(a=>a.tareaRecurrenteId===t.id&&!a.borrado).map(a=>({
-      id:a.id,esRelev:false,txt:`${(ACT_TIPOS[a.tipo]||{}).icono||'📝'} ${a.tipo} — ${a.fechaRealizacion?'✅ Realizada '+a.fechaRealizacion:'🕒 Pendiente, desde '+(a.fecha||'?')}`
+      id:a.id,esRelev:false,esRelevGeneral:a.tipo==='RelevGeneral',
+      txt:`${(ACT_TIPOS[a.tipo]||{}).icono||'📝'} ${a.tipo==='RelevGeneral'?'Relevamiento (por lote)':a.tipo} — ${a.fechaRealizacion?'✅ Realizada '+a.fechaRealizacion:'🕒 Pendiente, desde '+(a.fecha||'?')}`
     }));
   } else {
     const camp=getCampanaActiva();
@@ -2167,7 +2213,7 @@ function renderTrInstancias(t){
   wrap.style.display='block';
   document.getElementById('tr-instancias').innerHTML=vivas.map(v=>
     `<div style="display:flex;align-items:center;gap:6px;font-size:11px;padding:3px 0">
-      <a href="#" onclick="event.preventDefault();${v.esRelev?`closeModal('modal-tarea-recurrente');openModalRelev('${v.id}')`:`closeModal('modal-tarea-recurrente');openModalActividad(null,null,null,'${v.id}')`}" style="color:var(--accent);flex:1">${v.txt}</a>
+      <a href="#" onclick="event.preventDefault();${v.esRelev?`closeModal('modal-tarea-recurrente');openModalRelev('${v.id}')`:(v.esRelevGeneral?`closeModal('modal-tarea-recurrente');abrirRelevGeneral('${v.id}')`:`closeModal('modal-tarea-recurrente');openModalActividad(null,null,null,'${v.id}')`)}" style="color:var(--accent);flex:1">${v.txt}</a>
       <button class="btn bd bxs" title="Eliminar esta instancia" onclick="${v.esRelev?`trEliminarInstancia('${v.id}',true)`:`trEliminarInstancia('${v.id}',false)`}">✕</button>
     </div>`
   ).join('');
@@ -2190,6 +2236,100 @@ function trEliminarInstancia(id,esRelev){
     const t=_editTareaRecId?(DB.tareasRecurrentes||[]).find(x=>x.id===_editTareaRecId):null;
     renderTrInstancias(t);
   });
+}
+// ── Relevamiento "general" con generación por lote a demanda ──
+// Idea de Mariano: en vez de llenar Actividades de relevamientos sueltos o de
+// no poder usar "Relevamiento" en una tarea General, la plantilla general con
+// tipo "RelevGeneral" genera UNA sola Actividad placeholder por ciclo. Esa
+// Actividad no es el relevamiento en sí — es la que, al abrirla, te muestra
+// qué lotes cumplen HOY la condición (cultivo/rol) y te deja generar con un
+// clic el Relevamiento real de cada uno. Al generar, la Actividad general
+// queda marcada Realizada (no se borra — eso es lo que le da trazabilidad) y
+// ese cierre es lo que habilita que se genere la del ciclo siguiente.
+function lotesQueMatcheanTareaGeneral(t,camp){
+  if(!t)return[];
+  return DB.lotes.filter(l=>cultivoCumpleTarea(l.id,camp,t)).map(l=>{
+    const cli=DB.clientes.find(c=>c.id===l.clienteId);
+    const campo=DB.campos.find(c=>c.id===l.campoId);
+    const yaExiste=(DB.relevamientos||[]).some(r=>r.loteId===l.id&&r.campaña===camp&&r.tareaRecurrenteId===t.id);
+    return{lote:l,cli,campo,yaExiste};
+  });
+}
+let _editRelevGeneralId=null;
+function abrirRelevGeneral(actId){
+  const a=(DB.actividades||[]).find(x=>x.id===actId);
+  if(!a){mostrarSnackbar('⚠️ No se encontró esa actividad','amber');return;}
+  _editRelevGeneralId=actId;
+  renderModalRelevGeneral();
+  openModal('modal-relev-general');
+}
+function renderModalRelevGeneral(){
+  const a=(DB.actividades||[]).find(x=>x.id===_editRelevGeneralId);
+  const cont=document.getElementById('mrg-body');
+  if(!a||!cont){closeModal('modal-relev-general');return;}
+  const t=(DB.tareasRecurrentes||[]).find(x=>x.id===a.tareaRecurrenteId);
+  const ROL_LBL={'cualquiera':'cualquiera','1':'1ª','2':'2ª','cob':'cobertura'};
+  const camp=a.campaña||getCampanaActiva();
+  let html=`<div class="field"><label>Plantilla</label>${t?`<a href="#" onclick="event.preventDefault();closeModal('modal-relev-general');navTo('tareas-recurrentes');openModalTareaRecurrente('${t.id}')" style="color:var(--accent);font-weight:500">${t.nombre}</a>`:'<span class="muted">(plantilla eliminada)</span>'}</div>`;
+  html+=`<div class="field"><label>Condición</label><span class="badge bg-amber">${(t?.cultivo||'cualquiera')==='cualquiera'?'Cualquier cultivo':t.cultivo}</span> <span class="badge bg-gray">${ROL_LBL[t?.rol]||'cualquiera'}</span></div>`;
+  html+=`<div class="field"><label>Ventana de este ciclo</label><span class="mono">${a.fecha||'?'} → ${a.fechaFin||'?'}</span></div>`;
+  if(a.obs)html+=`<div class="field"><label>Observación precargada</label>${a.obs}</div>`;
+  if(a.fechaRealizacion){
+    const generados=(DB.relevamientos||[]).filter(r=>r.tareaRecurrenteId===a.tareaRecurrenteId&&r.campaña===camp).sort((x,y)=>(x.loteNombre||'').localeCompare(y.loteNombre||''));
+    html+=`<div class="field"><label>Estado</label><span class="badge bg-green">✅ Realizada ${a.fechaRealizacion}</span></div>`;
+    html+=`<div class="field"><label>Relevamientos generados (${generados.length})</label>`
+      +(generados.length?generados.map(r=>`<div style="font-size:11px;padding:2px 0"><a href="#" onclick="event.preventDefault();closeModal('modal-relev-general');openModalRelev('${r.id}')" style="color:var(--accent)">${r.loteNombre} — ${r.cli?.nombre||r.clienteNombre||'?'} — ${r.fecha?'✅ '+r.fecha:'🕒 pendiente'}</a></div>`).join(''):'<span class="muted" style="font-size:11px">Se marcó Realizada sin generar ninguno (no había lotes que matchearan).</span>')
+      +'</div>';
+  } else {
+    const matches=lotesQueMatcheanTareaGeneral(t,camp).filter(m=>!m.yaExiste);
+    html+=`<div class="field"><label>Lotes que cumplen la condición ahora mismo (${matches.length})</label>`
+      +(matches.length?matches.map(m=>`<div style="font-size:11px;padding:2px 0">🔹 ${m.lote.nombre} — ${m.campo?.nombre||'?'} — ${m.cli?.nombre||'?'}</div>`).join(''):'<span class="muted" style="font-size:11px">Ninguno por ahora — podés generar igual para cerrar este ciclo sin crear relevamientos.</span>')
+      +'</div>';
+  }
+  cont.innerHTML=html;
+  const btn=document.getElementById('mrg-generar-btn');
+  if(btn)btn.style.display=a.fechaRealizacion?'none':'block';
+}
+// Genera el Relevamiento real en cada lote que matchea (si falta — nunca
+// duplica uno que ya exista para esta plantilla+campaña+lote) y cierra el
+// ciclo marcando la Actividad general como Realizada, sin borrarla.
+function generarRelevamientosDesdeGeneral(){
+  const a=(DB.actividades||[]).find(x=>x.id===_editRelevGeneralId);
+  if(!a){return;}
+  if(a.fechaRealizacion){mostrarSnackbar('Este ciclo ya se generó','amber');return;}
+  const t=(DB.tareasRecurrentes||[]).find(x=>x.id===a.tareaRecurrenteId);
+  if(!t){mostrarSnackbar('⚠️ No se encontró la plantilla de origen','amber');return;}
+  const camp=a.campaña||getCampanaActiva();
+  const matches=lotesQueMatcheanTareaGeneral(t,camp).filter(m=>!m.yaExiste);
+  const msg=matches.length
+    ?`¿Generar ${matches.length} relevamiento(s) individual(es), uno por cada lote que cumple la condición? Esta actividad general va a quedar marcada como Realizada (no se borra, para que quede trazabilidad).`
+    :'No hay ningún lote que cumpla la condición por ahora. ¿Marcar este ciclo como Realizado igual, sin generar relevamientos?';
+  confirmarAccion(msg,()=>{
+    matches.forEach(({lote:l,cli,campo})=>{
+      const rolInfo=cultivosRolDeLote(l.id,camp).find(r=>(!t.rol||t.rol==='cualquiera'||r.rol===t.rol)&&(!t.cultivo||t.cultivo==='cualquiera'||baseCultivo(r.cultivo)===baseCultivo(t.cultivo)));
+      DB.relevamientos.push({
+        id:uid(),fecha:null,fechaInicio:a.fecha,fechaLimite:a.fechaFin,campaña:camp,
+        cultivo:rolInfo?.cultivo||'',
+        clienteId:l.clienteId,campoId:l.campoId,loteId:l.id,
+        clienteNombre:cli?.nombre||'',campoNombre:campo?.nombre||'',
+        loteNombre:l.nombre||'',loteHa:l.ha||0,
+        malezas:[],productos:[],
+        obs:t.obs||'',
+        mejoraProgramada:!!t.mejora,
+        estado:'Relevado',
+        tareaRecurrenteId:t.id,
+        origenRelevId:null,
+        corto:nextRelevCodigo(),
+        createdAt:Date.now(),
+      });
+    });
+    a.fechaRealizacion=hoyLocal();a.estado='Realizada';
+    save();
+    generarTareasRecurrentesGenerales();
+    refrescarVistasActividad();
+    renderModalRelevGeneral();
+    mostrarSnackbar(matches.length?`✅ Se generaron ${matches.length} relevamiento(s)`:'✅ Ciclo cerrado');
+  },'Generar');
 }
 function saveTareaRecurrente(){
   const nombre=document.getElementById('tr-nombre').value.trim();
@@ -2232,39 +2372,110 @@ function eliminarTareaRecurrente(id){
     save();renderTareasRecurrentes();
   },'Eliminar');
 }
+let _trFiltros={alcance:'',estado:'',cultivo:'',tipo:''};
+let _trSort={col:'nombre',dir:1};
+function trFiltroSet(k,v){_trFiltros[k]=v;renderTareasRecurrentes();}
+function trFiltrosLimpiar(){_trFiltros={alcance:'',estado:'',cultivo:'',tipo:''};renderTareasRecurrentes();}
+function trSortBy(col){
+  if(_trSort.col===col)_trSort.dir*=-1;else{_trSort={col,dir:1};}
+  renderTareasRecurrentes();
+}
 function renderTareasRecurrentes(){
   const cont=document.getElementById('tr-body');if(!cont)return;
-  const lista=DB.tareasRecurrentes||[];
-  document.getElementById('tr-ct').textContent=`Tareas recurrentes (${lista.length})`;
-  if(!lista.length){cont.innerHTML='<div class="empty"><div class="empty-icon">🔁</div><div class="empty-t">Sin tareas recurrentes</div><div class="empty-s">Creá la primera con "+ Nueva tarea recurrente"</div></div>';return;}
   const campAct=getCampanaActiva();
   const ROL_LBL={'cualquiera':'cualquiera','1':'1ª','2':'2ª','cob':'cobertura'};
+  const todas=DB.tareasRecurrentes||[];
+
+  // Barra de filtros — las opciones de Cultivo/Tipo solo muestran los valores
+  // que de verdad están en uso (nada de listar todo el catálogo si no hace falta).
+  const fb=document.getElementById('tr-filtros-bar');
+  if(fb){
+    const cultivosUsados=Array.from(new Set(todas.map(t=>t.cultivo).filter(c=>c&&c!=='cualquiera'))).sort();
+    const tiposUsados=Array.from(new Set(todas.filter(t=>t.alcance==='general').map(t=>t.tipoActividad).filter(Boolean)));
+    const hayFiltros=_trFiltros.alcance||_trFiltros.estado||_trFiltros.cultivo||_trFiltros.tipo;
+    fb.innerHTML=`
+      <select class="fi" style="width:auto" onchange="trFiltroSet('alcance',this.value)">
+        <option value=""${!_trFiltros.alcance?' selected':''}>Alcance: todos</option>
+        <option value="lote"${_trFiltros.alcance==='lote'?' selected':''}>Por lote</option>
+        <option value="general"${_trFiltros.alcance==='general'?' selected':''}>General</option>
+      </select>
+      <select class="fi" style="width:auto" onchange="trFiltroSet('estado',this.value)">
+        <option value=""${!_trFiltros.estado?' selected':''}>Estado: todas</option>
+        <option value="activa"${_trFiltros.estado==='activa'?' selected':''}>Activas</option>
+        <option value="pausada"${_trFiltros.estado==='pausada'?' selected':''}>Pausadas</option>
+      </select>
+      <select class="fi" style="width:auto" onchange="trFiltroSet('cultivo',this.value)">
+        <option value=""${!_trFiltros.cultivo?' selected':''}>Cultivo: todos</option>
+        ${cultivosUsados.map(c=>`<option value="${c}"${_trFiltros.cultivo===c?' selected':''}>${c}</option>`).join('')}
+      </select>
+      <select class="fi" style="width:auto" onchange="trFiltroSet('tipo',this.value)">
+        <option value=""${!_trFiltros.tipo?' selected':''}>Tipo: todos</option>
+        ${tiposUsados.map(tp=>`<option value="${tp}"${_trFiltros.tipo===tp?' selected':''}>${tp==='RelevGeneral'?'🔍 Relevamiento (por lote)':tp}</option>`).join('')}
+      </select>
+      ${hayFiltros?`<button class="btn bs bxs" onclick="trFiltrosLimpiar()">✕ Limpiar filtros</button>`:''}
+    `;
+  }
+
+  let lista=todas.filter(t=>{
+    if(_trFiltros.alcance==='general'&&t.alcance!=='general')return false;
+    if(_trFiltros.alcance==='lote'&&t.alcance==='general')return false;
+    if(_trFiltros.estado==='activa'&&t.activo===false)return false;
+    if(_trFiltros.estado==='pausada'&&t.activo!==false)return false;
+    if(_trFiltros.cultivo&&t.cultivo!==_trFiltros.cultivo)return false;
+    if(_trFiltros.tipo&&t.tipoActividad!==_trFiltros.tipo)return false;
+    return true;
+  });
+
+  document.getElementById('tr-ct').textContent=`Actividades recurrentes (${lista.length}${lista.length!==todas.length?` de ${todas.length}`:''})`;
+  if(!todas.length){cont.innerHTML='<div class="empty"><div class="empty-icon">🔁</div><div class="empty-t">Sin actividades recurrentes</div><div class="empty-s">Creá la primera con "+ Nueva actividad recurrente"</div></div>';return;}
+  if(!lista.length){cont.innerHTML='<div class="empty"><div class="empty-icon">🔎</div><div class="empty-t">Ninguna coincide con los filtros</div><div class="empty-s">Probá sacando algún filtro</div></div>';return;}
+
+  // Fecha inicio/fin se ordenan de forma independiente, cíclicas por mes/día
+  // (no por año — estas plantillas no tienen año propio, se repiten siempre).
+  const sortKeyFns={
+    nombre:t=>(t.nombre||'').toLowerCase(),
+    alcance:t=>t.alcance==='general'?1:0,
+    fechaIni:t=>`${String(t.mesIni||0).padStart(2,'0')}-${String(t.diaIni||0).padStart(2,'0')}`,
+    fechaFin:t=>`${String(t.mesFin||0).padStart(2,'0')}-${String(t.diaFin||0).padStart(2,'0')}`,
+    estado:t=>t.activo!==false?0:1,
+  };
+  const sortKey=sortKeyFns[_trSort.col]||sortKeyFns.nombre;
+  lista=lista.slice().sort((a,b)=>{
+    const ka=sortKey(a),kb=sortKey(b);
+    if(ka<kb)return -1*_trSort.dir;if(ka>kb)return 1*_trSort.dir;
+    return(a.nombre||'').localeCompare(b.nombre||'');
+  });
+
+  const thS=(label,col)=>{const arrow=_trSort.col===col?(_trSort.dir>0?' ▲':' ▼'):'';return`<th onclick="trSortBy('${col}')" style="cursor:pointer;user-select:none" title="Ordenar">${label}${arrow}</th>`;};
+
   cont.innerHTML='<div class="tw"><table><thead><tr>'
-    +'<th>Nombre</th><th>Alcance</th><th>Condición</th><th>Ventana</th><th>Generadas</th><th>Estado</th><th class="ph"></th>'
+    +thS('Nombre','nombre')+thS('Alcance','alcance')+'<th>Condición</th>'+thS('Fecha inicio','fechaIni')+thS('Fecha fin','fechaFin')+'<th>Generadas</th>'+thS('Estado','estado')+'<th class="ph"></th>'
     +'</tr></thead><tbody>'
     +lista.map(t=>{
       const general=t.alcance==='general';
       const p=n=>String(n).padStart(2,'0');
-      let condicionHTML,ventanaHTML,generadasHTML;
+      let condicionHTML,generadasHTML;
       if(general){
         const generadas=(DB.actividades||[]).filter(a=>a.tareaRecurrenteId===t.id&&!a.borrado).length;
         const pend=(DB.actividades||[]).filter(a=>a.tareaRecurrenteId===t.id&&!a.borrado&&!a.fechaRealizacion).length;
         const tt=ACT_TIPOS[t.tipoActividad]||{};
-        condicionHTML=`<span class="badge bg-blue">${tt.icono||'📝'} ${t.tipoActividad||'(sin tipo)'}</span>`;
-        ventanaHTML=`<td class="mono">${p(t.diaIni)}/${p(t.mesIni)} → ${p(t.diaFin)}/${p(t.mesFin)} <span class="muted" style="font-size:10px">(todos los años, por fecha calendario)</span></td>`;
+        const esRelevGen=t.tipoActividad==='RelevGeneral';
+        condicionHTML=esRelevGen
+          ?`<span class="badge bg-purple">🔍 Relevamiento (por lote)</span> <span class="badge bg-amber">${t.cultivo==='cualquiera'?'Cualquier cultivo':t.cultivo}</span> <span class="badge bg-gray">${ROL_LBL[t.rol]||'cualquiera'}</span>`
+          :`<span class="badge bg-blue">${tt.icono||'📝'} ${t.tipoActividad||'(sin tipo)'}</span>`;
         generadasHTML=`<td>${generadas} <span class="muted" style="font-size:10px">(histórico · ${pend} pendiente${pend===1?'':'s'})</span></td>`;
       } else {
         const generadasCamp=(DB.relevamientos||[]).filter(r=>r.tareaRecurrenteId===t.id&&r.campaña===campAct&&!r.borrado).length;
         const pendCamp=(DB.relevamientos||[]).filter(r=>r.tareaRecurrenteId===t.id&&r.campaña===campAct&&!r.borrado&&!r.fecha).length;
         condicionHTML=`<span class="badge bg-amber">${t.cultivo==='cualquiera'?'Cualquier cultivo':t.cultivo}</span> <span class="badge bg-gray">${ROL_LBL[t.rol]||'cualquiera'}</span>`;
-        ventanaHTML=`<td class="mono">${p(t.diaIni)}/${p(t.mesIni)} → ${p(t.diaFin)}/${p(t.mesFin)} <span class="muted" style="font-size:10px">(${t.anioVentana===2?'2º año':'1º año'} de la campaña)</span></td>`;
         generadasHTML=`<td>${generadasCamp} <span class="muted" style="font-size:10px">(campaña activa · ${pendCamp} pendiente${pendCamp===1?'':'s'})</span></td>`;
       }
       return'<tr>'
         +`<td><strong>${t.nombre}</strong>${t.mejora?' <span class="mejora-pill" title="Marca la actividad generada como Mejora programada">🔧</span>':''}</td>`
         +`<td>${general?'<span class="badge bg-purple">General (sin lote)</span>':'<span class="badge bg-gray">Por lote</span>'}</td>`
         +`<td>${condicionHTML}</td>`
-        +ventanaHTML
+        +`<td class="mono">${p(t.diaIni)}/${p(t.mesIni)}</td>`
+        +`<td class="mono">${p(t.diaFin)}/${p(t.mesFin)}${general?'':` <span class="muted" style="font-size:10px">(${t.anioVentana===2?'2º año':'1º año'})</span>`}</td>`
         +generadasHTML
         +`<td>${t.activo!==false?'<span class="badge bg-green">Activa</span>':'<span class="badge bg-gray">Pausada</span>'}</td>`
         +`<td class="rf ph"><button class="btn bs bxs" onclick="openModalTareaRecurrente('${t.id}')" title="Editar">✏️</button><button class="btn bd bxs" onclick="eliminarTareaRecurrente('${t.id}')" title="Eliminar">✕</button></td>`
@@ -2498,8 +2709,8 @@ function calPill(it){
   const f=it.real||it.fecha||it.fechaFin;
   const txt=f?f.slice(8,10)+'/'+f.slice(5,7):'s/f';
   const letra=ACT_TIPO_LETRA[it.tipo]||(it.tipo||'?').slice(0,1).toUpperCase();
-  const abrir=it.esRelev?`openModalRelev('${it.id}')`:`openModalActividad(null,null,null,'${it.id}')`;
-  const tit=`${it.tipo} — ${it.estado}${it.fecha?' · inicio '+it.fecha:''}${it.fechaFin?' · límite '+it.fechaFin:''}${it.real?' · realizada '+it.real:''}${it.cultivo?' · '+it.cultivo:''}${it.mejoraProgramada?' · 🔧 Mejora programada':''}`;
+  const abrir=it.esRelev?`openModalRelev('${it.id}')`:(it.tipo==='RelevGeneral'?`abrirRelevGeneral('${it.id}')`:`openModalActividad(null,null,null,'${it.id}')`);
+  const tit=`${it.tipo==='RelevGeneral'?'Relevamiento (por lote)':it.tipo} — ${it.estado}${it.fecha?' · inicio '+it.fecha:''}${it.fechaFin?' · límite '+it.fechaFin:''}${it.real?' · realizada '+it.real:''}${it.cultivo?' · '+it.cultivo:''}${it.mejoraProgramada?' · 🔧 Mejora programada':''}`;
   // Lo Pendiente (todavía no se hizo) tiene que distinguirse de un vistazo de
   // lo Realizado — no solo por el color, que se puede confundir entre celdas
   // chicas: lleva además un borde marcado y el 🕒 antes de la inicial.
@@ -2744,8 +2955,8 @@ function renderPapelera(){
       if(it.tareaRecurrenteId){
         const plantilla=(DB.tareasRecurrentes||[]).find(x=>x.id===it.tareaRecurrenteId);
         const tr=plantilla
-          ?`<a href="#" onclick="event.preventDefault();navTo('tareas-recurrentes');openModalTareaRecurrente('${plantilla.id}')" style="color:var(--accent);font-size:11px" title="Abrir la tarea recurrente que la generó">🔁 ${plantilla.nombre}</a>`
-          :'<span class="muted" style="font-size:11px">🔁 tarea recurrente ya eliminada</span>';
+          ?`<a href="#" onclick="event.preventDefault();navTo('tareas-recurrentes');openModalTareaRecurrente('${plantilla.id}')" style="color:var(--accent);font-size:11px" title="Abrir la actividad recurrente que la generó">🔁 ${plantilla.nombre}</a>`
+          :'<span class="muted" style="font-size:11px">🔁 actividad recurrente ya eliminada</span>';
         origen=origen==='<span class="muted">—</span>'?tr:origen+' · '+tr;
       }
       return`<tr>
@@ -3103,30 +3314,24 @@ function calVerMesEnActividades(ym){
   renderActividadesMaster();
 }
 function clearFiltrosCal(){
-  const c1=document.getElementById('cal-cli'),c2=document.getElementById('cal-campo');
-  if(c1)c1.value='';if(c2)c2.value='';
   const c3=document.getElementById('cal-mejora');if(c3)c3.value='';
-  msClear('cal-lote');msClear('cal-cult');msClear('cal-tipo');msClear('cal-estado');
+  const c4=document.getElementById('cal-vacio-mes');if(c4)c4.value='';
+  msClear('cal-cli');msClear('cal-campo');msClear('cal-lote');msClear('cal-cult');msClear('cal-tipo');msClear('cal-estado');
   renderCalendario();
 }
 function renderCalendario(){
   const cont=document.getElementById('cal-body');if(!cont)return;
-  const selCli=document.getElementById('cal-cli'),selCampo=document.getElementById('cal-campo');
-  if(selCli){const pv=selCli.value;selCli.innerHTML='<option value="">Todos los clientes</option>'+DB.clientes.slice().sort((a,b)=>a.nombre.localeCompare(b.nombre)).map(c=>`<option value="${c.id}"${c.id===pv?' selected':''}>${c.nombre}</option>`).join('');}
-  const fCli=selCli?.value||'';
-  if(selCampo){
-    const pv=selCampo.value;
-    const camposOpt=(fCli?DB.campos.filter(c=>c.clienteId===fCli):DB.campos).slice().sort((a,b)=>a.nombre.localeCompare(b.nombre));
-    selCampo.innerHTML='<option value="">Todos los campos</option>'+camposOpt.map(c=>`<option value="${c.id}"${c.id===pv?' selected':''}>${c.nombre}</option>`).join('');
-    if(pv&&!camposOpt.some(c=>c.id===pv))selCampo.value='';
-  }
-  const fCampo=selCampo?.value||'';
+  msRender('cal-cli',DB.clientes.slice().sort((a,b)=>a.nombre.localeCompare(b.nombre)).map(c=>({value:c.id,label:c.nombre})),'Cliente',()=>renderCalendario());
+  const fClis=msValues('cal-cli');
+  const camposOpt=(fClis.length?DB.campos.filter(c=>fClis.includes(c.clienteId)):DB.campos).slice().sort((a,b)=>a.nombre.localeCompare(b.nombre));
+  msRender('cal-campo',camposOpt.map(c=>{const cli=DB.clientes.find(x=>x.id===c.clienteId);return{value:c.id,label:c.nombre+(cli?' — '+cli.nombre:'')};}),'Campo',()=>renderCalendario());
+  const fCampos=msValues('cal-campo');
 
   // Lote: las opciones se acotan al cliente/campo ya elegidos arriba, para no
   // mostrar lotes que de todos modos no van a aparecer.
   let lotesOpt=DB.lotes.slice();
-  if(fCli)lotesOpt=lotesOpt.filter(l=>l.clienteId===fCli);
-  if(fCampo)lotesOpt=lotesOpt.filter(l=>l.campoId===fCampo);
+  if(fCampos.length)lotesOpt=lotesOpt.filter(l=>fCampos.includes(l.campoId));
+  else if(fClis.length)lotesOpt=lotesOpt.filter(l=>fClis.includes(l.clienteId));
   msRender('cal-lote',lotesOpt.sort((a,b)=>naturalCmp(a.nombre,b.nombre)).map(l=>{const cli=DB.clientes.find(x=>x.id===l.clienteId);return{value:l.id,label:l.nombre+(cli?' — '+cli.nombre:'')};}),'Lote',()=>renderCalendario());
   const fLotes=msValues('cal-lote');
   const cultSet=new Set();
@@ -3143,6 +3348,17 @@ function renderCalendario(){
 
   const meses=calMesesRango();
   const mesesSet=new Set(meses.map(m=>m.ym));
+
+  // "Lotes vacíos/no vacíos en <mes>" — para encontrar, por ejemplo, qué
+  // lotes todavía no tienen nada cargado para Octubre.
+  const selVacioMes=document.getElementById('cal-vacio-mes');
+  if(selVacioMes){
+    const pv=selVacioMes.value;
+    selVacioMes.innerHTML='<option value="">Mes: (sin filtro)</option>'+meses.map(m=>`<option value="${m.ym}"${m.ym===pv?' selected':''}>${m.label}</option>`).join('');
+    if(pv&&!meses.some(m=>m.ym===pv))selVacioMes.value='';
+  }
+  const fVacioMes=selVacioMes?.value||'';
+  const fVacioModo=document.getElementById('cal-vacio-modo')?.value||'vacio';
 
   // Actividades generales (sin lote, p.ej. generadas por una tarea recurrente
   // de alcance "General" — una charla de rotación, un muestreo de suelo) — se
@@ -3182,8 +3398,8 @@ function renderCalendario(){
   }
 
   let campos=DB.campos.slice();
-  if(fCli)campos=campos.filter(c=>c.clienteId===fCli);
-  if(fCampo)campos=campos.filter(c=>c.id===fCampo);
+  if(fCampos.length)campos=campos.filter(c=>fCampos.includes(c.id));
+  else if(fClis.length)campos=campos.filter(c=>fClis.includes(c.clienteId));
   campos.sort((a,b)=>{
     const ca=DB.clientes.find(x=>x.id===a.clienteId)?.nombre||'',cb=DB.clientes.find(x=>x.id===b.clienteId)?.nombre||'';
     return ca.localeCompare(cb)||a.nombre.localeCompare(b.nombre);
@@ -3201,21 +3417,39 @@ function renderCalendario(){
     if(fLotes.length)lotes=lotes.filter(l=>fLotes.includes(l.id));
     _calCamposCache[campo.id]=lotes.map(l=>l.id);
     if(!lotes.length)return null;
-    let total=0;
-    const cuerpo=lotes.map((l,idx)=>{
+    // Se calculan los items de cada lote primero, y si hay algún filtro de
+    // contenido activo (cultivo/tipo/estado/mejora), se descartan directamente
+    // los lotes que no tengan ningún item que matchee — si no, quedaban
+    // apareciendo TODOS los lotes del campo (con las celdas vacías) en vez de
+    // acotarse a los que realmente cumplen lo filtrado.
+    let lotesConItems=lotes.map(l=>{
       let items=calItemsDeLote(l.id).filter(it=>it.ref&&mesesSet.has(it.ref.slice(0,7)));
       if(fCults.length)items=items.filter(it=>fCults.includes(baseCultivo(it.cultivo||'')));
       if(fTipos.length)items=items.filter(it=>fTipos.includes(it.tipo));
       if(fEstados.length)items=items.filter(it=>fEstados.includes(it.estado));
       if(fMejora==='si')items=items.filter(it=>it.mejoraProgramada);
       else if(fMejora==='no')items=items.filter(it=>!it.mejoraProgramada);
-      total+=items.length;
       const porMes={};
       meses.forEach(m=>porMes[m.ym]=[]);
       items.forEach(it=>{porMes[it.ref.slice(0,7)].push(it);});
       // Orden fijo dentro del mes: por fecha y, a igual fecha, por tipo — así
       // no van quedando salteadas según el orden en que se cargaron.
       Object.values(porMes).forEach(arr=>arr.sort((a,b)=>a.ref.localeCompare(b.ref)||a.tipo.localeCompare(b.tipo)));
+      return{l,items,porMes};
+    });
+    if(hayFiltroContenido)lotesConItems=lotesConItems.filter(x=>x.items.length);
+    // "Lotes vacíos/no vacíos en <mes>": se evalúa sobre lo que ya quedó
+    // filtrado arriba (cultivo/tipo/estado/mejora) — así "vacío en Octubre"
+    // combinado con "Girasol" te dice qué lotes de girasol no tienen nada
+    // cargado ese mes en particular, no en general.
+    if(fVacioMes){
+      lotesConItems=lotesConItems.filter(x=>{
+        const vacio=!(x.porMes[fVacioMes]||[]).length;
+        return fVacioModo==='vacio'?vacio:!vacio;
+      });
+    }
+    let total=lotesConItems.reduce((s,x)=>s+x.items.length,0);
+    const cuerpo=lotesConItems.map(({l,items,porMes},idx)=>{
       const zebra=idx%2?'background:var(--bg2)':'';
       const celdas=meses.map((m,mi)=>{
         const arr=porMes[m.ym];
@@ -3240,11 +3474,11 @@ function renderCalendario(){
           <a href="#" onclick="event.preventDefault();navTo('lote',{loteId:'${l.id}',cliId:'${l.clienteId}',campoId:'${l.campoId}'})" style="color:var(--accent);font-weight:500">${l.nombre}</a>
         </td>${celdas}</tr>`;
     }).join('');
-    if(hayFiltroContenido&&!total)return null;
+    if((hayFiltroContenido||fVacioMes)&&!lotesConItems.length)return null;
     return`<details open style="margin-bottom:10px;border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;box-shadow:var(--shadow)">
       <summary style="cursor:pointer;padding:10px 14px;font-weight:600;font-size:13px;background:var(--bg2);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
         <a href="#" onclick="event.preventDefault();event.stopPropagation();navTo('campo-detail',{campoId:'${campo.id}'})" style="color:inherit;text-decoration:underline;text-decoration-style:dotted" title="Ver ficha del campo">📍 ${campo.nombre}</a>
-        <span class="muted" style="font-weight:400;font-size:11px">👤 ${cli?.nombre||'—'} · ${lotes.length} lote${lotes.length===1?'':'s'}</span>
+        <span class="muted" style="font-weight:400;font-size:11px">👤 ${cli?.nombre||'—'} · ${lotesConItems.length} lote${lotesConItems.length===1?'':'s'}${lotesConItems.length!==lotes.length?` (de ${lotes.length})`:''}</span>
         <a href="#" onclick="event.preventDefault();event.stopPropagation();calNuevoVarios('${campo.id}')" title="Cargar una misma actividad en todos los lotes de este campo — ideal para Capacitación, análisis de suelo, etc." style="font-size:11px;color:var(--accent);margin-left:auto">＋ Nueva (varios lotes)</a>
       </summary>
       <div class="tw"><table style="width:100%;border-collapse:collapse;table-layout:fixed"><thead><tr>${th}</tr></thead><tbody>${cuerpo}</tbody></table></div>
@@ -3374,7 +3608,7 @@ const PM={
   actividades:{t:'Actividades',s:'Relevamientos y actividades de todos los lotes — realizadas y programadas'},
   planificacion:{t:'Planificación',s:'Qué tiene cada lote en la campaña — y qué falta cargar'},
   papelera:{t:'Papelera',s:'Relevamientos y actividades eliminados — se guardan 30 días por si hace falta restaurarlos'},
-  'tareas-recurrentes':{t:'Tareas recurrentes',s:'Plantillas que generan solas un relevamiento programado cada campaña, para no tener que acordarse'},
+  'tareas-recurrentes':{t:'Actividades recurrentes',s:'Plantillas que generan solas una actividad (relevamiento por lote, o cualquier otra sin lote) cada vez que corresponde, para no tener que acordarse'},
   historial:{t:'Historial y Rotación',s:'Cultivo y diagnósticos por lote, campaña a campaña — para decidir la rotación con precedentes'},
   calendario:{t:'Calendario de Actividades',s:'Por campo y lote, qué hay cargado mes a mes — últimos 2 meses y los próximos 9'},
   facturacion:{t:'Facturación',s:'Visitas realizadas (cliente + campo + fecha) para saber cómo facturar cada recorrida'},
@@ -4808,14 +5042,14 @@ function openModalRelev(editId=null){
           +((r.malezas||[]).length?'':` <button class="btn bs bxs" style="margin-left:8px" onclick="copiarDatosDeOrigen('${origen.id}')">📋 Copiar su diagnóstico</button>`);
       }
     }
-    // Si salió de una tarea recurrente, link directo a la plantilla que lo generó.
+    // Si salió de una actividad recurrente, link directo a la plantilla que lo generó.
     if(r.tareaRecurrenteId){
       const plantilla=(DB.tareasRecurrentes||[]).find(x=>x.id===r.tareaRecurrenteId);
       const oi=document.getElementById('r-origen-info');
       oi.style.display='block';
       oi.innerHTML=(oi.innerHTML||'')+(oi.innerHTML?'<br>':'')+(plantilla
-        ?`🔁 Generado por la tarea recurrente <a href="#" onclick="event.preventDefault();closeModal('modal-relev');navTo('tareas-recurrentes');openModalTareaRecurrente('${plantilla.id}')" style="color:var(--accent);font-weight:500">${plantilla.nombre}</a>`
-        :`🔁 Generado por una tarea recurrente ya eliminada`);
+        ?`🔁 Generado por la actividad recurrente <a href="#" onclick="event.preventDefault();closeModal('modal-relev');navTo('tareas-recurrentes');openModalTareaRecurrente('${plantilla.id}')" style="color:var(--accent);font-weight:500">${plantilla.nombre}</a>`
+        :`🔁 Generado por una actividad recurrente ya eliminada`);
     }
   }
   openModal('modal-relev');
@@ -5628,7 +5862,7 @@ function renderRelev(){
     const aplicarBtn='';
     return '<tr class="'+rc+'">'
       +`<td><input type="checkbox" ${_seleccionados.has(r.id)?'checked':''} onchange="toggleSeleccion('${r.id}',this)"></td>`
-      +`<td>${r.corto?`<span class="badge bg-gray mono" style="font-size:9px" title="Código corto — buscalo en el buscador">${r.corto}</span> `:''}${r.tareaRecurrenteId?`<span class="badge bg-blue" style="font-size:9px" title="Generado por una tarea recurrente">🔁</span> `:''}<span class="badge bg-purple">${r.campaña||'—'}</span></td>`
+      +`<td>${r.corto?`<span class="badge bg-gray mono" style="font-size:9px" title="Código corto — buscalo en el buscador">${r.corto}</span> `:''}${r.tareaRecurrenteId?`<span class="badge bg-blue" style="font-size:9px" title="Generado por una actividad recurrente">🔁</span> `:''}<span class="badge bg-purple">${r.campaña||'—'}</span></td>`
       +`<td class="mono">${r.fecha||'<span class="badge bg-blue" style="font-size:9px">📅 Programado</span>'}</td>`
       +`<td class="mono">${r.fechaInicio||'<span class="muted">—</span>'}</td>`
       +`<td class="mono">${r.fechaLimite||'<span class="muted">—</span>'}</td>`
@@ -6905,6 +7139,10 @@ let ACT_TIPOS={};
 function rebuildActTipos(){
   ACT_TIPOS={...ACT_TIPOS_LEGACY};
   tiposActividad().forEach(t=>{ACT_TIPOS[t.nombre]={icono:t.icono,dot:t.dot||'act-dot-otro',color:t.color||'bg-gray'};});
+  // 'RelevGeneral': tipo sintético (no vive en el catálogo editable) para las
+  // Actividades generales que son, en el fondo, un Relevamiento diferido por
+  // lote — ver generarRelevamientosDesdeGeneral(). Siempre disponible.
+  ACT_TIPOS['RelevGeneral']={icono:'🔍',dot:'act-dot-relevado',color:'bg-purple'};
 }
 rebuildActTipos();
 // Orden en que se muestran los tipos ACTIVOS (no los legacy) en los distintos
@@ -7200,14 +7438,14 @@ function openModalActividad(loteId,cliId,campoId,editId=null){
             <button class="btn bs bxs" style="margin-left:8px" onclick="desprenderActDelRelev()" title="La actividad sigue existiendo, pero deja de estar ligada a ese relevamiento">🔓 Desadjuntar</button>`;
         }
       }
-      // Si salió de una tarea recurrente (por lote o general), link directo a la plantilla.
+      // Si salió de una actividad recurrente (por lote o general), link directo a la plantilla.
       if(a.tareaRecurrenteId){
         const plantilla=(DB.tareasRecurrentes||[]).find(x=>x.id===a.tareaRecurrenteId);
         const oi2=document.getElementById('act-origen-info');
         oi2.style.display='block';
         oi2.innerHTML=(oi2.innerHTML||'')+(oi2.innerHTML?'<div style="margin-top:6px">':'<div>')+(plantilla
-          ?`🔁 Generada por la tarea recurrente <a href="#" onclick="event.preventDefault();closeModal('modal-actividad');navTo('tareas-recurrentes');openModalTareaRecurrente('${plantilla.id}')" style="color:var(--accent);font-weight:500">${plantilla.nombre}</a>`
-          :`🔁 Generada por una tarea recurrente ya eliminada`)+'</div>';
+          ?`🔁 Generada por la actividad recurrente <a href="#" onclick="event.preventDefault();closeModal('modal-actividad');navTo('tareas-recurrentes');openModalTareaRecurrente('${plantilla.id}')" style="color:var(--accent);font-weight:500">${plantilla.nombre}</a>`
+          :`🔁 Generada por una actividad recurrente ya eliminada`)+'</div>';
       }
       onActTipoChange();
       if(!_actLoteCtx){
@@ -7219,7 +7457,7 @@ function openModalActividad(loteId,cliId,campoId,editId=null){
             document.getElementById('act-lote-id').value=l.id;}
           if(loteWrap)loteWrap.style.display='block';
         } else {
-          // Actividad general (generada por una tarea recurrente sin lote, o
+          // Actividad general (generada por una actividad recurrente sin lote, o
           // duplicada de una): no se pide lote, se avisa que es así.
           if(loteWrap)loteWrap.style.display='none';
           const oi=document.getElementById('act-origen-info');
@@ -7560,12 +7798,45 @@ function clearFiltrosActM(){
   const acc=document.getElementById('act-m-accionable');if(acc)acc.value='';
   const mej=document.getElementById('act-m-mejora');if(mej)mej.value='';
   ['act-m-creada-desde','act-m-creada-hasta','act-m-real-desde','act-m-real-hasta','act-m-plan-desde','act-m-plan-hasta'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  const per=document.getElementById('act-m-periodo');if(per)per.value='';
   msClear('act-m-cli');msClear('act-m-campo');msClear('act-m-lote');msClear('act-m-cult');msClear('act-m-tipo');
   msClear('act-m-estado');msClear('act-m-urgencia');
   // "Limpiar" también vuelve el agrupamiento al default (Vencimiento solo,
   // sin sub-grupos) — si no, quedaban grupos de una limpieza anterior puestos.
   const g1=document.getElementById('act-m-agrupar');if(g1)g1.value='';
   ['act-m-agrupar2','act-m-agrupar3','act-m-agrupar4','act-m-agrupar5'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  renderActividadesMaster();
+}
+// Rango Lunes→Domingo de la semana que contiene "fecha" (Date), corrido
+// "semanas" semanas (0=esta, 1=la próxima...).
+function _rangoSemana(fecha,semanas){
+  const d=new Date(fecha);
+  const dow=(d.getDay()+6)%7; // lunes=0 ... domingo=6
+  const lunes=new Date(d);lunes.setDate(d.getDate()-dow+semanas*7);
+  const domingo=new Date(lunes);domingo.setDate(lunes.getDate()+6);
+  const f=x=>x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0');
+  return{ini:f(lunes),fin:f(domingo)};
+}
+function _rangoMes(fecha,meses){
+  const d=new Date(fecha.getFullYear(),fecha.getMonth()+meses,1);
+  const fin=new Date(d.getFullYear(),d.getMonth()+1,0);
+  const f=x=>x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0');
+  return{ini:f(d),fin:f(fin)};
+}
+// Período rápido: carga el rango Inicio/límite correspondiente y filtra —
+// disponible en Actividades. Reutiliza el mismo filtro de fecha que ya existía,
+// así no agrega un concepto nuevo, solo una forma más rápida de completarlo.
+function actMPeriodoRapido(val){
+  if(!val)return;
+  const hoy=new Date(hoyLocal()+'T00:00:00');
+  let r;
+  if(val==='semana')r=_rangoSemana(hoy,0);
+  else if(val==='semanaProx')r=_rangoSemana(hoy,1);
+  else if(val==='mes')r=_rangoMes(hoy,0);
+  else if(val==='mesProx')r=_rangoMes(hoy,1);
+  if(!r)return;
+  document.getElementById('act-m-plan-desde').value=r.ini;
+  document.getElementById('act-m-plan-hasta').value=r.fin;
   renderActividadesMaster();
 }
 // Dos vistas de un clic: "lo mío" (relevamientos, los hago yo) y "lo de mis
@@ -7866,16 +8137,20 @@ function renderActividadesMaster(){
     // la OT directo con sus propios datos — ya no depende del relevamiento.
     const otBtn=f.esRelev?`<button class="btn bb bxs" onclick="openOTFromRelev('${f.id}')" title="Descargar Orden de Trabajo">📋</button>`
       :(f.tipo==='Aplicación'?`<button class="btn bb bxs" onclick="navTo('ot',{ids:['${f.id}']})" title="Descargar Orden de Trabajo">📋</button>`:'');
+    const esRelevGen=!f.esRelev&&f.tipo==='RelevGeneral';
     const acciones=f.esRelev
       ?`${otBtn}<button class="btn bs bxs" onclick="duplicarRelev('${f.id}')" title="Duplicar (útil para varios lotes con el mismo tratamiento/fechas)">📄</button>
          <button class="btn bs bxs" onclick="editRelevFromMaster('${f.id}')" title="${f.estado==='Pendiente'?'Completar relevamiento':'Editar'}">✏️</button>
          <button class="btn bd bxs" onclick="deleteRelev('${f.id}')" title="Eliminar">✕</button>`
+      :esRelevGen
+      ?`<button class="btn bs bxs" onclick="abrirRelevGeneral('${f.id}')" title="Ver / generar por lote">✏️</button>
+         <button class="btn bd bxs" onclick="deleteActividad('${f.id}',null,null,null)" title="Eliminar">✕</button>`
       :`${otBtn}<button class="btn bs bxs" onclick="duplicarActividad('${f.id}')" title="Duplicar">📄</button>
          <button class="btn bs bxs" onclick="openModalActividad(null,null,null,'${f.id}')" title="Editar">✏️</button>
          <button class="btn bd bxs" onclick="deleteActividad('${f.id}',null,null,null)" title="Eliminar">✕</button>`;
     // El nombre del tipo abre la ficha directo (sin pasar por el lápiz)
-    const abrirJs=f.esRelev?`editRelevFromMaster('${f.id}')`:`openModalActividad(null,null,null,'${f.id}')`;
-    const tipoLink=`<a href="#" onclick="event.preventDefault();${abrirJs}" style="color:inherit;text-decoration:underline;text-decoration-style:dotted;cursor:pointer" title="Abrir">${f.icono} ${f.tipo}</a>`;
+    const abrirJs=f.esRelev?`editRelevFromMaster('${f.id}')`:(esRelevGen?`abrirRelevGeneral('${f.id}')`:`openModalActividad(null,null,null,'${f.id}')`);
+    const tipoLink=`<a href="#" onclick="event.preventDefault();${abrirJs}" style="color:inherit;text-decoration:underline;text-decoration-style:dotted;cursor:pointer" title="Abrir">${f.icono} ${esRelevGen?'Relevamiento (por lote)':f.tipo}</a>`;
     // Relevamiento que es seguimiento de otro: cadena completa de origen (R3 ↩ R2 ↩ R1), cada uno cliqueable
     const origenCadena=(f.esRelev&&f.origenRelevId)?cadenaRelevHTML(f.origenRelevId):'';
     const origenLink=origenCadena?` <span class="badge bg-purple" style="font-size:9px">↩ ${origenCadena}</span>`:'';
@@ -7889,7 +8164,7 @@ function renderActividadesMaster(){
     // esta fila es una Actividad derivada de uno — así se ve de un vistazo
     // qué relevamiento le dio origen, sin tener que entrar a averiguarlo.
     const codigoBadge=f.cortoCodigo?`<span class="badge bg-gray mono" style="font-size:9px;margin-right:4px" title="Código corto — buscalo escribiéndolo en el buscador">${f.cortoCodigo}</span>`:'';
-    const recurrenteBadge=(!f.esRelev&&f.tareaRecurrenteId)?` <span class="badge bg-blue" style="font-size:9px" title="Generada por una tarea recurrente">🔁</span>`:'';
+    const recurrenteBadge=(!f.esRelev&&f.tareaRecurrenteId)?` <span class="badge bg-blue" style="font-size:9px" title="Generada por una actividad recurrente">🔁</span>`:'';
     const relevVinculadoCadena=(f.relevId&&!f.esRelev)?cadenaRelevHTML(f.relevId):'';
     const linkRelevVinculado=relevVinculadoCadena?` <span style="font-size:10px">🔗 ${relevVinculadoCadena}</span>`:'';
     const celdas=[
