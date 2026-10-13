@@ -497,6 +497,15 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
           <span class="muted" style="font-size:10px">a</span>
           <input type="date" id="f-creada-hasta" onchange="renderRelev()" style="width:118px;font-size:11px">
         </span>
+        <span class="rf" style="gap:3px;align-items:center;background:var(--bg2);border-radius:var(--r);padding:3px 8px" title="Días desde el último relevamiento REALIZADO de ese lote (cualquiera, no solo los que ves filtrados) — para encontrar los lotes más atrasados">
+          <span class="muted" style="font-size:10px">Mín. días s/relevar:</span>
+          <input type="number" id="f-dias-sin-relevar" min="0" onchange="renderRelev()" style="width:55px;font-size:11px">
+        </span>
+        <span class="rf" style="gap:3px;align-items:center;background:var(--bg2);border-radius:var(--r);padding:3px 8px" title="A partir de cuántos días sin relevar se marca en rojo como alerta">
+          <span class="muted" style="font-size:10px">⚠️ Alerta a los:</span>
+          <input type="number" id="umbral-dias-relevar" min="1" style="width:45px;font-size:11px" onchange="guardarUmbralDiasSinRelevar(this.value)">
+          <span class="muted" style="font-size:10px">días</span>
+        </span>
         <button class="btn bs bsm" onclick="clearFiltros()">Limpiar</button>
         <span style="font-size:11px;color:var(--text3)">Agrupar por</span>
         <select id="f-agrupar" onchange="renderRelev()" style="font-weight:600">
@@ -508,6 +517,10 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
           <option value="estado">🏷 Estado</option>
         </select>
         <button class="btn bb bsm" onclick="exportarExcel()" title="Exporta los relevamientos filtrados (o todos si no hay filtro)">⬇️ Excel</button>
+        <div class="ms-combo" style="position:relative">
+          <button type="button" class="fi" onclick="relevColsTogglePop()" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:5px 8px;font-family:'Sora',sans-serif;font-size:12px;color:var(--text);cursor:pointer">👁 Columnas</button>
+          <div id="relev-cols-pop" style="display:none;position:absolute;top:calc(100% + 2px);right:0;z-index:50;background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:8px;min-width:190px;box-shadow:0 4px 12px rgba(0,0,0,.15)"></div>
+        </div>
       </div>
       <div class="ha-bar ph" id="ha-bar" style="display:none"></div>
       <!-- Barra de selección -->
@@ -800,10 +813,13 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
           <button type="button" class="fi" id="ms-btn-campos-f-cli" onclick="msToggle('campos-f-cli')" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:5px 8px;font-family:'Sora',sans-serif;font-size:12px;color:var(--text);cursor:pointer;text-align:left;width:140px">Cliente...</button>
           <div class="ms-drop" id="ms-drop-campos-f-cli" style="display:none;position:absolute;top:calc(100% + 2px);left:0;z-index:50;background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:6px;max-height:220px;overflow:auto;min-width:180px;box-shadow:0 4px 12px rgba(0,0,0,.15)"></div>
         </div>
-        <button class="btn bs bsm" onclick="document.getElementById('campos-search').value='';msClear('campos-f-cli');renderCampos()">Limpiar</button>
+        <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text2);cursor:pointer;white-space:nowrap">
+          <input type="checkbox" id="campos-solo-semana" onchange="camposToggleSoloSemana()"> 📍 Solo a visitar esta semana
+        </label>
+        <button class="btn bs bsm" onclick="document.getElementById('campos-search').value='';msClear('campos-f-cli');document.getElementById('campos-solo-semana').checked=false;window._camposSoloSemana=false;renderCampos()">Limpiar</button>
       </div>
       <div class="card">
-        <div class="ch"><span class="ct">📍 Campos</span></div>
+        <div class="ch"><span class="ct" id="campos-ct">📍 Campos</span></div>
         <div class="cb" id="campos-body"></div>
       </div>
     </div>
@@ -4772,6 +4788,39 @@ function toggleTree(h){h.classList.toggle('open');h.nextElementSibling.classList
 // Cada campo pasa a tener "vida propia" — mismo criterio que ya tienen
 // Cliente, Lote y Cultivo: desde el catálogo entrás a una ficha que junta
 // todo lo que está pasando ahí, sin importar en qué lote de ese campo esté.
+//
+// "A visitar esta semana": NO es una actividad nueva ni una entidad propia —
+// es pura agregación sobre los Relevamientos que ya existen por lote. Si
+// cualquier lote del campo tiene un Relevamiento pendiente cuya ventana
+// (fechaInicio→fechaLimite, o sin fecha ninguna) cae esta semana, el campo
+// entero se marca para visitar. Decisión explícita de Mariano: no complicarlo
+// con el estado del cultivo (barbecho/activo) — el sistema no lo sabe bien.
+function relevPendientesSemanaDeCampo(campoId,semanaOffset=0){
+  const hoy=new Date(hoyLocal()+'T00:00:00');
+  const r=_rangoSemana(hoy,semanaOffset);
+  const lotesCampo=DB.lotes.filter(l=>l.campoId===campoId);
+  let n=0;
+  lotesCampo.forEach(l=>{
+    const items=buildHistorialItems(l.id,l.clienteId,l.campoId,'Relevamiento');
+    items.forEach(i=>{
+      if(i.estado!=='Pendiente')return;
+      const ini=i.fecha||null,fin=i.fechaFin||ini;
+      if(!ini){n++;return;} // sin fecha = para hacer ya, entra siempre
+      if(ini<=r.fin&&(fin||ini)>=r.ini)n++;
+    });
+  });
+  return n;
+}
+let _camposSort={col:'nombre',dir:1};
+function camposSortBy(col){
+  if(_camposSort.col===col)_camposSort.dir*=-1;else{_camposSort={col,dir:1};}
+  renderCampos();
+}
+window._camposSoloSemana=false;
+function camposToggleSoloSemana(){
+  window._camposSoloSemana=document.getElementById('campos-solo-semana')?.checked||false;
+  renderCampos();
+}
 function renderCampos(){
   const cont=document.getElementById('campos-body');if(!cont)return;
   const q=(document.getElementById('campos-search')?.value||'').toLowerCase().trim();
@@ -4783,29 +4832,52 @@ function renderCampos(){
     const cli=DB.clientes.find(x=>x.id===c.clienteId);
     return c.nombre.toLowerCase().includes(q)||(cli?.nombre||'').toLowerCase().includes(q);
   });
+  // Filas con los datos ya calculados — una vez por campo, se usan tanto
+  // para el filtro "solo esta semana" como para ordenar y pintar la tabla.
+  let filas=campos.map(campo=>{
+    const cli=DB.clientes.find(x=>x.id===campo.clienteId);
+    const lotesCampo=DB.lotes.filter(l=>l.campoId===campo.id);
+    const ha=lotesCampo.reduce((s,l)=>s+(l.ha||0),0);
+    const pend=lotesCampo.reduce((s,l)=>s+buildHistorialItems(l.id,l.clienteId,l.campoId).filter(i=>i.estado==='Pendiente').length,0);
+    const semana=relevPendientesSemanaDeCampo(campo.id,0);
+    return{campo,cli,lotesCampo,ha,pend,semana};
+  });
+  if(window._camposSoloSemana)filas=filas.filter(f=>f.semana>0);
+  const ct=document.getElementById('campos-ct');
+  if(ct)ct.textContent=`📍 Campos (${filas.length}${filas.length!==campos.length?` de ${campos.length}`:''})`;
   if(!campos.length){cont.innerHTML='<div class="empty"><div class="empty-icon">📍</div><div class="empty-t">Sin campos</div><div class="empty-s">Probá con otro nombre, o cargá campos desde Clientes / Lotes</div></div>';return;}
-  // Agrupados por cliente, cada cliente ordenado por nombre y sus campos también
-  const porCli={};
-  campos.forEach(c=>{(porCli[c.clienteId]=porCli[c.clienteId]||[]).push(c);});
-  const clisOrdenados=Object.keys(porCli).map(id=>DB.clientes.find(c=>c.id===id)).filter(Boolean).sort((a,b)=>a.nombre.localeCompare(b.nombre));
-  cont.innerHTML=clisOrdenados.map(cli=>{
-    const camposCli=porCli[cli.id].sort((a,b)=>a.nombre.localeCompare(b.nombre));
-    return`<div style="margin-bottom:14px">
-      <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px">👤 ${cli.nombre}</div>
-      <div style="display:flex;flex-wrap:wrap;gap:8px">
-        ${camposCli.map(campo=>{
-          const lotesCampo=DB.lotes.filter(l=>l.campoId===campo.id);
-          const ha=lotesCampo.reduce((s,l)=>s+(l.ha||0),0);
-          const pend=lotesCampo.reduce((s,l)=>s+buildHistorialItems(l.id,l.clienteId,l.campoId).filter(i=>i.estado==='Pendiente').length,0);
-          return`<a href="#" onclick="event.preventDefault();navTo('campo-detail',{campoId:'${campo.id}'})" style="display:block;min-width:180px;padding:10px 14px;border:1px solid var(--border);border-radius:var(--rl);background:var(--card);text-decoration:none;color:inherit">
-            <div style="font-weight:700;font-size:13px">📍 ${campo.nombre}</div>
-            <div class="muted" style="font-size:11px;margin-top:3px">${lotesCampo.length} lote(s) · ${ha.toFixed(1)} ha</div>
-            ${pend?`<div style="margin-top:5px"><span class="badge bg-blue" style="font-size:10px">🕒 ${pend} pendiente(s)</span></div>`:''}
-          </a>`;
-        }).join('')}
-      </div>
-    </div>`;
-  }).join('');
+  if(!filas.length){cont.innerHTML='<div class="empty"><div class="empty-icon">📍</div><div class="empty-t">Ningún campo a visitar esta semana</div><div class="empty-s">Probá sacando el filtro</div></div>';return;}
+
+  const sortKeyFns={
+    nombre:f=>f.campo.nombre.toLowerCase(),
+    cliente:f=>(f.cli?.nombre||'').toLowerCase(),
+    lotes:f=>f.lotesCampo.length,
+    ha:f=>f.ha,
+    pend:f=>f.pend,
+    semana:f=>f.semana,
+  };
+  const sortKey=sortKeyFns[_camposSort.col]||sortKeyFns.nombre;
+  filas=filas.sort((a,b)=>{
+    const ka=sortKey(a),kb=sortKey(b);
+    if(ka<kb)return -1*_camposSort.dir;if(ka>kb)return 1*_camposSort.dir;
+    return a.campo.nombre.localeCompare(b.campo.nombre);
+  });
+
+  const thS=(label,col)=>{const arrow=_camposSort.col===col?(_camposSort.dir>0?' ▲':' ▼'):'';return`<th onclick="camposSortBy('${col}')" style="cursor:pointer;user-select:none" title="Ordenar">${label}${arrow}</th>`;};
+
+  cont.innerHTML='<div class="tw"><table><thead><tr>'
+    +thS('Campo','nombre')+thS('Cliente','cliente')+thS('Lotes','lotes')+thS('Ha','ha')+thS('Pendientes','pend')+thS('📍 A visitar esta semana','semana')+'<th class="ph"></th>'
+    +'</tr></thead><tbody>'
+    +filas.map(f=>`<tr style="cursor:pointer" onclick="navTo('campo-detail',{campoId:'${f.campo.id}'})">
+      <td><b>📍 ${f.campo.nombre}</b></td>
+      <td>${f.cli?.nombre||'—'}</td>
+      <td class="mono">${f.lotesCampo.length}</td>
+      <td class="mono">${f.ha.toFixed(1)}</td>
+      <td class="mono">${f.pend?`<span class="badge bg-blue" style="font-size:10px">🕒 ${f.pend}</span>`:'—'}</td>
+      <td class="mono">${f.semana?`<span class="badge bg-green" style="font-size:10px">📍 ${f.semana}</span>`:'—'}</td>
+      <td class="ph"></td>
+    </tr>`).join('')
+    +'</tbody></table></div>';
 }
 
 let _campoDetailCtx=null;
@@ -5794,7 +5866,7 @@ function generarOTDesdeSeleccion(){
 }
 
 function clearFiltros(){
-  ['f-txt','f-mal','f-prod','f-estado','f-desde','f-hasta','f-plan-desde','f-plan-hasta','f-creada-desde','f-creada-hasta','f-agrupar','f-activ','f-barbecho','f-origen'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['f-txt','f-mal','f-prod','f-estado','f-desde','f-hasta','f-plan-desde','f-plan-hasta','f-creada-desde','f-creada-hasta','f-agrupar','f-activ','f-barbecho','f-origen','f-dias-sin-relevar'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   _mselGet('f-cli-vals').clear();
   _mselGet('f-camp-vals').clear();
   _mselGet('f-campo-vals').clear();
@@ -5907,6 +5979,19 @@ document.addEventListener('click',function(e){
 // filtra aparte.
 function baseCultivo(v){return(v||'').replace(/^Barbecho /i,'').trim();}
 function esBarbecho(v){return /^Barbecho /i.test(v||'');}
+// Días desde el último Relevamiento REALIZADO (con fecha) de este lote, sin
+// importar la campaña ni ningún filtro activo — mirando siempre TODA la
+// historia del lote. null = nunca se relevó (más atrasado que cualquier
+// número, así que para el filtro de mínimo cuenta como infinito).
+function diasSinRelevarDeLote(loteId){
+  if(!loteId)return null;
+  let ultima=null;
+  (DB.relevamientos||[]).forEach(r=>{
+    if(r.loteId===loteId&&r.fecha&&!r.borrado&&(!ultima||r.fecha>ultima))ultima=r.fecha;
+  });
+  if(!ultima)return null;
+  return Math.round((new Date(hoyLocal())-new Date(ultima))/864e5);
+}
 function getFiltrados(){
   const txt=(document.getElementById('f-txt')?.value||'').toLowerCase();
   const camps=_mselGet('f-camp-vals');
@@ -5926,6 +6011,8 @@ function getFiltrados(){
   const creadaHasta=document.getElementById('f-creada-hasta')?.value||'';
   const origen=document.getElementById('f-origen')?.value||'';
   const factiv=document.getElementById('f-activ')?.value||'';
+  const minDiasSinRelevarRaw=document.getElementById('f-dias-sin-relevar')?.value||'';
+  const minDiasSinRelevar=minDiasSinRelevarRaw===''?null:parseInt(minDiasSinRelevarRaw,10);
   return DB.relevamientos.filter(r=>{
     if(r.borrado)return false;
     // Borradores: solo aparecen si no hay filtro de estado, o si se filtró por Borrador
@@ -5977,6 +6064,12 @@ function getFiltrados(){
       }
     }
     if(txt){const blob=[r.clienteNombre,r.campoNombre,r.loteNombre,r.cultivo,r.campaña,r.corto,...codigosFamilia(r.id),(r.malezas||[]).map(m=>{const cat=DB.malezas.find(c=>(c.comun&&c.comun===m.nombre)||c.cientifico===m.nombre);return[m.nombre,cat?.cientifico,cat?.comun].filter(Boolean).join(' ');}).join(' '),(r.productos||[]).map(p=>DB.productos.find(x=>x.id===p.productoId)?.nombre||'').join(' ')].join(' ').toLowerCase();if(!blob.includes(txt))return false;}
+    // "Mín. días s/relevar": nunca relevado (null) cuenta como infinito —
+    // siempre pasa el filtro, porque es el caso más atrasado de todos.
+    if(minDiasSinRelevar!==null&&!isNaN(minDiasSinRelevar)){
+      const dsr=diasSinRelevarDeLote(r.loteId);
+      if(dsr!==null&&dsr<minDiasSinRelevar)return false;
+    }
     // Borradores sin filtros activos se muestran siempre arriba
     return true;
   }).sort((a,b)=>{
@@ -6008,11 +6101,59 @@ function getFiltrados(){
       const bp=(b.productos||[]).map(p=>DB.productos.find(x=>x.id===p.productoId)?.nombre||'').join(', ');
       return ap.localeCompare(bp)*d;
     }
+    if(_rSort.col==='diasSinRelevar'){
+      const da=diasSinRelevarDeLote(a.loteId)??Infinity;
+      const db2=diasSinRelevarDeLote(b.loteId)??Infinity;
+      return(da-db2)*d;
+    }
     return (b.fecha||'').localeCompare(a.fecha||'');
   });
 }
 
+// ── Columnas opcionales de la tabla de Relevamientos ──
+// Como las "propiedades" de Notion: existen siempre (los datos están), pero
+// elegís cuáles ver en la tabla que estás trabajando, para no terminar con
+// una tabla interminable. Se guarda en localStorage — queda como la dejaste.
+const RELEV_COLS_OPC={
+  fechaInicio:'F. inicio',fechaLimite:'F. límite',cultivo:'Cultivo',
+  malezas:'Malezas',productos:'Productos',diasSinRelevar:'Días s/relevar'
+};
+function relevColsGet(){
+  let saved={};
+  try{saved=JSON.parse(localStorage.getItem('ag_relev_cols')||'{}');}catch(e){saved={};}
+  const out={};
+  Object.keys(RELEV_COLS_OPC).forEach(k=>{out[k]=saved[k]!==false;});
+  return out;
+}
+function relevColsSet(k,visible){
+  const cur=relevColsGet();cur[k]=visible;
+  try{localStorage.setItem('ag_relev_cols',JSON.stringify(cur));}catch(e){}
+  renderRelev();
+}
+function guardarUmbralDiasSinRelevar(v){
+  const n=parseInt(v,10);
+  DB.umbralDiasSinRelevar=(n&&n>0)?n:20;
+  save();
+  renderRelev();
+}
+function relevColsTogglePop(){
+  const pop=document.getElementById('relev-cols-pop');if(!pop)return;
+  const abrir=pop.style.display!=='block';
+  if(abrir){
+    const cols=relevColsGet();
+    pop.innerHTML=Object.entries(RELEV_COLS_OPC).map(([k,label])=>
+      `<label style="display:flex;align-items:center;gap:6px;font-size:12px;padding:3px 0;cursor:pointer"><input type="checkbox" ${cols[k]?'checked':''} onchange="relevColsSet('${k}',this.checked)"> ${label}</label>`
+    ).join('');
+    pop.style.display='block';
+  } else pop.style.display='none';
+}
+document.addEventListener('click',function(e){
+  const pop=document.getElementById('relev-cols-pop');
+  if(pop&&pop.style.display==='block'&&!e.target.closest('#relev-cols-pop')&&!e.target.closest('[onclick="relevColsTogglePop()"]'))pop.style.display='none';
+});
 function renderRelev(){
+  const umbralInp=document.getElementById('umbral-dias-relevar');
+  if(umbralInp&&document.activeElement!==umbralInp)umbralInp.value=DB.umbralDiasSinRelevar||20;
   // Poblar filtros dinámicos
   // Poblar filtro cliente (multiselect)
   const cliOpts=DB.clientes.slice().sort((a,b)=>a.nombre.localeCompare(b.nombre)).map(c=>({value:c.id,label:c.nombre}));
@@ -6076,6 +6217,7 @@ function renderRelev(){
     return;
   }
   const sa=c=>`<span class="sa">${_rSort.col===c?(_rSort.dir>0?'▲':'▼'):''}</span>`;
+  const colVis=relevColsGet();
   // Helper para renderizar una fila individual
   const fila=r=>{
     const eb=r.estado==='Borrador';
@@ -6085,6 +6227,9 @@ function renderRelev(){
       ? r.malezas.slice(0,2).map(m=>`<span class="mal-c" title="${m.nombre}${m.pct?' '+m.pct+'%':''}">${m.nombre.length>16?m.nombre.slice(0,15)+'…':m.nombre}${m.pct?' '+m.pct+'%':''}</span>`).join(' ')
         +((r.malezas||[]).length>2?` <span class="muted" style="font-size:10px">+${r.malezas.length-2}</span>`:'')
       : '<span class="muted">—</span>';
+    const dsr=diasSinRelevarDeLote(r.loteId);
+    const umbralAlerta=DB.umbralDiasSinRelevar||20;
+    const dsrHTML=dsr===null?'<span class="badge bg-red" style="font-size:10px">nunca</span>':(dsr>=umbralAlerta?`<span class="badge bg-red" style="font-size:10px">${dsr}d</span>`:`${dsr}d`);
     // El relevamiento ahora tiene solo dos estados: Realizado (tiene fecha) o
     // Programado (todavía no). Si ya tiene una Actividad vinculada (ej. una
     // Aplicación), se muestra como link para identificarlo e ir directo a ella.
@@ -6100,13 +6245,14 @@ function renderRelev(){
       +`<td><input type="checkbox" ${_seleccionados.has(r.id)?'checked':''} onchange="toggleSeleccion('${r.id}',this)"></td>`
       +`<td>${r.corto?`<span class="badge bg-gray mono" style="font-size:9px" title="Código corto — buscalo en el buscador">${r.corto}</span> `:''}${r.tareaRecurrenteId?`<span class="badge bg-blue" style="font-size:9px" title="Generado por una actividad recurrente">🔁</span> `:''}<span class="badge bg-purple">${r.campaña||'—'}</span></td>`
       +`<td class="mono">${r.fecha||'<span class="badge bg-blue" style="font-size:9px">📅 Programado</span>'}</td>`
-      +`<td class="mono">${r.fechaInicio||'<span class="muted">—</span>'}</td>`
-      +`<td class="mono">${r.fechaLimite||'<span class="muted">—</span>'}</td>`
+      +(colVis.fechaInicio?`<td class="mono">${r.fechaInicio||'<span class="muted">—</span>'}</td>`:'')
+      +(colVis.fechaLimite?`<td class="mono">${r.fechaLimite||'<span class="muted">—</span>'}</td>`:'')
       +`<td><strong contenteditable="true" class="ie" onblur="ieRelev('${r.id}','clienteNombre',this)">${r.clienteNombre}</strong>${eb?' <span class="badge bg-red" style="font-size:9px">BORRADOR</span>':''}</td>`
       +`<td><a href="#" onclick="event.preventDefault();navTo('campo-detail',{campoId:'${r.campoId}'})" style="color:inherit;text-decoration:underline;text-decoration-style:dotted" title="Ver ficha del campo">${r.campoNombre}</a> › <a href="#" onclick="event.preventDefault();navTo('lote',{loteId:'${r.loteId}',cliId:'${r.clienteId}',campoId:'${r.campoId}'})" style="color:var(--accent);font-weight:500">${r.loteNombre}</a>${r.loteHa?` <span class="badge bg-green">${r.loteHa} ha</span>`:''}</td>`
-      +`<td><span class="badge bg-amber ie" contenteditable="true" onblur="ieRelev('${r.id}','cultivo',this)">${r.cultivo||'—'}</span></td>`
-      +`<td>${ms}</td>`
-      +`<td>${(r.productos||[]).map(p=>{const pr=DB.productos.find(x=>x.id===p.productoId);return pr?`<span class="badge ${TC[pr.tipo]||'bg-gray'}" style="margin-right:2px">${pr.nombre}</span>`:''}).join('')||'<span class="muted">—</span>'}</td>`
+      +(colVis.cultivo?`<td><span class="badge bg-amber ie" contenteditable="true" onblur="ieRelev('${r.id}','cultivo',this)">${r.cultivo||'—'}</span></td>`:'')
+      +(colVis.malezas?`<td>${ms}</td>`:'')
+      +(colVis.productos?`<td>${(r.productos||[]).map(p=>{const pr=DB.productos.find(x=>x.id===p.productoId);return pr?`<span class="badge ${TC[pr.tipo]||'bg-gray'}" style="margin-right:2px">${pr.nombre}</span>`:''}).join('')||'<span class="muted">—</span>'}</td>`:'')
+      +(colVis.diasSinRelevar?`<td class="mono">${dsrHTML}</td>`:'')
       +`<td>${estadoBadge}${aplicarBtn}</td>`
       +`<td class="rf ph">${eb
         ?`<button class="btn bd bsm" onclick="openModalRelev('${r.id}')" style="font-weight:700">⚠️ Retomar</button>`
@@ -6120,13 +6266,14 @@ function renderRelev(){
     +'<th style="width:32px"><input type="checkbox" id="chk-all" onchange="toggleAll(this)"></th>'
     +`<th class="sth" onclick="relevSortBy('camp')">Campaña ${sa('camp')}</th>`
     +`<th class="sth" onclick="relevSortBy('fecha')">Fecha ${sa('fecha')}</th>`
-    +`<th class="sth" onclick="relevSortBy('fechaInicio')">F. inicio ${sa('fechaInicio')}</th>`
-    +`<th class="sth" onclick="relevSortBy('fechaLimite')">F. límite ${sa('fechaLimite')}</th>`
+    +(colVis.fechaInicio?`<th class="sth" onclick="relevSortBy('fechaInicio')">F. inicio ${sa('fechaInicio')}</th>`:'')
+    +(colVis.fechaLimite?`<th class="sth" onclick="relevSortBy('fechaLimite')">F. límite ${sa('fechaLimite')}</th>`:'')
     +`<th class="sth" onclick="relevSortBy('cliente')">Cliente ${sa('cliente')}</th>`
     +`<th class="sth" onclick="relevSortBy('campo')">Campo / Lote ${sa('campo')}</th>`
-    +`<th class="sth" onclick="relevSortBy('cultivo')">Cultivo ${sa('cultivo')}</th>`
-    +`<th class="sth" onclick="relevSortBy('malezas')">Malezas ${sa('malezas')}</th>`
-    +`<th class="sth" onclick="relevSortBy('productos')">Productos ${sa('productos')}</th>`
+    +(colVis.cultivo?`<th class="sth" onclick="relevSortBy('cultivo')">Cultivo ${sa('cultivo')}</th>`:'')
+    +(colVis.malezas?`<th class="sth" onclick="relevSortBy('malezas')">Malezas ${sa('malezas')}</th>`:'')
+    +(colVis.productos?`<th class="sth" onclick="relevSortBy('productos')">Productos ${sa('productos')}</th>`:'')
+    +(colVis.diasSinRelevar?`<th class="sth" onclick="relevSortBy('diasSinRelevar')" title="Días desde el último relevamiento realizado de ese lote">Días s/relevar ${sa('diasSinRelevar')}</th>`:'')
     +`<th class="sth" onclick="relevSortBy('estado')">Estado ${sa('estado')}</th>`
     +'<th class="ph"></th></tr></thead>';
 
