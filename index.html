@@ -857,8 +857,76 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
           <option value="novacio">No vacíos</option>
         </select>
         <button class="btn bs bsm" onclick="clearFiltrosCal()">Limpiar</button>
+        <span style="flex:1"></span>
+        <div class="rf" style="gap:0;border:1px solid var(--border);border-radius:var(--r);overflow:hidden">
+          <button class="btn bsm" id="cal-vista-grilla-btn" onclick="calVistaSet('grilla')" style="border-radius:0">📅 Grilla</button>
+          <button class="btn bsm" id="cal-vista-tabla-btn" onclick="calVistaSet('tabla')" style="border-radius:0">📋 Tabla</button>
+        </div>
       </div>
-      <div class="ph" style="font-size:11px;color:var(--text3);margin-bottom:8px">Un bloque por campo — tocá el encabezado para desplegar sus lotes y ver sus actividades mes a mes (2 meses atrás, el actual resaltado, y 9 por delante). 🟢 realizada · 🔵 pendiente en horario · 🔴 pendiente y vencida · cada pastilla lleva la inicial del tipo (A: Aplicación, R: Relevamiento, S: Siembra, Co: Cosecha...) — clic en cualquiera para abrirla. "＋ Actividad" carga una para ese lote con el mes ya precargado de 1º a último día; "＋ Nueva (varios lotes)" hace lo mismo en todos los lotes del campo a la vez — ideal para Capacitación o análisis de suelo. La línea gruesa vertical con "➜ campaña" marca, sola y automática, el mes en que cada lote cambia de campaña (según el cierre de campaña calculado para su cultivo — editable en Cultivos o en Rotación). Tocá el nombre de un mes (🔍) para ver el detalle de todos tus clientes ese mes, en Actividades. El filtro "Mes: / Vacíos / No vacíos" encuentra qué lotes todavía no tienen nada cargado (o ya tienen algo) en un mes puntual.</div>
+      <div class="ph" id="cal-tabla-controles" style="display:none;gap:6px;flex-wrap:wrap;margin-bottom:8px;align-items:center">
+        <select id="cal-m-agrupar" class="fi" style="width:140px" onchange="onCalMGrupoChange()">
+          <option value="" selected>Sin agrupar</option>
+          <option value="urgencia">Grupo 1: Vencimiento</option>
+          <option value="accionable">Grupo 1: Accionable</option>
+          <option value="estado">Grupo 1: Estado</option>
+          <option value="tipo">Grupo 1: Tipo</option>
+          <option value="campo">Grupo 1: Campo</option>
+          <option value="cliente">Grupo 1: Cliente</option>
+          <option value="lote">Grupo 1: Lote</option>
+          <option value="cultivo">Grupo 1: Cultivo</option>
+        </select>
+        <select id="cal-m-agrupar2" class="fi" style="width:140px" onchange="onCalMGrupoChange()">
+          <option value="">Grupo 2: ninguno</option>
+          <option value="urgencia">Grupo 2: Vencimiento</option>
+          <option value="accionable">Grupo 2: Accionable</option>
+          <option value="estado">Grupo 2: Estado</option>
+          <option value="tipo">Grupo 2: Tipo</option>
+          <option value="campo">Grupo 2: Campo</option>
+          <option value="cliente">Grupo 2: Cliente</option>
+          <option value="lote">Grupo 2: Lote</option>
+          <option value="cultivo">Grupo 2: Cultivo</option>
+        </select>
+        <select id="cal-m-agrupar3" class="fi" style="width:140px" onchange="onCalMGrupoChange()">
+          <option value="">Grupo 3: ninguno</option>
+          <option value="urgencia">Grupo 3: Vencimiento</option>
+          <option value="accionable">Grupo 3: Accionable</option>
+          <option value="estado">Grupo 3: Estado</option>
+          <option value="tipo">Grupo 3: Tipo</option>
+          <option value="campo">Grupo 3: Campo</option>
+          <option value="cliente">Grupo 3: Cliente</option>
+          <option value="lote">Grupo 3: Lote</option>
+          <option value="cultivo">Grupo 3: Cultivo</option>
+        </select>
+        <select id="cal-m-agrupar4" class="fi" style="width:140px" onchange="onCalMGrupoChange()">
+          <option value="">Grupo 4: ninguno</option>
+          <option value="urgencia">Grupo 4: Vencimiento</option>
+          <option value="accionable">Grupo 4: Accionable</option>
+          <option value="estado">Grupo 4: Estado</option>
+          <option value="tipo">Grupo 4: Tipo</option>
+          <option value="campo">Grupo 4: Campo</option>
+          <option value="cliente">Grupo 4: Cliente</option>
+          <option value="lote">Grupo 4: Lote</option>
+          <option value="cultivo">Grupo 4: Cultivo</option>
+        </select>
+        <select id="cal-m-agrupar5" class="fi" style="width:140px" onchange="onCalMGrupoChange()">
+          <option value="">Grupo 5: ninguno</option>
+          <option value="urgencia">Grupo 5: Vencimiento</option>
+          <option value="accionable">Grupo 5: Accionable</option>
+          <option value="estado">Grupo 5: Estado</option>
+          <option value="tipo">Grupo 5: Tipo</option>
+          <option value="campo">Grupo 5: Campo</option>
+          <option value="cliente">Grupo 5: Cliente</option>
+          <option value="lote">Grupo 5: Lote</option>
+          <option value="cultivo">Grupo 5: Cultivo</option>
+        </select>
+      </div>
+      <div class="rf" id="cal-m-selbar" style="display:none;gap:8px;align-items:center;background:var(--accent-bg);border:1px solid var(--accent);border-radius:var(--r);padding:6px 10px;margin-bottom:8px">
+        <strong><span id="cal-m-selcount">0</span> lote(s) tildado(s)</strong>
+        <button class="btn bp bsm" onclick="calMCrearMasivaSeleccion()">+ Nueva actividad para estos lotes</button>
+        <button class="btn bs bsm" onclick="calMDeseleccionarTodo()">Destildar todo</button>
+      </div>
+      <div class="ph" id="cal-ayuda-grilla" style="font-size:11px;color:var(--text3);margin-bottom:8px">Un bloque por campo — tocá el encabezado para desplegar sus lotes y ver sus actividades mes a mes (2 meses atrás, el actual resaltado, y 9 por delante). 🟢 realizada · 🔵 pendiente en horario · 🔴 pendiente y vencida · cada pastilla lleva la inicial del tipo (A: Aplicación, R: Relevamiento, S: Siembra, Co: Cosecha...) — clic en cualquiera para abrirla. "＋ Actividad" carga una para ese lote con el mes ya precargado de 1º a último día; "＋ Nueva (varios lotes)" hace lo mismo en todos los lotes del campo a la vez — ideal para Capacitación o análisis de suelo. La línea gruesa vertical con "➜ campaña" marca, sola y automática, el mes en que cada lote cambia de campaña (según el cierre de campaña calculado para su cultivo — editable en Cultivos o en Rotación). Tocá el nombre de un mes (🔍) para ver el detalle de todos tus clientes ese mes, en Actividades. El filtro "Mes: / Vacíos / No vacíos" encuentra qué lotes todavía no tienen nada cargado (o ya tienen algo) en un mes puntual.</div>
+      <div class="ph" id="cal-ayuda-tabla" style="display:none;font-size:11px;color:var(--text3);margin-bottom:8px">Una fila por cada Relevamiento/Actividad dentro del rango de meses mostrado (2 atrás, 9 adelante), sin separar por campo — ordená clickeando cualquier encabezado, y agrupala con los selectores de arriba (hasta 5 niveles, igual que en Actividades). Tildá lotes y usá "+ Nueva actividad para estos lotes" para cargar algo (ej. un Relevamiento) de una sola vez en todos los tildados.</div>
       <div id="cal-body"></div>
     </div>
 
@@ -1245,6 +1313,17 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
           </div>
           <div class="field"><label style="font-size:11px">Cultivo de la campaña <span class="muted">(para filtrar por el cultivo planeado de otra campaña, ej. la que viene)</span></label>
             <select id="tl-masiva-cultivo-camp" class="fi" onchange="tlMasivaCultivoCampChange()"></select>
+          </div>
+        </div>
+        <div class="fg" style="grid-template-columns:1fr 1fr;gap:6px;margin-top:6px">
+          <div class="field"><label style="font-size:11px">...y/o que estén "vacíos" en un mes <span class="muted">(sin ningún Relevamiento/Actividad con fecha ese mes — para encontrar qué falta)</span></label>
+            <input type="month" id="tl-masiva-vacio-mes" class="fi" onchange="tlMasivaActualizarLotes()">
+          </div>
+          <div class="field"><label style="font-size:11px">Condición</label>
+            <select id="tl-masiva-vacio-modo" class="fi" onchange="tlMasivaActualizarLotes()">
+              <option value="vacio">Vacíos ese mes</option>
+              <option value="novacio">No vacíos ese mes</option>
+            </select>
           </div>
         </div>
         <div id="tl-masiva-lote-lista" style="background:var(--bg2);border-radius:var(--r);padding:8px 10px;max-height:150px;overflow-y:auto;margin-top:6px">
@@ -3319,8 +3398,57 @@ function clearFiltrosCal(){
   msClear('cal-cli');msClear('cal-campo');msClear('cal-lote');msClear('cal-cult');msClear('cal-tipo');msClear('cal-estado');
   renderCalendario();
 }
+// ── Vista "Tabla" de Calendario: una fila continua por cada Relevamiento/
+// Actividad del rango visible, ordenable por columna y agrupable hasta 5
+// niveles — mismos criterios que ya usa Actividades (claveDeGrupo/
+// labelDeGrupo/ordenarGrupos, reutilizados tal cual). Pensada para elegir
+// lotes de un vistazo (tildando filas) y cargarles algo masivo, sin tener
+// que pasar por el "+ Nueva (varios lotes)" de cada bloque de campo.
+let _calVista='grilla';
+let _calMSort={col:'ref',dir:1};
+const _calMSelected=new Set(); // loteIds tildados (las filas "General" no entran)
+function calVistaSet(v){
+  _calVista=v;
+  const bg=document.getElementById('cal-vista-grilla-btn'),bt=document.getElementById('cal-vista-tabla-btn');
+  if(bg)bg.className='btn bsm'+(v==='grilla'?' bp':'');
+  if(bt)bt.className='btn bsm'+(v==='tabla'?' bp':'');
+  const ctrl=document.getElementById('cal-tabla-controles');if(ctrl)ctrl.style.display=v==='tabla'?'flex':'none';
+  const ag=document.getElementById('cal-ayuda-grilla');if(ag)ag.style.display=v==='grilla'?'block':'none';
+  const at=document.getElementById('cal-ayuda-tabla');if(at)at.style.display=v==='tabla'?'block':'none';
+  renderCalendario();
+}
+function calMSortBy(col){
+  if(_calMSort.col===col)_calMSort.dir*=-1;else _calMSort={col,dir:1};
+  renderCalendario();
+}
+function onCalMGrupoChange(){
+  const ids=['cal-m-agrupar','cal-m-agrupar2','cal-m-agrupar3','cal-m-agrupar4','cal-m-agrupar5'];
+  const vals=ids.map(id=>document.getElementById(id)?.value||'').filter(Boolean);
+  ids.forEach((id,i)=>{const el=document.getElementById(id);if(el)el.value=vals[i]||'';});
+  renderCalendario();
+}
+function calMToggleLoteSel(loteId,checked){
+  if(checked)_calMSelected.add(loteId);else _calMSelected.delete(loteId);
+  const bar=document.getElementById('cal-m-selbar');if(bar)bar.style.display=_calMSelected.size?'flex':'none';
+  const cnt=document.getElementById('cal-m-selcount');if(cnt)cnt.textContent=_calMSelected.size;
+}
+function calMDeseleccionarTodo(){
+  _calMSelected.clear();
+  const bar=document.getElementById('cal-m-selbar');if(bar)bar.style.display='none';
+  renderCalendario();
+}
+function calMCrearMasivaSeleccion(){
+  if(!_calMSelected.size)return;
+  abrirModalActividadMasiva([..._calMSelected]);
+}
 function renderCalendario(){
   const cont=document.getElementById('cal-body');if(!cont)return;
+  const bg=document.getElementById('cal-vista-grilla-btn'),bt=document.getElementById('cal-vista-tabla-btn');
+  if(bg)bg.className='btn bsm'+(_calVista==='grilla'?' bp':'');
+  if(bt)bt.className='btn bsm'+(_calVista==='tabla'?' bp':'');
+  const ctrl=document.getElementById('cal-tabla-controles');if(ctrl)ctrl.style.display=_calVista==='tabla'?'flex':'none';
+  const ag=document.getElementById('cal-ayuda-grilla');if(ag)ag.style.display=_calVista==='grilla'?'block':'none';
+  const at=document.getElementById('cal-ayuda-tabla');if(at)at.style.display=_calVista==='tabla'?'block':'none';
   msRender('cal-cli',DB.clientes.slice().sort((a,b)=>a.nombre.localeCompare(b.nombre)).map(c=>({value:c.id,label:c.nombre})),'Cliente',()=>renderCalendario());
   const fClis=msValues('cal-cli');
   const camposOpt=(fClis.length?DB.campos.filter(c=>fClis.includes(c.clienteId)):DB.campos).slice().sort((a,b)=>a.nombre.localeCompare(b.nombre));
@@ -3366,12 +3494,13 @@ function renderCalendario(){
   // pertenecen a ningún campo/lote en particular. Solo el filtro de Tipo,
   // Estado y Mejora les aplica (Cliente/Campo/Lote/Cultivo no tienen sentido acá).
   let generalBlockHTML='';
+  let itemsGeneralesF=[];
   const itemsGenerales=(DB.actividades||[]).filter(a=>!a.loteId&&!a.borrado).map(a=>({
     esRelev:false,id:a.id,tipo:a.tipo,estado:estadoDe(a),fecha:a.fecha||null,fechaFin:a.fechaFin||null,real:a.fechaRealizacion||null,cultivo:'',mejoraProgramada:!!a.mejoraProgramada
   }));
   itemsGenerales.forEach(it=>{it.ref=it.real||it.fecha||it.fechaFin||'';});
   if(itemsGenerales.length){
-    let itemsGeneralesF=itemsGenerales.filter(it=>it.ref&&mesesSet.has(it.ref.slice(0,7)));
+    itemsGeneralesF=itemsGenerales.filter(it=>it.ref&&mesesSet.has(it.ref.slice(0,7)));
     if(fTipos.length)itemsGeneralesF=itemsGeneralesF.filter(it=>fTipos.includes(it.tipo));
     if(fEstados.length)itemsGeneralesF=itemsGeneralesF.filter(it=>fEstados.includes(it.estado));
     if(fMejora==='si')itemsGeneralesF=itemsGeneralesF.filter(it=>it.mejoraProgramada);
@@ -3404,7 +3533,43 @@ function renderCalendario(){
     const ca=DB.clientes.find(x=>x.id===a.clienteId)?.nombre||'',cb=DB.clientes.find(x=>x.id===b.clienteId)?.nombre||'';
     return ca.localeCompare(cb)||a.nombre.localeCompare(b.nombre);
   });
-  if(!campos.length){cont.innerHTML=generalBlockHTML||'<div class="empty"><div class="empty-icon">📆</div><div class="empty-t">Sin campos para mostrar</div></div>';return;}
+  if(!campos.length&&!itemsGeneralesF.length){cont.innerHTML=generalBlockHTML||'<div class="empty"><div class="empty-icon">📆</div><div class="empty-t">Sin campos para mostrar</div></div>';return;}
+
+  // Vista "Tabla": mismo universo de datos, filtrado igual que la grilla,
+  // pero aplanado a una fila por item en vez de una celda por mes x lote.
+  if(_calVista==='tabla'){
+    _calCamposCache={};
+    const filas=[];
+    itemsGeneralesF.forEach(it=>{
+      filas.push({esRelev:false,id:it.id,tipo:it.tipo,estado:it.estado,fecha:it.fecha,fechaFin:it.fechaFin,real:it.real,cultivo:'',mejoraProgramada:it.mejoraProgramada,loteId:null,loteNombre:'(general)',campoId:null,campoNombre:'—',clienteId:null,clienteNombre:'—',ref:it.ref});
+    });
+    campos.forEach(campo=>{
+      const cli=DB.clientes.find(x=>x.id===campo.clienteId);
+      let lotes=DB.lotes.filter(l=>l.campoId===campo.id);
+      if(fLotes.length)lotes=lotes.filter(l=>fLotes.includes(l.id));
+      _calCamposCache[campo.id]=lotes.map(l=>l.id);
+      lotes.forEach(l=>{
+        let items=calItemsDeLote(l.id).filter(it=>it.ref&&mesesSet.has(it.ref.slice(0,7)));
+        if(fCults.length)items=items.filter(it=>fCults.includes(baseCultivo(it.cultivo||'')));
+        if(fTipos.length)items=items.filter(it=>fTipos.includes(it.tipo));
+        if(fEstados.length)items=items.filter(it=>fEstados.includes(it.estado));
+        if(fMejora==='si')items=items.filter(it=>it.mejoraProgramada);
+        else if(fMejora==='no')items=items.filter(it=>!it.mejoraProgramada);
+        if(fVacioMes){
+          const vacio=!items.some(it=>it.ref.slice(0,7)===fVacioMes);
+          const cumple=fVacioModo==='vacio'?vacio:!vacio;
+          if(!cumple)return;
+        }
+        items.forEach(it=>{
+          filas.push({esRelev:it.esRelev,id:it.id,tipo:it.tipo,estado:it.estado,fecha:it.fecha,fechaFin:it.fechaFin,real:it.real,
+            cultivo:baseCultivo(it.cultivo||''),mejoraProgramada:it.mejoraProgramada,
+            loteId:l.id,loteNombre:l.nombre,campoId:campo.id,campoNombre:campo.nombre,clienteId:campo.clienteId,clienteNombre:cli?.nombre||'—',ref:it.ref});
+        });
+      });
+    });
+    renderCalendarioTabla(filas,cont);
+    return;
+  }
 
   _calCamposCache={};
   const th=`<th style="width:140px;text-align:left;padding:8px;position:sticky;left:0;background:var(--bg2);border-bottom:1px solid var(--border)">Lote</th>`
@@ -3485,6 +3650,77 @@ function renderCalendario(){
     </details>`;
   }).filter(Boolean).join('');
   if(!cont.innerHTML)cont.innerHTML='<div class="empty"><div class="empty-icon">📆</div><div class="empty-t">No hay nada que coincida con esos filtros</div></div>';
+}
+// Dibuja la vista "Tabla" de Calendario: filas ya armadas y filtradas por
+// renderCalendario(), ordenadas por la columna elegida y, si hay algún Grupo
+// tildado, agrupadas de forma recursiva — mismos helpers que ya usa
+// Actividades (claveDeGrupo/labelDeGrupo/ordenarGrupos), para que agrupar
+// acá se sienta exactamente igual que allá.
+function renderCalendarioTabla(filas,cont){
+  if(!filas.length){cont.innerHTML='<div class="empty"><div class="empty-icon">📆</div><div class="empty-t">No hay nada que coincida con esos filtros</div></div>';return;}
+
+  const colKey={
+    tipo:f=>f.tipo,lote:f=>f.loteNombre,campo:f=>f.campoNombre,cliente:f=>f.clienteNombre,cultivo:f=>f.cultivo||'',
+    fecha:f=>f.fecha||'',fechaFin:f=>f.fechaFin||'',real:f=>f.real||'',estado:f=>f.estado,
+  };
+  const getKey=colKey[_calMSort.col]||(f=>f.ref||'');
+  filas=filas.slice().sort((a,b)=>{
+    const ka=getKey(a),kb=getKey(b);
+    if(ka<kb)return -1*_calMSort.dir;if(ka>kb)return 1*_calMSort.dir;
+    return(a.ref||'').localeCompare(b.ref||'');
+  });
+
+  const thS=(label,col)=>{const arrow=_calMSort.col===col?(_calMSort.dir>0?' ▲':' ▼'):'';return`<th onclick="calMSortBy('${col}')" style="cursor:pointer;user-select:none" title="Ordenar">${label}${arrow}</th>`;};
+  const headRow=`<thead><tr><th style="width:26px"></th>${thS('Tipo','tipo')}${thS('Lote','lote')}${thS('Campo','campo')}${thS('Cliente','cliente')}${thS('Cultivo','cultivo')}${thS('Fecha inicio','fecha')}${thS('Fecha límite','fechaFin')}${thS('Realización','real')}${thS('Estado','estado')}</tr></thead>`;
+
+  const filaHTML=f=>{
+    const esGeneral=!f.loteId;
+    const u=urgenciaActividad({estado:f.estado,fecha:f.fecha,fechaFin:f.fechaFin});
+    const estadoBadge=f.estado==='Realizada'?'<span class="badge bg-green">✅ Realizada</span>':(u&&u.k==='vencida'?'<span class="badge bg-red">🕒 Vencida</span>':'<span class="badge bg-blue">🕒 Pendiente</span>');
+    const abrir=f.esRelev?`openModalRelev('${f.id}')`:(f.tipo==='RelevGeneral'?`abrirRelevGeneral('${f.id}')`:`openModalActividad(null,null,null,'${f.id}')`);
+    const chk=esGeneral?'':`<input type="checkbox" ${_calMSelected.has(f.loteId)?'checked':''} onchange="calMToggleLoteSel('${f.loteId}',this.checked)">`;
+    return`<tr${f.mejoraProgramada?' style="border-left:3px solid #ef5350"':''}>
+      <td>${chk}</td>
+      <td><a href="#" onclick="event.preventDefault();${abrir}" style="color:inherit;text-decoration:underline;text-decoration-style:dotted;cursor:pointer">${(ACT_TIPOS[f.tipo]||{}).icono||'📝'} ${f.tipo==='RelevGeneral'?'Relevamiento (por lote)':f.tipo}</a></td>
+      <td>${esGeneral?'<span class="badge bg-purple" style="font-size:9px">general</span>':`<a href="#" onclick="event.preventDefault();navTo('lote',{loteId:'${f.loteId}',cliId:'${f.clienteId}',campoId:'${f.campoId}'})" style="color:var(--accent)">${f.loteNombre}</a>`}</td>
+      <td>${f.campoNombre}</td>
+      <td>${f.clienteNombre}</td>
+      <td>${f.cultivo||'—'}</td>
+      <td class="mono">${f.fecha||'—'}</td>
+      <td class="mono">${f.fechaFin||'—'}</td>
+      <td class="mono">${f.real||'—'}</td>
+      <td>${estadoBadge}</td>
+    </tr>`;
+  };
+  const tablaHTML=items=>`<div class="tw"><table style="width:100%;border-collapse:collapse">${headRow}<tbody>${items.map(filaHTML).join('')}</tbody></table></div>`;
+
+  const agrupar=document.getElementById('cal-m-agrupar')?.value||'';
+  const agrupar2=document.getElementById('cal-m-agrupar2')?.value||'';
+  const agrupar3=document.getElementById('cal-m-agrupar3')?.value||'';
+  const agrupar4=document.getElementById('cal-m-agrupar4')?.value||'';
+  const agrupar5=document.getElementById('cal-m-agrupar5')?.value||'';
+  const niveles=[agrupar,agrupar2,agrupar3,agrupar4,agrupar5].filter(Boolean);
+  if(!niveles.length){cont.innerHTML=tablaHTML(filas);return;}
+  const renderNivel=(items,niveles,profundidad)=>{
+    if(!niveles.length)return tablaHTML(items);
+    const[criterio,...resto]=niveles;
+    const grupos=new Map();
+    items.forEach(f=>{const key=claveDeGrupo(f,criterio);if(!grupos.has(key))grupos.set(key,[]);grupos.get(key).push(f);});
+    const keys=ordenarGrupos([...grupos.keys()],criterio);
+    const tam=profundidad===0?12:profundidad===1?11:10;
+    const margen=14*profundidad;
+    return keys.map(k=>{
+      const itemsGrupo=grupos.get(k);
+      const label=labelDeGrupo(k,criterio);
+      return`<details open style="margin-left:${margen}px;${profundidad>0?'border-left:2px solid var(--border);padding-left:8px':''}">
+        <summary style="font-size:${tam}px;font-weight:600;color:${profundidad===0?'var(--text2)':'var(--text3)'};margin:${profundidad===0?14:8}px 0 6px;cursor:pointer;list-style:revert">
+          ${label} <span class="muted" style="font-weight:400">(${itemsGrupo.length})</span>
+        </summary>
+        ${renderNivel(itemsGrupo,resto,profundidad+1)}
+      </details>`;
+    }).join('');
+  };
+  cont.innerHTML=renderNivel(filas,niveles,0);
 }
 
 function restaurarDePapelera(id,esRelev){
@@ -6666,7 +6902,9 @@ function abrirModalActividadMasiva(lotesIniciales=[],tipoInicial='',campInicial=
   const cultCampSel=document.getElementById('tl-masiva-cultivo-camp');
   if(cultCampSel){cultCampSel.innerHTML=(DB.campanas||[]).map(c=>`<option value="${c}"${c===campActiva?' selected':''}>${c}</option>`).join('');}
   tlMasivaRenderFiltroCultivo();
-  document.getElementById('tl-masiva-lote-lista').innerHTML='<div class="muted" style="font-size:11px">Elegí Cliente, Campo y/o Cultivo para ver lotes — se combinan entre sí.</div>';
+  document.getElementById('tl-masiva-vacio-mes').value='';
+  document.getElementById('tl-masiva-vacio-modo').value='vacio';
+  document.getElementById('tl-masiva-lote-lista').innerHTML='<div class="muted" style="font-size:11px">Elegí Cliente, Campo, Cultivo y/o "vacíos en un mes" para ver lotes — se combinan entre sí.</div>';
   const tlActTipoSel=document.getElementById('tl-act-tipo');
   if(tlActTipoSel)tlActTipoSel.innerHTML='<option value="">Seleccioná...</option>'+opcionesTipoActHTML();
   document.getElementById('tl-act-tipo').value=tipoInicial||'';
@@ -6723,9 +6961,11 @@ function tlMasivaActualizarLotes(){
   const cliIds=_mselGet('tlm-cli-vals');
   const campoIds=_mselGet('tlm-campo-vals');
   const cultivos=_mselGet('tlm-cultivo-vals');
+  const vacioMes=document.getElementById('tl-masiva-vacio-mes')?.value||'';
+  const vacioModo=document.getElementById('tl-masiva-vacio-modo')?.value||'vacio';
   const campParaCultivo=document.getElementById('tl-masiva-cultivo-camp')?.value||getCampanaActiva();
   const cont=document.getElementById('tl-masiva-lote-lista');
-  if(!cliIds.size&&!campoIds.size&&!cultivos.size){cont.innerHTML='<div class="muted" style="font-size:11px">Elegí Cliente, Campo y/o Cultivo para ver lotes — se combinan entre sí.</div>';return;}
+  if(!cliIds.size&&!campoIds.size&&!cultivos.size&&!vacioMes){cont.innerHTML='<div class="muted" style="font-size:11px">Elegí Cliente, Campo, Cultivo y/o "vacíos en un mes" para ver lotes — se combinan entre sí.</div>';return;}
   let lotes=DB.lotes.slice();
   if(cliIds.size)lotes=lotes.filter(l=>cliIds.has(l.clienteId));
   if(campoIds.size)lotes=lotes.filter(l=>campoIds.has(l.campoId));
@@ -6734,6 +6974,15 @@ function tlMasivaActualizarLotes(){
     // de 2ª) — el lote entra si tiene AL MENOS UNO de los tildados, pero nunca
     // por tener el mismo cultivo en otra ranura que no tildaste.
     lotes=lotes.filter(l=>[...cultivos].some(v=>loteTieneCultivoRol(l.id,campParaCultivo,v)));
+  }
+  if(vacioMes){
+    // "Vacío" = ningún Relevamiento/Actividad de este lote tiene fecha
+    // (realizada, inicio o límite) cayendo en ese mes — mismo criterio que
+    // ya usa el filtro de Calendario.
+    lotes=lotes.filter(l=>{
+      const tieneEseMes=calItemsDeLote(l.id).some(it=>(it.ref||'').slice(0,7)===vacioMes);
+      return vacioModo==='vacio'?!tieneEseMes:tieneEseMes;
+    });
   }
   lotes=lotes.sort((a,b)=>naturalCmp(a.nombre,b.nombre));
   if(!lotes.length){cont.innerHTML='<div class="muted" style="font-size:11px">Ningún lote cumple esa combinación de filtros.</div>';return;}
@@ -7898,7 +8147,7 @@ function labelDeGrupo(k,criterio){
   if(criterio==='cliente')return '👤 '+k;
   if(criterio==='lote')return '🟩 '+k;
   if(criterio==='cultivo')return '🌾 '+k;
-  return ((ACT_TIPOS[k]||{}).icono||'')+' '+k;
+  return ((ACT_TIPOS[k]||{}).icono||'')+' '+(k==='RelevGeneral'?'Relevamiento (por lote)':k);
 }
 // Los tres selectores de agrupamiento se compactan solos: si sacás el del
 // medio (o cualquiera), los de más abajo suben para no dejar un hueco.
