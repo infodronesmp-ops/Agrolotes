@@ -1167,6 +1167,9 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
           <option value="cultivo">Grupo 5: Cultivo</option>
         </select>
         <button class="btn bs bsm" onclick="clearFiltrosActM()">Limpiar</button>
+        <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text2);cursor:pointer;white-space:nowrap;background:var(--bg2);border-radius:var(--r);padding:5px 8px" title="Invierte Tipo/Estado/Vencimiento: en vez de las actividades que SÍ cumplen, muestra los LOTES que no tienen ninguna que cumpla">
+          <input type="checkbox" id="act-m-invertir" onchange="renderActividadesMaster()"> 🔄 Ver lotes SIN coincidencia
+        </label>
         <span style="border-left:1px solid var(--border);padding-left:8px;margin-left:2px">
           <button class="btn bp bsm" onclick="actMVistaMia()" title="Relevamientos pendientes, agrupados por Cliente → Vencimiento → Accionable">🧑‍🌾 Mi semana</button>
           <button class="btn bp bsm" onclick="actMVistaClientes()" title="Todo lo que no es relevamiento (siembra, cosecha, aplicación...), pendiente, agrupado por Cliente → Vencimiento → Accionable">👥 Semana de mis clientes</button>
@@ -1215,6 +1218,11 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
           <button class="btn bp bxs" onclick="actMCrearParaSeleccionados()">+ Crear</button>
           <span class="muted" style="font-size:10px">Se crea una actividad independiente por cada lote — cada una con vida propia, no una sola pegada a todos.</span>
         </div>
+      </div>
+      <div id="act-m-inv-selbar" class="ph" style="display:none;align-items:center;gap:10px;flex-wrap:wrap;background:var(--accent-bg);border:1px solid var(--accent);border-radius:var(--r);padding:8px 12px;margin-bottom:10px">
+        <span style="font-size:12px"><strong id="act-m-inv-selcount">0</strong> lote(s) seleccionado(s)</span>
+        <button class="btn bs bxs" onclick="actMInvDeseleccionarTodo()">✕ Deseleccionar todos</button>
+        <button class="btn bp bxs" onclick="actMInvCrearMasivaSeleccion()">+ Nueva actividad para estos lotes</button>
       </div>
       <div class="card">
         <div class="ch"><span class="ct" id="act-m-ct">Actividades</span></div>
@@ -8195,6 +8203,7 @@ function clearFiltrosActM(){
   const mej=document.getElementById('act-m-mejora');if(mej)mej.value='';
   ['act-m-creada-desde','act-m-creada-hasta','act-m-real-desde','act-m-real-hasta','act-m-plan-desde','act-m-plan-hasta'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   const per=document.getElementById('act-m-periodo');if(per)per.value='';
+  const inv=document.getElementById('act-m-invertir');if(inv)inv.checked=false;
   msClear('act-m-cli');msClear('act-m-campo');msClear('act-m-lote');msClear('act-m-cult');msClear('act-m-tipo');
   msClear('act-m-estado');msClear('act-m-urgencia');
   // "Limpiar" también vuelve el agrupamiento al default (Vencimiento solo,
@@ -8476,6 +8485,43 @@ function renderActividadesMaster(){
     return true;
   });
 
+  // Modo invertido: en vez de las actividades que SÍ cumplen todos los
+  // filtros, mostrar los LOTES (dentro del universo que ya recortan
+  // Cliente/Campo/Lote/Cultivo) que no tienen NINGUNA actividad cumpliendo
+  // el resto de los filtros (Tipo/Estado/Vencimiento/Accionable/Mejora/
+  // fechas/búsqueda). Pura agregación sobre lo que ya existe — ni entidad
+  // ni pantalla nueva, el "repaso" que no se puede ensuciar con nada.
+  if(document.getElementById('act-m-invertir')?.checked){
+    const loteIdsConMatch=new Set(filas.map(f=>f.loteId).filter(Boolean));
+    let universo=DB.lotes.slice();
+    if(fLotes.length)universo=universo.filter(l=>fLotes.includes(l.id));
+    else if(fCampos.length)universo=universo.filter(l=>fCampos.includes(l.campoId));
+    else if(fClis.length)universo=universo.filter(l=>fClis.includes(l.clienteId));
+    const camp=getCampanaActiva();
+    if(fCults.length)universo=universo.filter(l=>fCults.includes(baseCultivo(getCultivoDeLote(l.id,camp)||'')));
+    const sinMatch=universo.filter(l=>!loteIdsConMatch.has(l.id)).map(l=>{
+      const cli=DB.clientes.find(c=>c.id===l.clienteId);
+      const campo=DB.campos.find(c=>c.id===l.campoId);
+      return{lote:l,cli,campo,cultivo:baseCultivo(getCultivoDeLote(l.id,camp)||'')};
+    }).sort((a,b)=>naturalCmp(a.lote.nombre,b.lote.nombre));
+    const ctInv=document.getElementById('act-m-ct');
+    if(ctInv)ctInv.textContent=`Lotes sin coincidencia (${sinMatch.length}${sinMatch.length!==universo.length?` de ${universo.length}`:''})`;
+    const selbar=document.getElementById('act-m-inv-selbar');
+    if(selbar)selbar.style.display=_actMInvSelected.size?'flex':'none';
+    const cntInv=document.getElementById('act-m-inv-selcount');if(cntInv)cntInv.textContent=_actMInvSelected.size;
+    const viajesBar2=document.getElementById('act-m-viajes');if(viajesBar2)viajesBar2.style.display='none';
+    if(!sinMatch.length){cont.innerHTML='<div class="empty"><div class="empty-icon">✅</div><div class="empty-t">Ningún lote sin coincidencia</div><div class="empty-s">Con estos filtros, todos los lotes del universo elegido tienen algo que cumple la condición</div></div>';return;}
+    cont.innerHTML='<div class="tw"><table><thead><tr><th class="ph"></th><th>Lote</th><th>Cliente / Campo</th><th>Cultivo</th></tr></thead><tbody>'
+      +sinMatch.map(x=>`<tr>
+        <td class="ph"><input type="checkbox" ${_actMInvSelected.has(x.lote.id)?'checked':''} onchange="actMInvToggleSel('${x.lote.id}',this.checked)"></td>
+        <td><a href="#" onclick="event.preventDefault();navTo('lote',{loteId:'${x.lote.id}',cliId:'${x.lote.clienteId}',campoId:'${x.lote.campoId}'})" style="color:var(--accent);font-weight:500">${x.lote.nombre}</a></td>
+        <td style="font-size:12px">${x.cli?.nombre||'—'}${x.campo?` <span class="muted">— </span><a href="#" onclick="event.preventDefault();navTo('campo-detail',{campoId:'${x.campo.id}'})" style="color:var(--text2);text-decoration:underline;text-decoration-style:dotted">${x.campo.nombre}</a>`:''}</td>
+        <td>${x.cultivo?`<span class="badge bg-amber">${x.cultivo}</span>`:'<span class="muted">—</span>'}</td>
+      </tr>`).join('')
+      +'</tbody></table></div>';
+    return;
+  }
+
   // Orden dentro de cada grupo (o de toda la tabla si no hay agrupamiento)
   const colKey={
     tipo:f=>f.tipo,lote:f=>f.loteNombre,cliente:f=>f.clienteNombre,cultivo:f=>f.cultivo||'',
@@ -8645,6 +8691,26 @@ function renderActividadesMaster(){
 }
 function editRelevFromMaster(relevId){
   openModalRelev(relevId);
+}
+// Selección de LOTES en el modo invertido ("lotes sin coincidencia") — set
+// aparte del de arriba, porque ahí se seleccionan actividades/relevamientos
+// y aquí se seleccionan lotes.
+const _actMInvSelected=new Set();
+function actMInvToggleSel(loteId,checked){
+  if(checked)_actMInvSelected.add(loteId);else _actMInvSelected.delete(loteId);
+  const bar=document.getElementById('act-m-inv-selbar');
+  if(bar)bar.style.display=_actMInvSelected.size?'flex':'none';
+  const cnt=document.getElementById('act-m-inv-selcount');
+  if(cnt)cnt.textContent=_actMInvSelected.size;
+}
+function actMInvDeseleccionarTodo(){
+  _actMInvSelected.clear();
+  const bar=document.getElementById('act-m-inv-selbar');if(bar)bar.style.display='none';
+  renderActividadesMaster();
+}
+function actMInvCrearMasivaSeleccion(){
+  if(!_actMInvSelected.size)return;
+  abrirModalActividadMasiva([..._actMInvSelected]);
 }
 // Selección de renglones para generar una OT unificada o editar varios a la vez
 // (fecha inicio/límite/estado) — mismo casillero sirve para las dos cosas.
