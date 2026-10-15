@@ -8502,23 +8502,69 @@ function renderActividadesMaster(){
     const sinMatch=universo.filter(l=>!loteIdsConMatch.has(l.id)).map(l=>{
       const cli=DB.clientes.find(c=>c.id===l.clienteId);
       const campo=DB.campos.find(c=>c.id===l.campoId);
-      return{lote:l,cli,campo,cultivo:baseCultivo(getCultivoDeLote(l.id,camp)||'')};
-    }).sort((a,b)=>naturalCmp(a.lote.nombre,b.lote.nombre));
+      return{
+        lote:l,cli,campo,cultivo:baseCultivo(getCultivoDeLote(l.id,camp)||''),
+        // Mismos nombres de campo que usan claveDeGrupo/labelDeGrupo para las
+        // actividades — así el agrupamiento (Cliente/Campo/Cultivo/Lote) es el
+        // mismo mecanismo, sin inventar uno nuevo para este modo.
+        loteNombre:l.nombre,campoNombre:campo?.nombre||'—',clienteNombre:cli?.nombre||'—'
+      };
+    });
+    // El buscador de arriba (mismo "q" que usan las actividades) también
+    // filtra esta lista de lotes, por nombre de lote/cliente/campo/cultivo.
+    let sinMatchF=q?sinMatch.filter(x=>[x.loteNombre,x.clienteNombre,x.campoNombre,x.cultivo].join(' ').toLowerCase().includes(q)):sinMatch;
+    const invColKey={lote:x=>x.loteNombre,cliente:x=>x.clienteNombre,campo:x=>x.campoNombre,cultivo:x=>x.cultivo||''};
+    const invGetKey=invColKey[_actMInvSort.col]||invColKey.lote;
+    sinMatchF=sinMatchF.slice().sort((a,b)=>{
+      const ka=invGetKey(a),kb=invGetKey(b);
+      if(ka<kb)return -1*_actMInvSort.dir;if(ka>kb)return 1*_actMInvSort.dir;
+      return naturalCmp(a.loteNombre,b.loteNombre);
+    });
     const ctInv=document.getElementById('act-m-ct');
-    if(ctInv)ctInv.textContent=`Lotes sin coincidencia (${sinMatch.length}${sinMatch.length!==universo.length?` de ${universo.length}`:''})`;
+    if(ctInv)ctInv.textContent=`Lotes sin coincidencia (${sinMatchF.length}${sinMatchF.length!==universo.length?` de ${universo.length}`:''})`;
     const selbar=document.getElementById('act-m-inv-selbar');
     if(selbar)selbar.style.display=_actMInvSelected.size?'flex':'none';
     const cntInv=document.getElementById('act-m-inv-selcount');if(cntInv)cntInv.textContent=_actMInvSelected.size;
     const viajesBar2=document.getElementById('act-m-viajes');if(viajesBar2)viajesBar2.style.display='none';
-    if(!sinMatch.length){cont.innerHTML='<div class="empty"><div class="empty-icon">✅</div><div class="empty-t">Ningún lote sin coincidencia</div><div class="empty-s">Con estos filtros, todos los lotes del universo elegido tienen algo que cumple la condición</div></div>';return;}
-    cont.innerHTML='<div class="tw"><table><thead><tr><th class="ph"></th><th>Lote</th><th>Cliente / Campo</th><th>Cultivo</th></tr></thead><tbody>'
-      +sinMatch.map(x=>`<tr>
+    if(!sinMatchF.length){cont.innerHTML='<div class="empty"><div class="empty-icon">✅</div><div class="empty-t">Ningún lote sin coincidencia</div><div class="empty-s">Con estos filtros, todos los lotes del universo elegido tienen algo que cumple la condición</div></div>';return;}
+
+    const thInv=(t,col)=>{const arrow=_actMInvSort.col===col?(_actMInvSort.dir>0?' ▲':' ▼'):'';return`<th onclick="actMInvSortBy('${col}')" style="cursor:pointer;user-select:none" title="Ordenar">${t}${arrow}</th>`;};
+    const filaInvHTML=x=>`<tr>
         <td class="ph"><input type="checkbox" ${_actMInvSelected.has(x.lote.id)?'checked':''} onchange="actMInvToggleSel('${x.lote.id}',this.checked)"></td>
         <td><a href="#" onclick="event.preventDefault();navTo('lote',{loteId:'${x.lote.id}',cliId:'${x.lote.clienteId}',campoId:'${x.lote.campoId}'})" style="color:var(--accent);font-weight:500">${x.lote.nombre}</a></td>
         <td style="font-size:12px">${x.cli?.nombre||'—'}${x.campo?` <span class="muted">— </span><a href="#" onclick="event.preventDefault();navTo('campo-detail',{campoId:'${x.campo.id}'})" style="color:var(--text2);text-decoration:underline;text-decoration-style:dotted">${x.campo.nombre}</a>`:''}</td>
         <td>${x.cultivo?`<span class="badge bg-amber">${x.cultivo}</span>`:'<span class="muted">—</span>'}</td>
-      </tr>`).join('')
-      +'</tbody></table></div>';
+      </tr>`;
+    const tablaInvHTML=items=>`<div class="tw"><table><thead><tr><th class="ph"></th>${thInv('Lote','lote')}${thInv('Cliente / Campo','cliente')}${thInv('Cultivo','cultivo')}</tr></thead><tbody>${items.map(filaInvHTML).join('')}</tbody></table></div>`;
+
+    // Agrupamiento: reutiliza los mismos 5 selectores de Grupo que ya existen
+    // para Actividades (y los mismos claveDeGrupo/labelDeGrupo) — pero acá
+    // solo tienen sentido Cliente/Campo/Cultivo/Lote (Tipo/Estado/Vencimiento/
+    // Accionable no aplican a un lote). Si no elegiste ninguno de esos, se
+    // agrupa por Cliente → Campo por defecto, para no mostrar nunca una lista
+    // plana de lotes sueltos.
+    const nivelesPedidos=[agrupar,agrupar2,agrupar3,agrupar4,agrupar5].filter(c=>['cliente','campo','cultivo','lote'].includes(c));
+    const niveles=nivelesPedidos.length?nivelesPedidos:['cliente','campo'];
+    const renderNivelInv=(items,niveles,profundidad)=>{
+      if(!niveles.length)return tablaInvHTML(items);
+      const[criterio,...resto]=niveles;
+      const grupos=new Map();
+      items.forEach(f=>{const key=claveDeGrupo(f,criterio);if(!grupos.has(key))grupos.set(key,[]);grupos.get(key).push(f);});
+      const keys=ordenarGrupos([...grupos.keys()],criterio);
+      const tam=profundidad===0?12:profundidad===1?11:10;
+      const margen=14*profundidad;
+      return keys.map(k=>{
+        const itemsGrupo=grupos.get(k);
+        const label=labelDeGrupo(k,criterio);
+        return`<details open style="margin-left:${margen}px;${profundidad>0?'border-left:2px solid var(--border);padding-left:8px':''}">
+          <summary style="font-size:${tam}px;font-weight:600;color:${profundidad===0?'var(--text2)':'var(--text3)'};margin:${profundidad===0?14:8}px 0 6px;cursor:pointer;list-style:revert">
+            ${label} <span class="muted" style="font-weight:400">(${itemsGrupo.length})</span>
+          </summary>
+          ${renderNivelInv(itemsGrupo,resto,profundidad+1)}
+        </details>`;
+      }).join('');
+    };
+    cont.innerHTML=renderNivelInv(sinMatchF,niveles,0);
     return;
   }
 
@@ -8711,6 +8757,11 @@ function actMInvDeseleccionarTodo(){
 function actMInvCrearMasivaSeleccion(){
   if(!_actMInvSelected.size)return;
   abrirModalActividadMasiva([..._actMInvSelected]);
+}
+let _actMInvSort={col:'lote',dir:1};
+function actMInvSortBy(col){
+  if(_actMInvSort.col===col)_actMInvSort.dir*=-1;else{_actMInvSort={col,dir:1};}
+  renderActividadesMaster();
 }
 // Selección de renglones para generar una OT unificada o editar varios a la vez
 // (fecha inicio/límite/estado) — mismo casillero sirve para las dos cosas.
