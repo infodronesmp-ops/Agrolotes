@@ -1457,6 +1457,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
           <div class="card mb12">
             <div class="ch"><span class="ct">💊 Productos de esta aplicación</span>
               <button class="btn bp bsm" onclick="addProdRowApl()">+ Agregar</button>
+              <button class="btn bs bsm" onclick="openModalProductoDesdeActividad()">+ Nuevo producto/servicio</button>
             </div>
             <div class="cb" id="act-apl-prod-rows"></div>
           </div>
@@ -3931,7 +3932,7 @@ function cancelModalMaleza(){
 }
 function cancelModalProducto(){
   document.getElementById('modal-producto').classList.remove('open');
-  if(_afterProdSave){_afterProdSave=null;openModal('modal-relev');}
+  if(_afterProdSave){_afterProdSave=null;openModal(_afterProdReturnModal||'modal-relev');}
 }
 // Editar un relevamiento puntual desde la Orden de Trabajo: al guardar o
 // cancelar, se vuelve directo a esa misma OT (ya actualizada).
@@ -5556,13 +5557,16 @@ function malComboSelect(idx,val,display){
   malComboClose(idx);
 }
 
-function calcCostoRow(idx){
-  const pid=document.getElementById('pr-p-'+idx)?.value;
-  const dosis=parseFloat(document.getElementById('pr-d-'+idx)?.value)||0;
-  const unidad=document.getElementById('pr-u-'+idx)?.value||'';
-  const precio=parseFloat(document.getElementById('pr-precio-'+idx)?.value)||0;
-  const factorPct=parseFloat(document.getElementById('pr-f-'+idx)?.value)||100;
-  const span=document.getElementById('pr-costo-'+idx);
+// pfx: 'pr' (filas de Relevamiento) o 'adpr' (filas de Aplicación sin
+// relevamiento) — mismo mecanismo para las dos, nada más que el prefijo de
+// ids cambia, así quedan siempre sincronizadas con el catálogo de Soluciones.
+function calcCostoRow(idx,pfx='pr'){
+  const pid=document.getElementById(pfx+'-p-'+idx)?.value;
+  const dosis=parseFloat(document.getElementById(pfx+'-d-'+idx)?.value)||0;
+  const unidad=document.getElementById(pfx+'-u-'+idx)?.value||'';
+  const precio=parseFloat(document.getElementById(pfx+'-precio-'+idx)?.value)||0;
+  const factorPct=parseFloat(document.getElementById(pfx+'-f-'+idx)?.value)||100;
+  const span=document.getElementById(pfx+'-costo-'+idx);
   if(!span)return;
   if(!pid||!dosis){span.textContent='';return;}
   const factorLabel=factorPct<100?` (${factorPct}% lote)`:'';
@@ -5571,9 +5575,9 @@ function calcCostoRow(idx){
   span.textContent='= USD '+costo.toFixed(2)+'/ha'+factorLabel;
   span.style.color='var(--accent2)';
 }
-function autoFillPrecio(idx){
-  const pid=document.getElementById('pr-p-'+idx)?.value;
-  const precioInput=document.getElementById('pr-precio-'+idx);
+function autoFillPrecio(idx,pfx='pr'){
+  const pid=document.getElementById(pfx+'-p-'+idx)?.value;
+  const precioInput=document.getElementById(pfx+'-precio-'+idx);
   if(!precioInput)return;
   const prod=DB.productos.find(p=>p.id===pid);
   if(prod){
@@ -5583,7 +5587,7 @@ function autoFillPrecio(idx){
       precioInput.style.borderColor='var(--accent)';
     }
     // Autocompletar unidad desde catálogo (siempre, a menos que ya haya una)
-    const uSel=document.getElementById('pr-u-'+idx);
+    const uSel=document.getElementById(pfx+'-u-'+idx);
     if(uSel && prod.unidad && !uSel.value){
       // Si la unidad del catálogo está en las opciones, seleccionarla
       const opts=[...uSel.options].map(o=>o.value);
@@ -5597,7 +5601,7 @@ function autoFillPrecio(idx){
       }
     }
   }
-  calcCostoRow(idx);
+  calcCostoRow(idx,pfx);
   verificarMDA();
 }
 function addProdRow(data=null){
@@ -7963,18 +7967,22 @@ function resincronizarAplicacionDesdeRelev(){
     mostrarSnackbar('✅ Productos traídos del relevamiento — no te olvides de Guardar');
   },'Traer productos');
 }
+// Misma fila que usa Relevamiento (addProdRow), con el prefijo "adpr" en vez
+// de "pr" — unidad $/ha, %lote y precio/costo incluidos, y autocompletado
+// desde el catálogo de Soluciones igual que allá (ver autoFillPrecio/calcCostoRow).
 function addProdRowApl(data=null){
   const cont=document.getElementById('act-apl-prod-rows');if(!cont)return;
   const idx=_prodRowAplN++;
   const d=document.createElement('div');
-  d.id='adpr-'+idx;d.style.cssText='display:flex;gap:6px;margin-bottom:7px;align-items:center';
+  d.id='adpr-'+idx;d.style.cssText='display:flex;gap:8px;margin-bottom:7px;flex-wrap:wrap;align-items:center';
+  const opts=DB.productos.slice().sort((a,b)=>a.nombre.localeCompare(b.nombre)).map(pr=>`<option value="${pr.id}"${data?.productoId===pr.id?' selected':''}>${pr.nombre} (${pr.tipo||'—'})</option>`).join('');
+  const precioGuardado=data?.precioUSD||'';
+  const factorGuardado=data?.factor!==undefined?Math.round((data.factor)*100):100;
   d.innerHTML=`
-    <select id="adpr-p-${idx}" class="fi" style="flex:2">
-      <option value="">Producto...</option>
-      ${DB.productos.slice().sort((a,b)=>a.nombre.localeCompare(b.nombre)).map(pr=>`<option value="${pr.id}"${data?.productoId===pr.id?' selected':''}>${pr.nombre}</option>`).join('')}
-    </select>
-    <input type="number" id="adpr-d-${idx}" class="fi" placeholder="Dosis" step="0.01" style="width:80px" value="${data?.dosis??''}">
+    <select id="adpr-p-${idx}" class="fi" style="flex:2;min-width:140px" onchange="autoFillPrecio(${idx},'adpr')"><option value="">Producto...</option>${opts}</select>
+    <input type="number" id="adpr-d-${idx}" value="${data?.dosis||''}" step="0.01" placeholder="Dosis" class="fi" style="width:78px" oninput="calcCostoRow(${idx},'adpr')">
     <select id="adpr-u-${idx}" class="fi" style="width:80px">
+      <option value="">Unidad...</option>
       <option value="L/ha"${(data?.unidad||'')==='L/ha'?' selected':''}>L/ha</option>
       <option value="ml/ha"${(data?.unidad||'')==='ml/ha'?' selected':''}>ml/ha</option>
       <option value="kg/ha"${(data?.unidad||'')==='kg/ha'?' selected':''}>kg/ha</option>
@@ -7982,9 +7990,27 @@ function addProdRowApl(data=null){
       <option value="cc/ha"${(data?.unidad||'')==='cc/ha'?' selected':''}>cc/ha</option>
       <option value="tn/ha"${(data?.unidad||'')==='tn/ha'?' selected':''}>tn/ha</option>
       <option value="u/ha"${(data?.unidad||'')==='u/ha'?' selected':''}>u/ha</option>
+      <option value="$/ha"${(data?.unidad||'')==='$/ha'?' selected':''}>$/ha</option>
     </select>
+    <div style="display:flex;align-items:center;gap:3px;flex-shrink:0" title="% del lote al que se aplica este producto (100% = todo el lote)">
+      <span style="font-size:10px;color:var(--text3)">%lote</span>
+      <input type="number" id="adpr-f-${idx}" value="${factorGuardado}" min="1" max="100" step="1" placeholder="100" class="fi" style="width:54px" oninput="calcCostoRow(${idx},'adpr')" title="% del lote">
+    </div>
+    <div style="display:flex;align-items:center;gap:3px">
+      <span style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace">USD</span>
+      <input type="number" id="adpr-precio-${idx}" value="${precioGuardado}" step="0.01" min="0" placeholder="precio" title="Precio USD/unidad" class="fi" style="width:72px" oninput="calcCostoRow(${idx},'adpr')">
+    </div>
+    <span id="adpr-costo-${idx}" style="font-size:11px;color:var(--text3);white-space:nowrap;font-family:'DM Mono',monospace;min-width:90px"></span>
     <button class="btn bd bxs" onclick="document.getElementById('adpr-${idx}').remove()">✕</button>`;
   cont.appendChild(d);
+  setTimeout(()=>{
+    if(data?.productoId&&!data?.precioUSD){
+      const prod=DB.productos.find(p=>p.id===data.productoId);
+      const pi=document.getElementById('adpr-precio-'+idx);
+      if(prod?.precio&&pi&&!pi.value)pi.value=prod.precio;
+    }
+    calcCostoRow(idx,'adpr');
+  },50);
 }
 function saveActividad(){
   const tipo=document.getElementById('act-tipo').value;
@@ -8063,11 +8089,14 @@ function saveActividad(){
   if(tipo==='Aplicación'){
     const productosNuevos=[];
     document.querySelectorAll('#act-apl-prod-rows [id^="adpr-"]').forEach(row=>{
+      if(!row.id.match(/^adpr-\d+$/))return;
       const idx=row.id.split('adpr-')[1];
       const pid=document.getElementById('adpr-p-'+idx)?.value;
       const dos=document.getElementById('adpr-d-'+idx)?.value;
       const uni=document.getElementById('adpr-u-'+idx)?.value;
-      if(pid)productosNuevos.push({productoId:pid,dosis:parseFloat(dos)||0,unidad:uni||''});
+      const precio=document.getElementById('adpr-precio-'+idx)?.value;
+      const factorPct=parseFloat(document.getElementById('adpr-f-'+idx)?.value)||100;
+      if(pid)productosNuevos.push({productoId:pid,dosis:parseFloat(dos)||0,unidad:uni||'',precioUSD:parseFloat(precio)||null,factor:factorPct/100});
     });
     const historial=existente?.historial?[...existente.historial]:[];
     if(existente){
@@ -9399,9 +9428,13 @@ function openModalMalezaDesdeRelev(){
   openModalMaleza(null);
 }
 
-// ══ PRODUCTO DESDE RELEVAMIENTO ══
-let _afterProdSave=null;
+// ══ PRODUCTO DESDE RELEVAMIENTO (o desde una Aplicación sin relevamiento) ══
+// Mismo mecanismo para las dos: cerrar el modal de origen, abrir "Nueva
+// solución", y al guardar (o cancelar) volver a ese mismo modal con las
+// filas de producto ya refrescadas desde el catálogo.
+let _afterProdSave=null,_afterProdReturnModal=null;
 function openModalProductoDesdeRelev(){
+  _afterProdReturnModal='modal-relev';
   _afterProdSave=()=>{
     // Refrescar todas las filas de producto
     document.querySelectorAll('[id^="pr-p-"]').forEach(sel=>{
@@ -9412,6 +9445,18 @@ function openModalProductoDesdeRelev(){
   };
   // Cerrar modal-relev temporalmente y abrir producto
   document.getElementById('modal-relev').classList.remove('open');
+  openModalProducto();
+}
+function openModalProductoDesdeActividad(){
+  _afterProdReturnModal='modal-actividad';
+  _afterProdSave=()=>{
+    document.querySelectorAll('[id^="adpr-p-"]').forEach(sel=>{
+      const pv=sel.value;
+      sel.innerHTML='<option value="">Producto...</option>'+DB.productos.slice().sort((a,b)=>a.nombre.localeCompare(b.nombre)).map(p=>`<option value="${p.id}"${p.id===pv?' selected':''}>${p.nombre} (${p.tipo||'—'})</option>`).join('');
+    });
+    openModal('modal-actividad');
+  };
+  document.getElementById('modal-actividad').classList.remove('open');
   openModalProducto();
 }
 
