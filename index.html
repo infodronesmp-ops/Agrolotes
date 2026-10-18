@@ -1312,7 +1312,10 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
         <div id="r-act-eliminadas" style="padding:0 14px 10px"></div>
       </div>
       <div class="field"><label>Observaciones</label><textarea id="r-obs" class="fi" placeholder="Condiciones del lote, estadío de las malezas, notas..."></textarea></div>
-      <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;margin-top:4px"><input type="checkbox" id="r-mejora"> 🔧 Mejora programada <span class="muted">(no es una tarea común — se marca en rojo y se puede filtrar aparte)</span></label>
+      <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;margin-top:4px"><input type="checkbox" id="r-mejora" onchange="toggleMejoraNota('r-mejora')"> 🔧 Mejora programada <span class="muted">(no es una tarea común — se marca en rojo y se puede filtrar aparte)</span></label>
+      <div id="r-mejora-notabox" style="display:none;margin-top:4px">
+        <input type="text" id="r-mejora-nota" class="fi" style="width:100%" placeholder="¿Cuál es la mejora que querés llevar adelante acá? (ej: probar nueva dosis, evaluar híbrido nuevo...)">
+      </div>
     </div>
     <div class="mf">
       <button class="btn bs" onclick="cancelModalRelev()">Cancelar</button>
@@ -1396,7 +1399,10 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
         <div class="field"><label>Observaciones</label>
           <textarea id="tl-act-obs" class="fi" rows="2" placeholder="Notas adicionales..."></textarea>
         </div>
-        <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer"><input type="checkbox" id="tl-act-mejora"> 🔧 Mejora programada <span class="muted">(no es una tarea común — se marca en rojo y se puede filtrar aparte)</span></label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer"><input type="checkbox" id="tl-act-mejora" onchange="toggleMejoraNota('tl-act-mejora')"> 🔧 Mejora programada <span class="muted">(no es una tarea común — se marca en rojo y se puede filtrar aparte)</span></label>
+        <div id="tl-act-mejora-notabox" style="display:none;margin-top:4px">
+          <input type="text" id="tl-act-mejora-nota" class="fi" style="width:100%" placeholder="¿Cuál es la mejora que querés llevar adelante? (ej: probar nueva dosis, evaluar híbrido nuevo...)">
+        </div>
       </div>
     </div>
     <div class="mf">
@@ -1474,7 +1480,10 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
           <input type="date" id="act-fecha-real" class="fi">
           <span class="muted" style="font-size:10px;display:block;margin-top:3px">La fecha real en la que se hizo — puede ser cualquier fecha para atrás. <strong>Con fecha cargada queda Realizada; sin fecha, Pendiente.</strong></span>
         </div>
-        <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;margin-top:4px"><input type="checkbox" id="act-mejora"> 🔧 Mejora programada <span class="muted">(no es una tarea común — se marca en rojo y se puede filtrar aparte)</span></label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;margin-top:4px"><input type="checkbox" id="act-mejora" onchange="toggleMejoraNota('act-mejora')"> 🔧 Mejora programada <span class="muted">(no es una tarea común — se marca en rojo y se puede filtrar aparte)</span></label>
+        <div id="act-mejora-notabox" style="display:none;margin-top:4px">
+          <input type="text" id="act-mejora-nota" class="fi" style="width:100%" placeholder="¿Cuál es la mejora que querés llevar adelante acá? (ej: probar nueva dosis, evaluar híbrido nuevo...)">
+        </div>
       </div>
     </div>
     <div class="mf">
@@ -5292,6 +5301,15 @@ function precargarYAbrirRelev(loteId,cliId,campoId){
   },80);
 }
 
+// Muestra/oculta el campo de texto "¿Cuál es la mejora?" junto al checkbox
+// de Mejora programada — mismo mecanismo en Relevamiento, Actividad y el alta
+// masiva, para que la mejora quede escrita en algún lado y no sea solo un
+// tilde rojo sin explicación.
+function toggleMejoraNota(chkId){
+  const chk=document.getElementById(chkId);
+  const box=document.getElementById(chkId+'-notabox');
+  if(box)box.style.display=(chk&&chk.checked)?'block':'none';
+}
 function openModalRelev(editId=null){
   _editRelevId=editId;_prodRowN=0;_malRowN=0;
   document.getElementById('mrelev-title').textContent=editId?'Editar relevamiento':'Nuevo relevamiento';
@@ -5304,6 +5322,8 @@ function openModalRelev(editId=null){
   document.getElementById('r-cultivo').value='';
   document.getElementById('r-obs').value='';
   document.getElementById('r-mejora').checked=false;
+  document.getElementById('r-mejora-nota').value='';
+  document.getElementById('r-mejora-notabox').style.display='none';
   document.getElementById('r-act-blocks').innerHTML='<div class="muted" style="font-size:11px">¿Qué sigue para este lote? Podés agregar más de una — por ejemplo una Aplicación en 3 días y un Relevamiento de seguimiento en 20.</div>';
   _rActBlockN=0;
   const _eliminadasBox=document.getElementById('r-act-eliminadas');if(_eliminadasBox)_eliminadasBox.innerHTML='';
@@ -5329,6 +5349,8 @@ function openModalRelev(editId=null){
     document.getElementById('r-cultivo').value=r.cultivo||'';
     document.getElementById('r-obs').value=r.obs||'';
     document.getElementById('r-mejora').checked=!!r.mejoraProgramada;
+    document.getElementById('r-mejora-nota').value=r.mejoraNota||'';
+    document.getElementById('r-mejora-notabox').style.display=r.mejoraProgramada?'block':'none';
     document.getElementById('r-camp').value=r.campaña||'';
     if(!r.fecha&&(r.fechaInicio||r.fechaLimite)){
       document.getElementById('r-programado').checked=true;
@@ -5691,6 +5713,7 @@ function saveRelev(){
     malezas,productos,
     obs:document.getElementById('r-obs').value.trim(),
     mejoraProgramada:!!document.getElementById('r-mejora')?.checked,
+    mejoraNota:document.getElementById('r-mejora')?.checked?(document.getElementById('r-mejora-nota')?.value.trim()||''):'',
     estado:'Relevado',
     borradorTs:null,
     createdAt:_editRelevId?(DB.relevamientos.find(r=>r.id===_editRelevId)?.createdAt||Date.now()):Date.now(),
@@ -7075,6 +7098,8 @@ function abrirModalActividadMasiva(lotesIniciales=[],tipoInicial='',campInicial=
   document.getElementById('tl-act-fecha-real').value='';
   document.getElementById('tl-act-obs').value='';
   document.getElementById('tl-act-mejora').checked=false;
+  document.getElementById('tl-act-mejora-nota').value='';
+  document.getElementById('tl-act-mejora-notabox').style.display='none';
   document.getElementById('tl-act-extra').innerHTML='';
   if(tipoInicial)onTlActTipoChange();
   tlMasivaRenderCarrito();
@@ -7202,6 +7227,7 @@ function tlGuardarActividadMasiva(){
   const obs=document.getElementById('tl-act-obs').value.trim();
   const fechaReal=document.getElementById('tl-act-fecha-real')?.value||null;
   const mejora=!!document.getElementById('tl-act-mejora')?.checked;
+  const mejoraNota=mejora?(document.getElementById('tl-act-mejora-nota')?.value.trim()||''):'';
   let count=0;
   if(tipo==='Relevamiento'&&loteIds.length===1){
     // Un solo lote: en vez de dejar un Relevamiento "cáscara" sin diagnóstico
@@ -7229,7 +7255,11 @@ function tlGuardarActividadMasiva(){
         document.getElementById('r-fecha-inicio').value=fechaA||'';
         document.getElementById('r-fecha-limite').value=fechaFinA||'';
       }
-      if(mejora)document.getElementById('r-mejora').checked=true;
+      if(mejora){
+        document.getElementById('r-mejora').checked=true;
+        document.getElementById('r-mejora-nota').value=mejoraNota;
+        document.getElementById('r-mejora-notabox').style.display='block';
+      }
     },60);
     _tlMasivaCarrito=new Set();
     _tlMasivaMomento=null;
@@ -7249,7 +7279,7 @@ function tlGuardarActividadMasiva(){
         id:uid(),fecha:fechaReal,fechaInicio:fechaA,fechaLimite:fechaFinA||null,campaña:campaña||getCampanaActiva(),
         cultivo:'',clienteId:lote.clienteId,campoId:lote.campoId,loteId:lote.id,
         clienteNombre:cli?.nombre||'',campoNombre:campo?.nombre||'',loteNombre:lote.nombre,loteHa:lote.ha||0,
-        malezas:[],productos:[],obs,mejoraProgramada:mejora,estado:'Relevado',createdAt:Date.now(),momento:_tlMasivaMomento||null,
+        malezas:[],productos:[],obs,mejoraProgramada:mejora,mejoraNota,estado:'Relevado',createdAt:Date.now(),momento:_tlMasivaMomento||null,
         corto:nextRelevCodigo()
       });
       count++;
@@ -7267,7 +7297,7 @@ function tlGuardarActividadMasiva(){
         id:uid(),loteId,clienteId:lote.clienteId,campoId:lote.campoId,
         tipo,fecha:fechaA,fechaFin:fechaFinA||null,campaña,obs,datos,
         estado:calcularEstadoActividad(fechaReal),fechaRealizacion:fechaReal,
-        mejoraProgramada:mejora,
+        mejoraProgramada:mejora,mejoraNota,
         createdAt:Date.now(),momento:_tlMasivaMomento||null,
         corto:nextActCodigo()
       };
@@ -7813,6 +7843,8 @@ function openModalActividad(loteId,cliId,campoId,editId=null){
   document.getElementById('act-apl-historial').style.display='none';
   document.getElementById('act-fecha-real').value='';
   document.getElementById('act-mejora').checked=false;
+  document.getElementById('act-mejora-nota').value='';
+  document.getElementById('act-mejora-notabox').style.display='none';
   document.getElementById('act-origen-info').style.display='none';
   // Tipo de actividad: se reconstruye cada vez a partir del catálogo editable
   // (⚙️ Tipos de Actividad), para que un tipo agregado o quitado se refleje al toque.
@@ -7837,6 +7869,8 @@ function openModalActividad(loteId,cliId,campoId,editId=null){
       document.getElementById('act-obs').value=a.obs||'';
       document.getElementById('act-fecha-real').value=a.fechaRealizacion||'';
       document.getElementById('act-mejora').checked=!!a.mejoraProgramada;
+      document.getElementById('act-mejora-nota').value=a.mejoraNota||'';
+      document.getElementById('act-mejora-notabox').style.display=a.mejoraProgramada?'block':'none';
       // Si viene de un relevamiento, mostrar el link + la opción de desadjuntar
       if(a.relevId){
         const origen=DB.relevamientos.find(x=>x.id===a.relevId);
@@ -8072,6 +8106,7 @@ function saveActividad(){
     estado,
     fechaRealizacion,
     mejoraProgramada:!!document.getElementById('act-mejora')?.checked,
+    mejoraNota:document.getElementById('act-mejora')?.checked?(document.getElementById('act-mejora-nota')?.value.trim()||''):'',
     relevId:relevIdPrevio||null,
     createdAt:existente?existente.createdAt:Date.now(),
     corto:existente?(existente.corto||nextActCodigo()):nextActCodigo()
@@ -8441,7 +8476,7 @@ function renderActividadesMaster(){
       general:!a.loteId,
       campaña:a.campaña,obs:a.obs,relevId:a.relevId,sort:a.fecha||a.fechaFin||'0000',
       creada:fechaLocalDeTs(a.createdAt),creadaTs:a.createdAt||0,
-      mejoraProgramada:!!a.mejoraProgramada,
+      mejoraProgramada:!!a.mejoraProgramada,mejoraNota:a.mejoraNota||'',
       cortoCodigo:a.corto||'',
       tareaRecurrenteId:a.tareaRecurrenteId||null
     };
@@ -8463,7 +8498,7 @@ function renderActividadesMaster(){
       creada:fechaLocalDeTs(r.createdAt),creadaTs:r.createdAt||0,
       origenRelevId:(r.origenRelevId&&DB.relevamientos.some(x=>x.id===r.origenRelevId))?r.origenRelevId:null,
       actividadLigada:tieneAplic?{id:tieneAplic.id,tipo:tieneAplic.tipo,estado:estadoDe(tieneAplic),corto:tieneAplic.corto||''}:null,
-      mejoraProgramada:!!r.mejoraProgramada,
+      mejoraProgramada:!!r.mejoraProgramada,mejoraNota:r.mejoraNota||'',
       cortoCodigo:r.corto||''
     };
   });
@@ -8675,7 +8710,7 @@ function renderActividadesMaster(){
     // (fecha de inicio a futuro) — para verla de entrada, no solo por el texto
     // chico de la columna Vencimiento.
     const filaBg=(u&&!u.accionable)?' style="background:rgba(120,120,120,.16)'+(f.mejoraProgramada?';border-left:3px solid #ef5350':'')+'"':(f.mejoraProgramada?' style="border-left:3px solid #ef5350"':'');
-    const mejoraBadgeF=f.mejoraProgramada?` <span class="mejora-pill" title="Mejora programada">🔧</span>`:'';
+    const mejoraBadgeF=f.mejoraProgramada?` <span class="mejora-pill" title="${(f.mejoraNota||'Mejora programada (sin descripción cargada)').replace(/"/g,'&quot;')}">🔧${f.mejoraNota?' '+f.mejoraNota:''}</span>`:'';
     const chk=`<input type="checkbox" ${_actMSelected.has(f.id)?'checked':''} onchange="actMToggleSel('${f.id}',${f.esRelev},this.checked)">`;
     // Código corto (R1, A1...) de esta fila, y del relevamiento vinculado si
     // esta fila es una Actividad derivada de uno — así se ve de un vistazo
@@ -8995,7 +9030,7 @@ function buildHistorialItems(loteId,cliId,campoId,filtroTipo='',filtroCamp='',fi
       campaña:r.campaña||'',
       obs:r.obs||'',
       datos:{},
-      mejoraProgramada:!!r.mejoraProgramada,
+      mejoraProgramada:!!r.mejoraProgramada,mejoraNota:r.mejoraNota||'',
       _relev:r,
       _esRelev:true
     });
@@ -9106,7 +9141,7 @@ function renderActItem(item,loteId,cliId,campoId){
       :`<button class="btn bs bxs" onclick="duplicarActividad('${item.id}')" title="Duplicar">📄</button>
         <button class="btn bs bxs" onclick="openModalActividad('${loteId}','${cliId}','${campoId}','${item.id}')" title="Editar">✏️</button>
         <button class="btn bd bxs" onclick="deleteActividad('${item.id}','${loteId}','${cliId}','${campoId}')" title="Eliminar">✕</button>`);
-  const mejoraBadge=item.mejoraProgramada?`<span class="mejora-pill" title="Mejora programada — no es una tarea común">🔧 Mejora</span>`:'';
+  const mejoraBadge=item.mejoraProgramada?`<span class="mejora-pill" title="Mejora programada — no es una tarea común">🔧 ${item.mejoraNota?item.mejoraNota:'Mejora (sin descripción cargada)'}</span>`:'';
   const codigoItem=item._esRelev?(item._relev?.corto||''):(item.corto||'');
   const codigoBadge=codigoItem?`<span class="badge bg-gray mono" style="font-size:9px" title="Código corto — buscalo en el buscador">${codigoItem}</span> `:'';
   return`<div class="act-item${item.estado==='Pendiente'?' act-pendiente':''}">
