@@ -355,6 +355,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
     <button class="nb" onclick="navTo('planificacion')"><span>📊</span> Planificación</button>
     <button class="nb" onclick="navTo('papelera')"><span>🗑️</span> Papelera</button>
     <button class="nb" onclick="navTo('tareas-recurrentes')"><span>🔁</span> Actividades recurrentes</button>
+    <button class="nb" onclick="navTo('mejoras')"><span>💡</span> Mejoras programadas</button>
     <button class="nb" onclick="navTo('facturacion')"><span>🧾</span> Facturación</button>
     <button class="nb" onclick="navTo('ot')"><span>📋</span> Órdenes de trabajo</button>
   </div>
@@ -1029,6 +1030,26 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
       </div>
     </div>
 
+    <!-- MEJORAS PROGRAMADAS -->
+    <div class="page" id="page-mejoras">
+      <div class="ph" style="margin-bottom:10px;font-size:12px;color:var(--text3)">Una Mejora se carga UNA sola vez (nombre, descripción, fecha límite) y después se van enganchando las actividades/relevamientos de cada lote, cultivo o cliente que la lleva adelante — todas apuntan a esta misma Mejora, así no se repite ni se desincroniza el texto. Si una actividad vinculada vence después de la fecha límite de su Mejora, se marca en rojo para que sea fácil detectarla y corregirla.</div>
+      <div class="filters ph" style="gap:6px;flex-wrap:wrap;margin-bottom:10px">
+        <input type="text" id="mej-search" placeholder="Buscar mejora..." oninput="renderMejoras()" style="width:220px">
+        <button class="btn bp bsm" onclick="openModalMejora()">+ Nueva mejora</button>
+      </div>
+      <div class="card">
+        <div class="ch"><span class="ct">Mejoras programadas</span></div>
+        <div class="cb" id="mejoras-body"></div>
+      </div>
+    </div>
+
+    <div class="page" id="page-mejora-detail">
+      <div class="ph" style="margin-bottom:10px">
+        <button class="btn bs bsm" onclick="navTo('mejoras')">← Volver a Mejoras programadas</button>
+      </div>
+      <div id="mejora-detail-content"></div>
+    </div>
+
     <div class="page" id="page-facturacion">
       <div class="ph" style="margin-bottom:10px;font-size:12px;color:var(--text3)">Cada fila es una visita (cliente + fecha de realización) — más allá de cuántos campos o lotes hayas relevado ese día, cuenta como un solo relevamiento facturable. Los campos y lotes de esa visita quedan listados adentro, con link directo a cada relevamiento.</div>
       <div class="filters ph" style="gap:6px;flex-wrap:wrap;margin-bottom:10px">
@@ -1312,9 +1333,13 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
         <div id="r-act-eliminadas" style="padding:0 14px 10px"></div>
       </div>
       <div class="field"><label>Observaciones</label><textarea id="r-obs" class="fi" placeholder="Condiciones del lote, estadío de las malezas, notas..."></textarea></div>
-      <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;margin-top:4px"><input type="checkbox" id="r-mejora" onchange="toggleMejoraNota('r-mejora')"> 🔧 Mejora programada <span class="muted">(no es una tarea común — se marca en rojo y se puede filtrar aparte)</span></label>
-      <div id="r-mejora-notabox" style="display:none;margin-top:4px">
-        <input type="text" id="r-mejora-nota" class="fi" style="width:100%" placeholder="¿Cuál es la mejora que querés llevar adelante acá? (ej: probar nueva dosis, evaluar híbrido nuevo...)">
+      <div class="field" style="margin-top:4px">
+        <label>🔧 Mejora programada <span class="muted">(opcional — no es una tarea común, se marca en rojo y se puede filtrar aparte)</span></label>
+        <div class="rf" style="gap:6px;align-items:center">
+          <select id="r-mejora-id" class="fi" style="flex:1" onchange="onMejoraSelChange('r-mejora-id','r-mejora-info')"></select>
+          <button type="button" class="btn bs bxs" onclick="openModalMejoraDesdeRelev()">+ Nueva mejora</button>
+        </div>
+        <div id="r-mejora-info" class="muted" style="font-size:10px;margin-top:2px"></div>
       </div>
     </div>
     <div class="mf">
@@ -1399,9 +1424,13 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
         <div class="field"><label>Observaciones</label>
           <textarea id="tl-act-obs" class="fi" rows="2" placeholder="Notas adicionales..."></textarea>
         </div>
-        <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer"><input type="checkbox" id="tl-act-mejora" onchange="toggleMejoraNota('tl-act-mejora')"> 🔧 Mejora programada <span class="muted">(no es una tarea común — se marca en rojo y se puede filtrar aparte)</span></label>
-        <div id="tl-act-mejora-notabox" style="display:none;margin-top:4px">
-          <input type="text" id="tl-act-mejora-nota" class="fi" style="width:100%" placeholder="¿Cuál es la mejora que querés llevar adelante? (ej: probar nueva dosis, evaluar híbrido nuevo...)">
+        <div class="field" style="margin-top:4px">
+          <label>🔧 Mejora programada <span class="muted">(opcional — se marca en rojo y se puede filtrar aparte)</span></label>
+          <div class="rf" style="gap:6px;align-items:center">
+            <select id="tl-act-mejora-id" class="fi" style="flex:1" onchange="onMejoraSelChange('tl-act-mejora-id','tl-act-mejora-info')"></select>
+            <button type="button" class="btn bs bxs" onclick="openModalMejoraDesdeMasiva()">+ Nueva mejora</button>
+          </div>
+          <div id="tl-act-mejora-info" class="muted" style="font-size:10px;margin-top:2px"></div>
         </div>
       </div>
     </div>
@@ -1480,9 +1509,13 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
           <input type="date" id="act-fecha-real" class="fi">
           <span class="muted" style="font-size:10px;display:block;margin-top:3px">La fecha real en la que se hizo — puede ser cualquier fecha para atrás. <strong>Con fecha cargada queda Realizada; sin fecha, Pendiente.</strong></span>
         </div>
-        <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;margin-top:4px"><input type="checkbox" id="act-mejora" onchange="toggleMejoraNota('act-mejora')"> 🔧 Mejora programada <span class="muted">(no es una tarea común — se marca en rojo y se puede filtrar aparte)</span></label>
-        <div id="act-mejora-notabox" style="display:none;margin-top:4px">
-          <input type="text" id="act-mejora-nota" class="fi" style="width:100%" placeholder="¿Cuál es la mejora que querés llevar adelante acá? (ej: probar nueva dosis, evaluar híbrido nuevo...)">
+        <div class="field" style="margin-top:4px">
+          <label>🔧 Mejora programada <span class="muted">(opcional — se marca en rojo y se puede filtrar aparte)</span></label>
+          <div class="rf" style="gap:6px;align-items:center">
+            <select id="act-mejora-id" class="fi" style="flex:1" onchange="onMejoraSelChange('act-mejora-id','act-mejora-info')"></select>
+            <button type="button" class="btn bs bxs" onclick="openModalMejoraDesdeActividad()">+ Nueva mejora</button>
+          </div>
+          <div id="act-mejora-info" class="muted" style="font-size:10px;margin-top:2px"></div>
         </div>
       </div>
     </div>
@@ -1855,6 +1888,29 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
   </div>
 </div>
 
+<!-- ══ MODAL MEJORA ══ -->
+<div class="mo" id="modal-mejora">
+  <div class="modal" style="max-width:520px">
+    <div class="mh"><span class="mt" id="mmejora-title">Nueva mejora</span><button class="mx" onclick="cancelModalMejora()">✕</button></div>
+    <div class="mb">
+      <div class="fg">
+        <div class="field"><label>Nombre *</label><input type="text" id="mej-nombre" class="fi" placeholder="Ej: Corrección de pH - Campo Norte"></div>
+        <div class="field"><label>Descripción</label><textarea id="mej-descripcion" class="fi" rows="3" placeholder="De qué se trata esta mejora, qué se busca lograr..."></textarea></div>
+        <div class="fg fg2">
+          <div class="field"><label>Fecha límite</label><input type="date" id="mej-fecha-limite" class="fi"></div>
+          <div class="field"><label>Estado</label>
+            <select id="mej-estado" class="fi"><option value="activa">Activa</option><option value="cerrada">Cerrada</option></select>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="mf">
+      <button class="btn bs" onclick="cancelModalMejora()">Cancelar</button>
+      <button class="btn bp" onclick="saveMejora()">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <!-- ══ MODAL CONFIRMAR IMPORTACIÓN DE BACKUP ══ -->
 <div class="mo" id="modal-import-confirm">
   <div class="modal" style="max-width:420px">
@@ -1921,7 +1977,7 @@ let _fbReady=true;
 // Arrancar sincronización inmediatamente (no hay login que esperar)
 setTimeout(_fbInitSync,0);
 
-function ddb(){return{clientes:[],campos:[],lotes:[],productos:[],relevamientos:[],actividades:[],campanas:['2022/23','2023/24','2024/25','2025/26','2026/27'],cultivos:['Soja','Trigo','Maíz','Cebada','Girasol','Sorgo','Barbecho'],malezas:[],ots:[],loteCultivos:{},campanaActiva:'2025/26',subcoadyuvantes:[],tareasRecurrentes:[],cierreCultivo:cierreCultivoDefault(),cierreOverride:{}};}
+function ddb(){return{clientes:[],campos:[],lotes:[],productos:[],relevamientos:[],actividades:[],campanas:['2022/23','2023/24','2024/25','2025/26','2026/27'],cultivos:['Soja','Trigo','Maíz','Cebada','Girasol','Sorgo','Barbecho'],malezas:[],ots:[],loteCultivos:{},campanaActiva:'2025/26',subcoadyuvantes:[],tareasRecurrentes:[],mejoras:[],cierreCultivo:cierreCultivoDefault(),cierreOverride:{}};}
 // Defaults de cierre de campaña por cultivo (editables en "📅 Cierre de
 // campaña por cultivo", en Cultivos). soloDia/Mes/Anio = cuando el cultivo es
 // el único o el de 1ª (sin 2ª); segDia/Mes/Anio = cuando actúa como cultivo
@@ -1965,6 +2021,7 @@ let DB=(()=>{try{return JSON.parse(localStorage.getItem(SK))||ddb();}catch{retur
   if(!Array.isArray(DB.malezas))DB.malezas=def.malezas;
   if(!Array.isArray(DB.ots))DB.ots=[];
   if(!Array.isArray(DB.actividades))DB.actividades=[];
+  if(!Array.isArray(DB.mejoras))DB.mejoras=[];
   // ── Migración formato anidado → plano ──
   // Correr migración si algún cliente todavía tiene campos anidados
   let migracionNecesaria=(DB.clientes||[]).some(cli=>Array.isArray(cli.campos)&&cli.campos.length>0);
@@ -3879,6 +3936,8 @@ const PM={
   planificacion:{t:'Planificación',s:'Qué tiene cada lote en la campaña — y qué falta cargar'},
   papelera:{t:'Papelera',s:'Relevamientos y actividades eliminados — se guardan 30 días por si hace falta restaurarlos'},
   'tareas-recurrentes':{t:'Actividades recurrentes',s:'Plantillas que generan solas una actividad (relevamiento por lote, o cualquier otra sin lote) cada vez que corresponde, para no tener que acordarse'},
+  mejoras:{t:'Mejoras programadas',s:'Cada mejora se carga una vez y después se le enganchan las actividades de los lotes que la llevan adelante'},
+  'mejora-detail':{t:'Detalle de mejora',s:'Actividades y relevamientos vinculados a esta mejora'},
   historial:{t:'Historial y Rotación',s:'Cultivo y diagnósticos por lote, campaña a campaña — para decidir la rotación con precedentes'},
   calendario:{t:'Calendario de Actividades',s:'Por campo y lote, qué hay cargado mes a mes — últimos 2 meses y los próximos 9'},
   facturacion:{t:'Facturación',s:'Visitas realizadas (cliente + campo + fecha) para saber cómo facturar cada recorrida'},
@@ -3928,6 +3987,8 @@ function navTo(id,params={}){
   if(id==='facturacion')  renderFacturacion();
   if(id==='cultivo-detail')abrirCultivoDetail(params.cultivo,params.campaña);
   if(id==='tareas-recurrentes')renderTareasRecurrentes();
+  if(id==='mejoras')         renderMejoras();
+  if(id==='mejora-detail')   abrirMejoraDetail(params.mejoraId);
 }
 
 // ══ MODALES ══
@@ -5301,14 +5362,216 @@ function precargarYAbrirRelev(loteId,cliId,campoId){
   },80);
 }
 
-// Muestra/oculta el campo de texto "¿Cuál es la mejora?" junto al checkbox
-// de Mejora programada — mismo mecanismo en Relevamiento, Actividad y el alta
-// masiva, para que la mejora quede escrita en algún lado y no sea solo un
-// tilde rojo sin explicación.
-function toggleMejoraNota(chkId){
-  const chk=document.getElementById(chkId);
-  const box=document.getElementById(chkId+'-notabox');
-  if(box)box.style.display=(chk&&chk.checked)?'block':'none';
+// ══ MEJORAS PROGRAMADAS ══
+// Una Mejora es una entidad con vida propia (mismo criterio que Tareas
+// Recurrentes): se carga UNA vez (nombre, descripción, fecha límite) y desde
+// ahí se van enganchando las actividades/relevamientos de cada lote que la
+// llevan adelante — todas apuntan al mismo registro (mejoraId), así el texto
+// nunca se desincroniza ni se repite.
+function mejoraSelectOptionsHTML(selectedId){
+  const ms=(DB.mejoras||[]).filter(m=>m.estado!=='cerrada'||m.id===selectedId).slice().sort((a,b)=>a.nombre.localeCompare(b.nombre));
+  return '<option value="">— Ninguna —</option>'+ms.map(m=>`<option value="${m.id}"${m.id===selectedId?' selected':''}>${m.nombre}${m.fechaLimite?' (límite '+m.fechaLimite+')':''}</option>`).join('');
+}
+function pintarMejoraSelect(selId,selectedId){
+  const el=document.getElementById(selId);if(!el)return;
+  el.innerHTML=mejoraSelectOptionsHTML(selectedId);
+}
+function onMejoraSelChange(selId,infoId){
+  const sel=document.getElementById(selId);const info=document.getElementById(infoId);
+  if(!sel||!info)return;
+  const m=(DB.mejoras||[]).find(x=>x.id===sel.value);
+  info.textContent=m?`📅 ${m.fechaLimite?'Límite '+m.fechaLimite+' — ':''}${m.descripcion||'(sin descripción)'}`:'';
+}
+let _editMejoraId=null,_afterMejoraSave=null,_afterMejoraReturnModal=null;
+function openModalMejora(editId=null){
+  _editMejoraId=editId;
+  document.getElementById('mmejora-title').textContent=editId?'Editar mejora':'Nueva mejora';
+  document.getElementById('mej-nombre').value='';
+  document.getElementById('mej-descripcion').value='';
+  document.getElementById('mej-fecha-limite').value='';
+  document.getElementById('mej-estado').value='activa';
+  if(editId){
+    const m=DB.mejoras.find(x=>x.id===editId);if(!m)return;
+    document.getElementById('mej-nombre').value=m.nombre||'';
+    document.getElementById('mej-descripcion').value=m.descripcion||'';
+    document.getElementById('mej-fecha-limite').value=m.fechaLimite||'';
+    document.getElementById('mej-estado').value=m.estado||'activa';
+  }
+  openModal('modal-mejora');
+}
+function cancelModalMejora(){
+  document.getElementById('modal-mejora').classList.remove('open');
+  if(_afterMejoraSave){_afterMejoraSave=null;openModal(_afterMejoraReturnModal||'modal-relev');}
+}
+function saveMejora(){
+  const nombre=document.getElementById('mej-nombre').value.trim();
+  if(!nombre){alert('El nombre es obligatorio');return;}
+  const obj={
+    id:_editMejoraId||uid(),
+    nombre,
+    descripcion:document.getElementById('mej-descripcion').value.trim(),
+    fechaLimite:document.getElementById('mej-fecha-limite').value||null,
+    estado:document.getElementById('mej-estado').value||'activa',
+    createdAt:_editMejoraId?(DB.mejoras.find(m=>m.id===_editMejoraId)?.createdAt||Date.now()):Date.now()
+  };
+  if(_editMejoraId){const i=DB.mejoras.findIndex(m=>m.id===_editMejoraId);if(i>=0)DB.mejoras[i]=obj;}
+  else DB.mejoras.push(obj);
+  save();
+  document.getElementById('modal-mejora').classList.remove('open');
+  const nuevoId=obj.id;
+  if(_afterMejoraSave){const cb=_afterMejoraSave;_afterMejoraSave=null;cb(nuevoId);}
+  else{renderMejoras();mostrarSnackbar('✅ Mejora guardada');}
+}
+function deleteMejora(id){
+  const m=DB.mejoras.find(x=>x.id===id);if(!m)return;
+  const vinculadas=(DB.actividades||[]).filter(a=>a.mejoraId===id&&!a.borrado).length+(DB.relevamientos||[]).filter(r=>r.mejoraId===id&&!r.borrado).length;
+  const msg=vinculadas
+    ?`¿Eliminar la mejora "${m.nombre}"? Tiene ${vinculadas} actividad(es)/relevamiento(s) vinculados — quedan como están, solo se les saca la marca de Mejora.`
+    :`¿Eliminar la mejora "${m.nombre}"?`;
+  confirmarAccion(msg,()=>{
+    (DB.actividades||[]).forEach(a=>{if(a.mejoraId===id){a.mejoraId=null;a.mejoraProgramada=false;}});
+    (DB.relevamientos||[]).forEach(r=>{if(r.mejoraId===id){r.mejoraId=null;r.mejoraProgramada=false;}});
+    DB.mejoras=DB.mejoras.filter(x=>x.id!==id);
+    save();navTo('mejoras');
+    mostrarSnackbar('🗑️ Mejora eliminada');
+  },'Eliminar');
+}
+function openModalMejoraDesdeRelev(){
+  _afterMejoraReturnModal='modal-relev';
+  _afterMejoraSave=(nuevoId)=>{pintarMejoraSelect('r-mejora-id',nuevoId);onMejoraSelChange('r-mejora-id','r-mejora-info');openModal('modal-relev');};
+  document.getElementById('modal-relev').classList.remove('open');
+  openModalMejora();
+}
+function openModalMejoraDesdeActividad(){
+  _afterMejoraReturnModal='modal-actividad';
+  _afterMejoraSave=(nuevoId)=>{pintarMejoraSelect('act-mejora-id',nuevoId);onMejoraSelChange('act-mejora-id','act-mejora-info');openModal('modal-actividad');};
+  document.getElementById('modal-actividad').classList.remove('open');
+  openModalMejora();
+}
+function openModalMejoraDesdeMasiva(){
+  _afterMejoraReturnModal='modal-act-masiva';
+  _afterMejoraSave=(nuevoId)=>{pintarMejoraSelect('tl-act-mejora-id',nuevoId);onMejoraSelChange('tl-act-mejora-id','tl-act-mejora-info');openModal('modal-act-masiva');};
+  document.getElementById('modal-act-masiva').classList.remove('open');
+  openModalMejora();
+}
+let _mejSort={col:'nombre',dir:1};
+function mejSortBy(col){if(_mejSort.col===col)_mejSort.dir*=-1;else _mejSort={col,dir:1};renderMejoras();}
+// Todos los items (actividades + relevamientos) vinculados a una Mejora — se
+// usa tanto para los contadores de la lista como para el detalle.
+function itemsDeMejora(mejoraId){
+  const items=[];
+  (DB.actividades||[]).forEach(a=>{
+    if(a.mejoraId!==mejoraId||a.borrado)return;
+    const l=DB.lotes.find(x=>x.id===a.loteId),cli=DB.clientes.find(c=>c.id===a.clienteId),campo=DB.campos.find(c=>c.id===a.campoId);
+    items.push({id:a.id,esRelev:false,tipo:a.tipo,estado:estadoDe(a),fecha:a.fecha||null,fechaFin:a.fechaFin||null,
+      loteId:a.loteId,loteNombre:l?.nombre||'—',clienteNombre:cli?.nombre||'—',campoNombre:campo?.nombre||'—',
+      cultivo:a.loteId&&a.campaña?getCultivoDeLote(a.loteId,a.campaña):''});
+  });
+  (DB.relevamientos||[]).forEach(r=>{
+    if(r.mejoraId!==mejoraId||r.borrado)return;
+    const realizado=!!r.fecha;
+    items.push({id:r.id,esRelev:true,tipo:'Relevamiento',estado:realizado?'Realizada':'Pendiente',
+      fecha:realizado?null:(r.fechaInicio||null),fechaFin:realizado?null:(r.fechaLimite||null),
+      loteId:r.loteId,loteNombre:r.loteNombre,clienteNombre:r.clienteNombre,campoNombre:r.campoNombre,
+      cultivo:baseCultivo(r.cultivo||getCultivoDeLote(r.loteId,r.campaña)||'')});
+  });
+  return items;
+}
+function renderMejoras(){
+  const cont=document.getElementById('mejoras-body');if(!cont)return;
+  const q=(document.getElementById('mej-search')?.value||'').toLowerCase().trim();
+  let mejoras=DB.mejoras.slice();
+  if(q)mejoras=mejoras.filter(m=>(m.nombre||'').toLowerCase().includes(q)||(m.descripcion||'').toLowerCase().includes(q));
+  if(!mejoras.length){cont.innerHTML='<div class="empty"><div class="empty-icon">💡</div><div class="empty-t">Sin mejoras cargadas</div><div class="empty-s">Creá la primera con "+ Nueva mejora" — después enganchás las actividades de cada lote desde ahí</div></div>';return;}
+  const filas=mejoras.map(m=>{
+    const items=itemsDeMejora(m.id);
+    const lotes=new Set(items.map(i=>i.loteId)).size;
+    const pend=items.filter(i=>i.estado==='Pendiente').length;
+    const real=items.filter(i=>i.estado==='Realizada').length;
+    const vencidas=items.filter(i=>i.estado==='Pendiente'&&m.fechaLimite&&i.fechaFin&&i.fechaFin>m.fechaLimite).length;
+    return{m,lotes,pend,real,vencidas,total:items.length};
+  });
+  const sortKeyFns={
+    nombre:f=>f.m.nombre.toLowerCase(),fechaLimite:f=>f.m.fechaLimite||'9999',estado:f=>f.m.estado==='cerrada'?1:0,
+    lotes:f=>f.lotes,pend:f=>f.pend,real:f=>f.real
+  };
+  const sortKey=sortKeyFns[_mejSort.col]||sortKeyFns.nombre;
+  filas.sort((a,b)=>{const ka=sortKey(a),kb=sortKey(b);if(ka<kb)return -1*_mejSort.dir;if(ka>kb)return 1*_mejSort.dir;return a.m.nombre.localeCompare(b.m.nombre);});
+  const thS=(t,col)=>{const arrow=_mejSort.col===col?(_mejSort.dir>0?' ▲':' ▼'):'';return`<th onclick="mejSortBy('${col}')" style="cursor:pointer;user-select:none" title="Ordenar">${t}${arrow}</th>`;};
+  cont.innerHTML='<div class="tw"><table><thead><tr>'
+    +thS('Mejora','nombre')+thS('Fecha límite','fechaLimite')+thS('Lotes','lotes')+thS('Pendientes','pend')+thS('Realizadas','real')+thS('Estado','estado')+'<th class="ph"></th>'
+    +'</tr></thead><tbody>'
+    +filas.map(f=>`<tr style="cursor:pointer" onclick="navTo('mejora-detail',{mejoraId:'${f.m.id}'})">
+      <td><b>💡 ${f.m.nombre}</b></td>
+      <td class="mono">${f.m.fechaLimite||'—'}</td>
+      <td class="mono">${f.lotes}</td>
+      <td class="mono">${f.pend?`<span class="badge bg-blue">${f.pend}</span>`:'—'}${f.vencidas?` <span class="badge bg-red" title="Vencen después del límite de la Mejora">⚠️ ${f.vencidas}</span>`:''}</td>
+      <td class="mono">${f.real||'—'}</td>
+      <td>${f.m.estado==='cerrada'?'<span class="badge bg-gray">Cerrada</span>':'<span class="badge bg-green">Activa</span>'}</td>
+      <td class="ph rf" onclick="event.stopPropagation()">
+        <button class="btn bs bxs" onclick="openModalMejora('${f.m.id}')" title="Editar">✏️</button>
+        <button class="btn bd bxs" onclick="deleteMejora('${f.m.id}')" title="Eliminar">✕</button>
+      </td>
+    </tr>`).join('')
+    +'</tbody></table></div>';
+}
+let _mejoraDetailCtx=null;
+function abrirMejoraDetail(mejoraId){
+  _mejoraDetailCtx={mejoraId};
+  renderMejoraDetail();
+}
+function desvincularDeMejora(id,esRelev){
+  confirmarAccion('¿Desvincular esta actividad de la Mejora? No se borra, solo deja de estar marcada como Mejora.',()=>{
+    if(esRelev){const r=DB.relevamientos.find(x=>x.id===id);if(r){r.mejoraId=null;r.mejoraProgramada=false;}}
+    else{const a=DB.actividades.find(x=>x.id===id);if(a){a.mejoraId=null;a.mejoraProgramada=false;}}
+    save();renderMejoraDetail();
+  },'Desvincular');
+}
+// Abre el alta masiva de actividades con esta Mejora ya preseleccionada —
+// mismo flujo que "+ Nueva actividad para estos lotes" en Calendario/Campos,
+// así cargás de una los lotes que la llevan adelante.
+function crearActividadParaMejora(mejoraId){
+  window._masivaMejoraPre=mejoraId;
+  abrirModalActividadMasiva([]);
+}
+function renderMejoraDetail(){
+  const cont=document.getElementById('mejora-detail-content');if(!cont||!_mejoraDetailCtx)return;
+  const m=DB.mejoras.find(x=>x.id===_mejoraDetailCtx.mejoraId);
+  if(!m){cont.innerHTML='<div class="empty"><div class="empty-t">Mejora no encontrada</div></div>';return;}
+  const items=itemsDeMejora(m.id).sort((a,b)=>naturalCmp(a.clienteNombre+a.loteNombre,b.clienteNombre+b.loteNombre));
+  const filasHTML=items.map(it=>{
+    const vencida=it.estado==='Pendiente'&&m.fechaLimite&&it.fechaFin&&it.fechaFin>m.fechaLimite;
+    const abrir=it.esRelev?`openModalRelev('${it.id}')`:`openModalActividad(null,null,null,'${it.id}')`;
+    const estadoBadge=it.estado==='Realizada'?'<span class="badge bg-green">✅ Realizada</span>':(vencida?'<span class="badge bg-red">⚠️ Vence después del límite</span>':'<span class="badge bg-blue">🕒 Pendiente</span>');
+    return`<tr${vencida?' style="background:rgba(239,83,80,.1)"':''}>
+      <td style="font-size:12px"><a href="#" onclick="event.preventDefault();${abrir}" style="color:var(--accent)">${(ACT_TIPOS[it.tipo]||{}).icono||'🔬'} ${it.tipo}</a></td>
+      <td><a href="#" onclick="event.preventDefault();navTo('lote',{loteId:'${it.loteId}'})" style="color:inherit;text-decoration:underline;text-decoration-style:dotted">${it.loteNombre}</a></td>
+      <td style="font-size:12px">${it.clienteNombre} <span class="muted">— ${it.campoNombre}</span></td>
+      <td>${it.cultivo?`<span class="badge bg-amber">${it.cultivo}</span>`:'—'}</td>
+      <td class="mono">${it.fechaFin||it.fecha||'—'}</td>
+      <td>${estadoBadge}</td>
+      <td class="ph"><button class="btn bd bxs" onclick="desvincularDeMejora('${it.id}',${it.esRelev})" title="Desvincular de esta Mejora">✕</button></td>
+    </tr>`;
+  }).join('');
+  cont.innerHTML=`
+    <div class="rf ph mb16" style="gap:8px;flex-wrap:wrap;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-size:18px;font-weight:700">💡 ${m.nombre} ${m.estado==='cerrada'?'<span class="badge bg-gray">Cerrada</span>':'<span class="badge bg-green">Activa</span>'}</div>
+        ${m.fechaLimite?`<div class="muted" style="font-size:12px;margin-top:3px">📅 Fecha límite: <strong>${m.fechaLimite}</strong></div>`:''}
+        ${m.descripcion?`<div style="font-size:13px;margin-top:6px;max-width:600px">${m.descripcion}</div>`:''}
+      </div>
+      <div class="rf" style="gap:6px">
+        <button class="btn bp bsm" onclick="crearActividadParaMejora('${m.id}')">+ Nueva actividad para esta mejora</button>
+        <button class="btn bs bsm" onclick="openModalMejora('${m.id}')">✏️ Editar</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="ch"><span class="ct">Actividades vinculadas (${items.length})</span></div>
+      <div class="cb">
+        ${items.length?`<div class="tw"><table><thead><tr><th>Tipo</th><th>Lote</th><th>Cliente / Campo</th><th>Cultivo</th><th>Fecha</th><th>Estado</th><th class="ph"></th></tr></thead><tbody>${filasHTML}</tbody></table></div>`
+          :'<div class="empty"><div class="empty-icon">🔗</div><div class="empty-t">Sin actividades vinculadas todavía</div><div class="empty-s">Usá "+ Nueva actividad para esta mejora", o elegila desde el combo de Mejora al cargar un Relevamiento/Actividad</div></div>'}
+      </div>
+    </div>`;
 }
 function openModalRelev(editId=null){
   _editRelevId=editId;_prodRowN=0;_malRowN=0;
@@ -5321,9 +5584,8 @@ function openModalRelev(editId=null){
   document.getElementById('r-fecha-lbl').textContent='Fecha de realización *';
   document.getElementById('r-cultivo').value='';
   document.getElementById('r-obs').value='';
-  document.getElementById('r-mejora').checked=false;
-  document.getElementById('r-mejora-nota').value='';
-  document.getElementById('r-mejora-notabox').style.display='none';
+  pintarMejoraSelect('r-mejora-id','');
+  onMejoraSelChange('r-mejora-id','r-mejora-info');
   document.getElementById('r-act-blocks').innerHTML='<div class="muted" style="font-size:11px">¿Qué sigue para este lote? Podés agregar más de una — por ejemplo una Aplicación en 3 días y un Relevamiento de seguimiento en 20.</div>';
   _rActBlockN=0;
   const _eliminadasBox=document.getElementById('r-act-eliminadas');if(_eliminadasBox)_eliminadasBox.innerHTML='';
@@ -5348,9 +5610,8 @@ function openModalRelev(editId=null){
     const r=DB.relevamientos.find(x=>x.id===editId);if(!r)return;
     document.getElementById('r-cultivo').value=r.cultivo||'';
     document.getElementById('r-obs').value=r.obs||'';
-    document.getElementById('r-mejora').checked=!!r.mejoraProgramada;
-    document.getElementById('r-mejora-nota').value=r.mejoraNota||'';
-    document.getElementById('r-mejora-notabox').style.display=r.mejoraProgramada?'block':'none';
+    pintarMejoraSelect('r-mejora-id',r.mejoraId||'');
+    onMejoraSelChange('r-mejora-id','r-mejora-info');
     document.getElementById('r-camp').value=r.campaña||'';
     if(!r.fecha&&(r.fechaInicio||r.fechaLimite)){
       document.getElementById('r-programado').checked=true;
@@ -5712,8 +5973,8 @@ function saveRelev(){
     loteNombre:lote?.nombre||'',loteHa:lote?.ha||0,
     malezas,productos,
     obs:document.getElementById('r-obs').value.trim(),
-    mejoraProgramada:!!document.getElementById('r-mejora')?.checked,
-    mejoraNota:document.getElementById('r-mejora')?.checked?(document.getElementById('r-mejora-nota')?.value.trim()||''):'',
+    mejoraId:document.getElementById('r-mejora-id')?.value||null,
+    mejoraProgramada:!!document.getElementById('r-mejora-id')?.value,
     estado:'Relevado',
     borradorTs:null,
     createdAt:_editRelevId?(DB.relevamientos.find(r=>r.id===_editRelevId)?.createdAt||Date.now()):Date.now(),
@@ -7097,9 +7358,9 @@ function abrirModalActividadMasiva(lotesIniciales=[],tipoInicial='',campInicial=
   document.getElementById('tl-act-fecha-fin').value=fechaFinDefault||'';
   document.getElementById('tl-act-fecha-real').value='';
   document.getElementById('tl-act-obs').value='';
-  document.getElementById('tl-act-mejora').checked=false;
-  document.getElementById('tl-act-mejora-nota').value='';
-  document.getElementById('tl-act-mejora-notabox').style.display='none';
+  pintarMejoraSelect('tl-act-mejora-id',window._masivaMejoraPre||'');
+  onMejoraSelChange('tl-act-mejora-id','tl-act-mejora-info');
+  window._masivaMejoraPre=null;
   document.getElementById('tl-act-extra').innerHTML='';
   if(tipoInicial)onTlActTipoChange();
   tlMasivaRenderCarrito();
@@ -7226,8 +7487,8 @@ function tlGuardarActividadMasiva(){
   const campaña=document.getElementById('tl-act-camp').value||getCampanaActiva();
   const obs=document.getElementById('tl-act-obs').value.trim();
   const fechaReal=document.getElementById('tl-act-fecha-real')?.value||null;
-  const mejora=!!document.getElementById('tl-act-mejora')?.checked;
-  const mejoraNota=mejora?(document.getElementById('tl-act-mejora-nota')?.value.trim()||''):'';
+  const mejoraId=document.getElementById('tl-act-mejora-id')?.value||null;
+  const mejora=!!mejoraId;
   let count=0;
   if(tipo==='Relevamiento'&&loteIds.length===1){
     // Un solo lote: en vez de dejar un Relevamiento "cáscara" sin diagnóstico
@@ -7255,10 +7516,9 @@ function tlGuardarActividadMasiva(){
         document.getElementById('r-fecha-inicio').value=fechaA||'';
         document.getElementById('r-fecha-limite').value=fechaFinA||'';
       }
-      if(mejora){
-        document.getElementById('r-mejora').checked=true;
-        document.getElementById('r-mejora-nota').value=mejoraNota;
-        document.getElementById('r-mejora-notabox').style.display='block';
+      if(mejoraId){
+        pintarMejoraSelect('r-mejora-id',mejoraId);
+        onMejoraSelChange('r-mejora-id','r-mejora-info');
       }
     },60);
     _tlMasivaCarrito=new Set();
@@ -7279,7 +7539,7 @@ function tlGuardarActividadMasiva(){
         id:uid(),fecha:fechaReal,fechaInicio:fechaA,fechaLimite:fechaFinA||null,campaña:campaña||getCampanaActiva(),
         cultivo:'',clienteId:lote.clienteId,campoId:lote.campoId,loteId:lote.id,
         clienteNombre:cli?.nombre||'',campoNombre:campo?.nombre||'',loteNombre:lote.nombre,loteHa:lote.ha||0,
-        malezas:[],productos:[],obs,mejoraProgramada:mejora,mejoraNota,estado:'Relevado',createdAt:Date.now(),momento:_tlMasivaMomento||null,
+        malezas:[],productos:[],obs,mejoraProgramada:mejora,mejoraId,estado:'Relevado',createdAt:Date.now(),momento:_tlMasivaMomento||null,
         corto:nextRelevCodigo()
       });
       count++;
@@ -7297,7 +7557,7 @@ function tlGuardarActividadMasiva(){
         id:uid(),loteId,clienteId:lote.clienteId,campoId:lote.campoId,
         tipo,fecha:fechaA,fechaFin:fechaFinA||null,campaña,obs,datos,
         estado:calcularEstadoActividad(fechaReal),fechaRealizacion:fechaReal,
-        mejoraProgramada:mejora,mejoraNota,
+        mejoraProgramada:mejora,mejoraId,
         createdAt:Date.now(),momento:_tlMasivaMomento||null,
         corto:nextActCodigo()
       };
@@ -7842,9 +8102,8 @@ function openModalActividad(loteId,cliId,campoId,editId=null){
   window._aplResyncDiag=null;
   document.getElementById('act-apl-historial').style.display='none';
   document.getElementById('act-fecha-real').value='';
-  document.getElementById('act-mejora').checked=false;
-  document.getElementById('act-mejora-nota').value='';
-  document.getElementById('act-mejora-notabox').style.display='none';
+  pintarMejoraSelect('act-mejora-id','');
+  onMejoraSelChange('act-mejora-id','act-mejora-info');
   document.getElementById('act-origen-info').style.display='none';
   // Tipo de actividad: se reconstruye cada vez a partir del catálogo editable
   // (⚙️ Tipos de Actividad), para que un tipo agregado o quitado se refleje al toque.
@@ -7868,9 +8127,8 @@ function openModalActividad(loteId,cliId,campoId,editId=null){
       document.getElementById('act-camp').value=a.campaña||'';
       document.getElementById('act-obs').value=a.obs||'';
       document.getElementById('act-fecha-real').value=a.fechaRealizacion||'';
-      document.getElementById('act-mejora').checked=!!a.mejoraProgramada;
-      document.getElementById('act-mejora-nota').value=a.mejoraNota||'';
-      document.getElementById('act-mejora-notabox').style.display=a.mejoraProgramada?'block':'none';
+      pintarMejoraSelect('act-mejora-id',a.mejoraId||'');
+      onMejoraSelChange('act-mejora-id','act-mejora-info');
       // Si viene de un relevamiento, mostrar el link + la opción de desadjuntar
       if(a.relevId){
         const origen=DB.relevamientos.find(x=>x.id===a.relevId);
@@ -8064,7 +8322,7 @@ function saveActividad(){
   if(tipo==='Relevamiento'&&!_editActId){
     const fIni=document.getElementById('act-fecha').value||'';
     const fLim=document.getElementById('act-fecha-fin').value||'';
-    const mejora=!!document.getElementById('act-mejora')?.checked;
+    const mejoraId=document.getElementById('act-mejora-id')?.value||null;
     const loteId=_actLoteCtx.loteId,cliId=_actLoteCtx.cliId;
     closeModal('modal-actividad');
     openModalRelev(null);
@@ -8078,7 +8336,10 @@ function saveActividad(){
         document.getElementById('r-fecha-inicio').value=fIni;
         document.getElementById('r-fecha-limite').value=fLim;
       }
-      if(mejora)document.getElementById('r-mejora').checked=true;
+      if(mejoraId){
+        pintarMejoraSelect('r-mejora-id',mejoraId);
+        onMejoraSelChange('r-mejora-id','r-mejora-info');
+      }
     },60);
     return;
   }
@@ -8105,8 +8366,8 @@ function saveActividad(){
     datos,
     estado,
     fechaRealizacion,
-    mejoraProgramada:!!document.getElementById('act-mejora')?.checked,
-    mejoraNota:document.getElementById('act-mejora')?.checked?(document.getElementById('act-mejora-nota')?.value.trim()||''):'',
+    mejoraId:document.getElementById('act-mejora-id')?.value||null,
+    mejoraProgramada:!!document.getElementById('act-mejora-id')?.value,
     relevId:relevIdPrevio||null,
     createdAt:existente?existente.createdAt:Date.now(),
     corto:existente?(existente.corto||nextActCodigo()):nextActCodigo()
@@ -8476,7 +8737,7 @@ function renderActividadesMaster(){
       general:!a.loteId,
       campaña:a.campaña,obs:a.obs,relevId:a.relevId,sort:a.fecha||a.fechaFin||'0000',
       creada:fechaLocalDeTs(a.createdAt),creadaTs:a.createdAt||0,
-      mejoraProgramada:!!a.mejoraProgramada,mejoraNota:a.mejoraNota||'',
+      mejoraProgramada:!!a.mejoraProgramada,mejoraId:a.mejoraId||null,
       cortoCodigo:a.corto||'',
       tareaRecurrenteId:a.tareaRecurrenteId||null
     };
@@ -8498,7 +8759,7 @@ function renderActividadesMaster(){
       creada:fechaLocalDeTs(r.createdAt),creadaTs:r.createdAt||0,
       origenRelevId:(r.origenRelevId&&DB.relevamientos.some(x=>x.id===r.origenRelevId))?r.origenRelevId:null,
       actividadLigada:tieneAplic?{id:tieneAplic.id,tipo:tieneAplic.tipo,estado:estadoDe(tieneAplic),corto:tieneAplic.corto||''}:null,
-      mejoraProgramada:!!r.mejoraProgramada,mejoraNota:r.mejoraNota||'',
+      mejoraProgramada:!!r.mejoraProgramada,mejoraId:r.mejoraId||null,
       cortoCodigo:r.corto||''
     };
   });
@@ -8710,7 +8971,9 @@ function renderActividadesMaster(){
     // (fecha de inicio a futuro) — para verla de entrada, no solo por el texto
     // chico de la columna Vencimiento.
     const filaBg=(u&&!u.accionable)?' style="background:rgba(120,120,120,.16)'+(f.mejoraProgramada?';border-left:3px solid #ef5350':'')+'"':(f.mejoraProgramada?' style="border-left:3px solid #ef5350"':'');
-    const mejoraBadgeF=f.mejoraProgramada?` <span class="mejora-pill" title="${(f.mejoraNota||'Mejora programada (sin descripción cargada)').replace(/"/g,'&quot;')}">🔧${f.mejoraNota?' '+f.mejoraNota:''}</span>`:'';
+    const mejoraF=f.mejoraId?(DB.mejoras||[]).find(m=>m.id===f.mejoraId):null;
+    const mejoraVencidaF=mejoraF&&mejoraF.fechaLimite&&f.estado==='Pendiente'&&f.fechaFin&&f.fechaFin>mejoraF.fechaLimite;
+    const mejoraBadgeF=f.mejoraProgramada?` <span class="mejora-pill" style="${mejoraVencidaF?'background:#ef5350;color:#fff':''}" title="${mejoraF?(mejoraF.nombre+(mejoraVencidaF?' — ⚠️ esta actividad vence después del límite de la Mejora ('+mejoraF.fechaLimite+')':'')).replace(/"/g,'&quot;'):'Mejora programada (vínculo roto o eliminada)'}"><a href="#" onclick="event.preventDefault();event.stopPropagation();${mejoraF?`navTo('mejora-detail',{mejoraId:'${mejoraF.id}'})`:''}" style="color:inherit;text-decoration:none">🔧${mejoraF?' '+mejoraF.nombre:''}${mejoraVencidaF?' ⚠️':''}</a></span>`:'';
     const chk=`<input type="checkbox" ${_actMSelected.has(f.id)?'checked':''} onchange="actMToggleSel('${f.id}',${f.esRelev},this.checked)">`;
     // Código corto (R1, A1...) de esta fila, y del relevamiento vinculado si
     // esta fila es una Actividad derivada de uno — así se ve de un vistazo
@@ -9030,7 +9293,7 @@ function buildHistorialItems(loteId,cliId,campoId,filtroTipo='',filtroCamp='',fi
       campaña:r.campaña||'',
       obs:r.obs||'',
       datos:{},
-      mejoraProgramada:!!r.mejoraProgramada,mejoraNota:r.mejoraNota||'',
+      mejoraProgramada:!!r.mejoraProgramada,mejoraId:r.mejoraId||null,
       _relev:r,
       _esRelev:true
     });
@@ -9141,7 +9404,9 @@ function renderActItem(item,loteId,cliId,campoId){
       :`<button class="btn bs bxs" onclick="duplicarActividad('${item.id}')" title="Duplicar">📄</button>
         <button class="btn bs bxs" onclick="openModalActividad('${loteId}','${cliId}','${campoId}','${item.id}')" title="Editar">✏️</button>
         <button class="btn bd bxs" onclick="deleteActividad('${item.id}','${loteId}','${cliId}','${campoId}')" title="Eliminar">✕</button>`);
-  const mejoraBadge=item.mejoraProgramada?`<span class="mejora-pill" title="Mejora programada — no es una tarea común">🔧 ${item.mejoraNota?item.mejoraNota:'Mejora (sin descripción cargada)'}</span>`:'';
+  const mejoraIt=item.mejoraId?(DB.mejoras||[]).find(m=>m.id===item.mejoraId):null;
+  const mejoraItVencida=mejoraIt&&mejoraIt.fechaLimite&&item.estado==='Pendiente'&&item.fechaFin&&item.fechaFin>mejoraIt.fechaLimite;
+  const mejoraBadge=item.mejoraProgramada?`<a href="#" onclick="event.preventDefault();${mejoraIt?`navTo('mejora-detail',{mejoraId:'${mejoraIt.id}'})`:''}" style="text-decoration:none"><span class="mejora-pill" style="${mejoraItVencida?'background:#ef5350;color:#fff':''}" title="${mejoraIt?'Mejora programada — no es una tarea común'+(mejoraItVencida?' — ⚠️ vence después del límite de la Mejora ('+mejoraIt.fechaLimite+')':''):'Vínculo a la Mejora roto o eliminada'}">🔧 ${mejoraIt?mejoraIt.nombre:'Mejora (eliminada)'}${mejoraItVencida?' ⚠️':''}</span></a>`:'';
   const codigoItem=item._esRelev?(item._relev?.corto||''):(item.corto||'');
   const codigoBadge=codigoItem?`<span class="badge bg-gray mono" style="font-size:9px" title="Código corto — buscalo en el buscador">${codigoItem}</span> `:'';
   return`<div class="act-item${item.estado==='Pendiente'?' act-pendiente':''}">
