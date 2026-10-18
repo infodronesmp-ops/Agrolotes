@@ -1001,7 +1001,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
     <div class="page" id="page-papelera">
       <div class="ph" style="margin-bottom:10px;font-size:12px;color:var(--text3)">Lo que borrás queda acá 30 días por si hace falta recuperarlo — después se borra solo, para siempre.</div>
       <div class="filters ph" style="gap:6px;flex-wrap:wrap;margin-bottom:10px">
-        <input type="text" id="pap-txt" placeholder="Buscar lote, cliente, campo, tipo..." oninput="renderPapelera()" style="width:210px">
+        <input type="text" id="pap-txt" placeholder="Buscar lote, cliente, campo, tipo, viene de..." oninput="renderPapelera()" style="width:230px">
         <select id="pap-tipo" class="fi" style="width:150px" onchange="renderPapelera()"><option value="">Todos los tipos</option></select>
         <select id="pap-cli" class="fi" style="width:150px" onchange="renderPapelera()"><option value="">Todos los clientes</option></select>
         <span class="muted" style="font-size:11px">Borrado</span>
@@ -1041,6 +1041,14 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
         <div class="ch"><span class="ct">Mejoras programadas</span></div>
         <div class="cb" id="mejoras-body"></div>
       </div>
+    </div>
+
+    <!-- INSTANCIAS DE UNA TAREA RECURRENTE -->
+    <div class="page" id="page-tarea-instancias">
+      <div class="ph" style="margin-bottom:10px">
+        <button class="btn bs bsm" onclick="navTo('tareas-recurrentes')">← Volver a Actividades recurrentes</button>
+      </div>
+      <div id="tarea-instancias-content"></div>
     </div>
 
     <div class="page" id="page-mejora-detail">
@@ -2165,6 +2173,7 @@ function cultivoCumpleTarea(loteId,camp,t){
 function generarTareasRecurrentes(camp){
   if(!camp)return 0;
   let generadas=0;
+  const hoy=hoyLocal();
   (DB.tareasRecurrentes||[]).filter(t=>t.activo!==false&&t.alcance!=='general').forEach(t=>{
     DB.lotes.forEach(l=>{
       if(!cultivoCumpleTarea(l.id,camp,t))return;
@@ -2176,6 +2185,12 @@ function generarTareasRecurrentes(camp){
       const cli=DB.clientes.find(c=>c.id===l.clienteId);
       const campo=DB.campos.find(c=>c.id===l.campoId);
       const {ini,fin}=ventanaFechasTarea(t,camp);
+      // Si la ventana de ESTA campaña ya terminó por completo, no tiene
+      // sentido generar algo que nace vencido — se salta este ciclo (no
+      // genera nada para este lote todavía) y va a generarse solo, a
+      // tiempo, cuando avances a la campaña siguiente y esa ventana vuelva
+      // a caer por delante de hoy.
+      if(fin<hoy)return;
       const rolInfo=cultivosRolDeLote(l.id,camp).find(r=>(!t.rol||t.rol==='cualquiera'||r.rol===t.rol)&&(!t.cultivo||t.cultivo==='cualquiera'||baseCultivo(r.cultivo)===baseCultivo(t.cultivo)));
       DB.relevamientos.push({
         id:uid(),fecha:null,fechaInicio:ini,fechaLimite:fin,campaña:camp,
@@ -2550,6 +2565,65 @@ function trSortBy(col){
   if(_trSort.col===col)_trSort.dir*=-1;else{_trSort={col,dir:1};}
   renderTareasRecurrentes();
 }
+// Todo lo que generó alguna vez una plantilla, en CUALQUIER campaña y con
+// CUALQUIER alcance que haya tenido en el momento de generarlas (relevamientos
+// "por lote" + actividades "general") — incluye lo borrado (papelera), para
+// que nunca quede algo generado "perdido" solo porque después cambiaste el
+// alcance de la plantilla o avanzó la campaña.
+function instanciasDeTarea(tareaId){
+  const items=[];
+  (DB.relevamientos||[]).forEach(r=>{
+    if(r.tareaRecurrenteId!==tareaId)return;
+    items.push({id:r.id,esRelev:true,tipo:'Relevamiento',loteNombre:r.loteNombre||'—',clienteNombre:r.clienteNombre||'—',campoNombre:r.campoNombre||'—',
+      campaña:r.campaña||'—',fechaRef:r.fecha||r.fechaLimite||r.fechaInicio||'',borrado:!!r.borrado,
+      estado:r.fecha?'Realizada':'Pendiente'});
+  });
+  (DB.actividades||[]).forEach(a=>{
+    if(a.tareaRecurrenteId!==tareaId)return;
+    const l=DB.lotes.find(x=>x.id===a.loteId),cli=DB.clientes.find(c=>c.id===a.clienteId),campo=DB.campos.find(c=>c.id===a.campoId);
+    items.push({id:a.id,esRelev:false,tipo:a.tipo,loteNombre:a.loteId?(l?.nombre||'—'):'— (general)',clienteNombre:cli?.nombre||'—',campoNombre:campo?.nombre||'—',
+      campaña:a.campaña||'—',fechaRef:a.fechaRealizacion||a.fechaFin||a.fecha||'',borrado:!!a.borrado,
+      estado:a.fechaRealizacion?'Realizada':'Pendiente'});
+  });
+  items.sort((a,b)=>(b.fechaRef||'').localeCompare(a.fechaRef||''));
+  return items;
+}
+let _tareaInstCtx=null;
+function abrirTareaInstancias(tareaId){_tareaInstCtx={tareaId};renderTareaInstancias();}
+function renderTareaInstancias(){
+  const cont=document.getElementById('tarea-instancias-content');if(!cont||!_tareaInstCtx)return;
+  const t=(DB.tareasRecurrentes||[]).find(x=>x.id===_tareaInstCtx.tareaId);
+  if(!t){cont.innerHTML='<div class="empty"><div class="empty-t">Plantilla no encontrada (puede que la hayas eliminado)</div></div>';return;}
+  const items=instanciasDeTarea(t.id);
+  const vivas=items.filter(i=>!i.borrado);
+  const filasHTML=items.map(it=>{
+    const abrir=it.esRelev?`openModalRelev('${it.id}')`:`openModalActividad(null,null,null,'${it.id}')`;
+    return`<tr${it.borrado?' style="opacity:.55"':''}>
+      <td style="font-size:12px">${it.esRelev?'🔬':((ACT_TIPOS[it.tipo]||{}).icono||'📝')} ${it.tipo}</td>
+      <td>${it.loteNombre}</td>
+      <td style="font-size:12px">${it.clienteNombre} <span class="muted">— ${it.campoNombre}</span></td>
+      <td class="mono" style="font-size:11px">${it.campaña}</td>
+      <td class="mono" style="font-size:11px">${it.fechaRef||'—'}</td>
+      <td>${it.borrado?'<span class="badge bg-gray">🗑️ En papelera</span>':(it.estado==='Realizada'?'<span class="badge bg-green">✅ Realizada</span>':'<span class="badge bg-blue">🕒 Pendiente</span>')}</td>
+      <td class="ph rf">
+        ${it.borrado?`<button class="btn bp bxs" onclick="restaurarDePapelera('${it.id}',${it.esRelev});renderTareaInstancias()">↩️ Restaurar</button>`
+          :`<a href="#" onclick="event.preventDefault();${abrir}" style="color:var(--accent);font-size:12px">Abrir</a>`}
+      </td>
+    </tr>`;
+  }).join('');
+  cont.innerHTML=`
+    <div class="ph mb16">
+      <div style="font-size:18px;font-weight:700">🔁 ${t.nombre}</div>
+      <div class="muted" style="font-size:12px;margin-top:3px">${items.length} instancia(s) generada(s) en total desde que existe esta plantilla (${vivas.length} activa(s), ${items.length-vivas.length} en papelera) — se listan todas, de cualquier campaña, independiente del alcance actual (${t.alcance==='general'?'General':'Por lote'}).</div>
+    </div>
+    <div class="card">
+      <div class="ch"><span class="ct">Instancias</span></div>
+      <div class="cb">
+        ${items.length?`<div class="tw"><table><thead><tr><th>Tipo</th><th>Lote</th><th>Cliente / Campo</th><th>Campaña</th><th>Fecha</th><th>Estado</th><th class="ph"></th></tr></thead><tbody>${filasHTML}</tbody></table></div>`
+          :'<div class="empty"><div class="empty-icon">🔁</div><div class="empty-t">Todavía no generó ninguna instancia</div></div>'}
+      </div>
+    </div>`;
+}
 function renderTareasRecurrentes(){
   const cont=document.getElementById('tr-body');if(!cont)return;
   const campAct=getCampanaActiva();
@@ -2624,22 +2698,25 @@ function renderTareasRecurrentes(){
     +lista.map(t=>{
       const general=t.alcance==='general';
       const p=n=>String(n).padStart(2,'0');
-      let condicionHTML,generadasHTML;
+      let condicionHTML;
       if(general){
-        const generadas=(DB.actividades||[]).filter(a=>a.tareaRecurrenteId===t.id&&!a.borrado).length;
-        const pend=(DB.actividades||[]).filter(a=>a.tareaRecurrenteId===t.id&&!a.borrado&&!a.fechaRealizacion).length;
         const tt=ACT_TIPOS[t.tipoActividad]||{};
         const esRelevGen=t.tipoActividad==='RelevGeneral';
         condicionHTML=esRelevGen
           ?`<span class="badge bg-purple">🔍 Relevamiento (por lote)</span> <span class="badge bg-amber">${t.cultivo==='cualquiera'?'Cualquier cultivo':t.cultivo}</span> <span class="badge bg-gray">${ROL_LBL[t.rol]||'cualquiera'}</span>`
           :`<span class="badge bg-blue">${tt.icono||'📝'} ${t.tipoActividad||'(sin tipo)'}</span>`;
-        generadasHTML=`<td>${generadas} <span class="muted" style="font-size:10px">(histórico · ${pend} pendiente${pend===1?'':'s'})</span></td>`;
       } else {
-        const generadasCamp=(DB.relevamientos||[]).filter(r=>r.tareaRecurrenteId===t.id&&r.campaña===campAct&&!r.borrado).length;
-        const pendCamp=(DB.relevamientos||[]).filter(r=>r.tareaRecurrenteId===t.id&&r.campaña===campAct&&!r.borrado&&!r.fecha).length;
         condicionHTML=`<span class="badge bg-amber">${t.cultivo==='cualquiera'?'Cualquier cultivo':t.cultivo}</span> <span class="badge bg-gray">${ROL_LBL[t.rol]||'cualquiera'}</span>`;
-        generadasHTML=`<td>${generadasCamp} <span class="muted" style="font-size:10px">(campaña activa · ${pendCamp} pendiente${pendCamp===1?'':'s'})</span></td>`;
       }
+      // El conteo de "Generadas" es SIEMPRE el histórico total de la plantilla
+      // (relevamientos + actividades, de cualquier campaña, pasado o presente)
+      // y nunca depende del alcance que tenga AHORA — si cambiás una plantilla
+      // de "Por lote" a "General" (o viceversa), lo que ya generó con el modo
+      // anterior sigue existiendo y acá se sigue viendo, no desaparece.
+      const instT=instanciasDeTarea(t.id);
+      const vivasT=instT.filter(i=>!i.borrado);
+      const pendT=vivasT.filter(i=>i.estado==='Pendiente').length;
+      const generadasHTML=`<td><a href="#" onclick="event.preventDefault();navTo('tarea-instancias',{tareaId:'${t.id}'})" style="color:var(--accent)" title="Ver todas las instancias generadas por esta plantilla">${vivasT.length}</a> <span class="muted" style="font-size:10px">(histórico total · ${pendT} pendiente${pendT===1?'':'s'})</span></td>`;
       return'<tr>'
         +`<td><strong>${t.nombre}</strong>${t.mejora?' <span class="mejora-pill" title="Marca la actividad generada como Mejora programada">🔧</span>':''}</td>`
         +`<td>${general?'<span class="badge bg-purple">General (sin lote)</span>':'<span class="badge bg-gray">Por lote</span>'}</td>`
@@ -3043,6 +3120,52 @@ function clearFiltrosPap(){
   _papSort={col:'borrado',dir:-1};
   renderPapelera();
 }
+// Selección múltiple en Papelera — para restaurar (o eliminar ya) de a varios
+// en un solo paso, sin ir fila por fila. La selección sobrevive a los filtros
+// (podés buscar "viene de X", tildar "seleccionar todo" y después sacar el
+// filtro: lo tildado sigue tildado hasta que restaurás, eliminás o desmarcás).
+let _papSel=new Set();
+let _papUltimasKeys=[];
+function papKey(id,esRelev){return id+'|'+(esRelev?1:0);}
+function papToggleSel(key,cb){
+  if(cb.checked)_papSel.add(key);else _papSel.delete(key);
+  renderPapelera();
+}
+function papToggleAll(cb){
+  _papUltimasKeys.forEach(k=>{if(cb.checked)_papSel.add(k);else _papSel.delete(k);});
+  renderPapelera();
+}
+function papDeseleccionarTodo(){_papSel.clear();renderPapelera();}
+function papRestaurarSeleccion(){
+  if(!_papSel.size)return;
+  const n=_papSel.size;
+  Array.from(_papSel).forEach(k=>{
+    const p=k.split('|'),id=p[0],esRelev=p[1]==='1';
+    if(esRelev){const r=DB.relevamientos.find(x=>x.id===id);if(r){delete r.borrado;delete r.fechaBorrado;delete r.borradoTs;}}
+    else{const a=DB.actividades.find(x=>x.id===id);if(a){delete a.borrado;delete a.fechaBorrado;delete a.borradoTs;}}
+  });
+  _papSel.clear();
+  save();
+  mostrarSnackbar(`✅ ${n} restaurado(s)`);
+  refrescarVistasActividad();
+  renderPapelera();
+}
+function papEliminarSeleccion(){
+  if(!_papSel.size)return;
+  const n=_papSel.size;
+  confirmarAccion(`¿Eliminar para siempre ${n} elemento(s) de la papelera? No se puede deshacer.`,()=>{
+    Array.from(_papSel).forEach(k=>{
+      const p=k.split('|'),id=p[0],esRelev=p[1]==='1';
+      if(esRelev)DB.relevamientos=DB.relevamientos.filter(x=>x.id!==id);
+      else DB.actividades=DB.actividades.filter(x=>x.id!==id);
+    });
+    _papSel.clear();
+    save();
+    mostrarSnackbar(`🗑️ ${n} eliminado(s) definitivamente`);
+    refrescarVistasActividad();
+    renderPapelera();
+  },'Eliminar');
+}
 function renderPapelera(){
   const cont=document.getElementById('papelera-body');if(!cont)return;
   const relevs=(DB.relevamientos||[]).filter(r=>r.borrado).map(r=>({
@@ -3067,6 +3190,19 @@ function renderPapelera(){
   items.forEach(it=>{
     if(!it.borradoTs&&it.fechaBorrado){const[y,m,d]=it.fechaBorrado.split('-').map(Number);it.borradoTs=new Date(y,m-1,d,12).getTime();}
     it.restan=diasRestantesPapelera(it.fechaBorrado);
+    // Texto de "Viene de" (relevamiento madre / plantilla recurrente) — se
+    // precalcula acá para que el buscador de arriba también lo encuentre,
+    // no solo lo que se ve en la columna Tipo/Lote/Cliente/Campo.
+    let ot='';
+    if(it.relevId){
+      const madre=DB.relevamientos.find(x=>x.id===it.relevId);
+      ot=madre?('Relevamiento '+(madre.fecha||'programado')):'relevamiento ya purgado';
+    }
+    if(it.tareaRecurrenteId){
+      const plantilla=(DB.tareasRecurrentes||[]).find(x=>x.id===it.tareaRecurrenteId);
+      ot=(ot?ot+' ':'')+(plantilla?plantilla.nombre:'actividad recurrente eliminada');
+    }
+    it.origenTxt=ot;
   });
 
   // Opciones de los filtros: solo lo que realmente hay en la papelera
@@ -3086,7 +3222,7 @@ function renderPapelera(){
     if(fCli&&it.clienteNombre!==fCli)return false;
     if(fDesde&&(it.fechaBorrado||'')<fDesde)return false;
     if(fHasta&&(it.fechaBorrado||'')>fHasta)return false;
-    if(q&&![it.tipo,it.loteNombre,it.clienteNombre,it.campoNombre].join(' ').toLowerCase().includes(q))return false;
+    if(q&&![it.tipo,it.loteNombre,it.clienteNombre,it.campoNombre,it.origenTxt].join(' ').toLowerCase().includes(q))return false;
     return true;
   });
 
@@ -3104,6 +3240,11 @@ function renderPapelera(){
 
   const ct=document.getElementById('papelera-ct');
   if(ct)ct.textContent=items.length===totalSinFiltrar?`Papelera (${items.length})`:`Papelera (${items.length} de ${totalSinFiltrar})`;
+  _papUltimasKeys=items.map(it=>papKey(it.id,it.esRelev));
+  // Lo tildado que ya no existe más (restaurado/eliminado desde otro lado) se
+  // descarta solo, para que el contador de la barra no quede mintiendo.
+  const idsVivos=new Set([...(DB.relevamientos||[]).map(r=>papKey(r.id,true)),...(DB.actividades||[]).map(a=>papKey(a.id,false))]);
+  Array.from(_papSel).forEach(k=>{if(!idsVivos.has(k))_papSel.delete(k);});
   if(!items.length){
     cont.innerHTML=totalSinFiltrar
       ?'<div class="empty"><div class="empty-icon">🔎</div><div class="empty-t">Nada coincide con esos filtros</div></div>'
@@ -3111,7 +3252,15 @@ function renderPapelera(){
     return;
   }
   const th=(t,col)=>{const flecha=_papSort.col===col?(_papSort.dir>0?' ▲':' ▼'):'';return`<th onclick="papSortBy('${col}')" style="text-align:left;padding:6px 8px;cursor:pointer;user-select:none" title="Ordenar">${t}${flecha}</th>`;};
-  cont.innerHTML=`<div class="tw"><table style="width:100%"><thead><tr>
+  const todosSelFiltrados=_papUltimasKeys.length>0&&_papUltimasKeys.every(k=>_papSel.has(k));
+  const barraSel=_papSel.size?`<div class="rf ph" style="gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
+      <span style="font-size:12px;font-weight:600">${_papSel.size} seleccionado(s)</span>
+      <button class="btn bp bxs" onclick="papRestaurarSeleccion()">↩️ Restaurar seleccionados</button>
+      <button class="btn bd bxs" onclick="papEliminarSeleccion()">✕ Eliminar seleccionados ya</button>
+      <button class="btn bs bxs" onclick="papDeseleccionarTodo()">Deseleccionar todo</button>
+    </div>`:'';
+  cont.innerHTML=barraSel+`<div class="tw"><table style="width:100%"><thead><tr>
+    <th style="padding:6px 8px"><input type="checkbox" ${todosSelFiltrados?'checked':''} onchange="papToggleAll(this)" title="Seleccionar todo lo filtrado"></th>
     ${th('Tipo','tipo')}${th('Lote','lote')}${th('Cliente / Campo','cliente')}${th('Viene de','origen')}
     ${th('Creada','creada')}${th('Borrado el','borrado')}${th('Se borra en','restan')}<th></th></tr></thead><tbody>
     ${items.map(it=>{
@@ -3129,7 +3278,9 @@ function renderPapelera(){
           :'<span class="muted" style="font-size:11px">🔁 actividad recurrente ya eliminada</span>';
         origen=origen==='<span class="muted">—</span>'?tr:origen+' · '+tr;
       }
+      const key=papKey(it.id,it.esRelev);
       return`<tr>
+        <td style="padding:6px 8px"><input type="checkbox" ${_papSel.has(key)?'checked':''} onchange="papToggleSel('${key}',this)"></td>
         <td style="padding:6px 8px">${it.icono} ${it.tipo}</td>
         <td style="padding:6px 8px">${it.loteNombre}</td>
         <td style="padding:6px 8px">${it.clienteNombre} <span class="muted">— ${it.campoNombre}</span></td>
@@ -3936,6 +4087,7 @@ const PM={
   planificacion:{t:'Planificación',s:'Qué tiene cada lote en la campaña — y qué falta cargar'},
   papelera:{t:'Papelera',s:'Relevamientos y actividades eliminados — se guardan 30 días por si hace falta restaurarlos'},
   'tareas-recurrentes':{t:'Actividades recurrentes',s:'Plantillas que generan solas una actividad (relevamiento por lote, o cualquier otra sin lote) cada vez que corresponde, para no tener que acordarse'},
+  'tarea-instancias':{t:'Instancias generadas',s:'Todo lo que generó esta plantilla alguna vez, de cualquier campaña, haya cambiado o no de alcance'},
   mejoras:{t:'Mejoras programadas',s:'Cada mejora se carga una vez y después se le enganchan las actividades de los lotes que la llevan adelante'},
   'mejora-detail':{t:'Detalle de mejora',s:'Actividades y relevamientos vinculados a esta mejora'},
   historial:{t:'Historial y Rotación',s:'Cultivo y diagnósticos por lote, campaña a campaña — para decidir la rotación con precedentes'},
@@ -3987,6 +4139,7 @@ function navTo(id,params={}){
   if(id==='facturacion')  renderFacturacion();
   if(id==='cultivo-detail')abrirCultivoDetail(params.cultivo,params.campaña);
   if(id==='tareas-recurrentes')renderTareasRecurrentes();
+  if(id==='tarea-instancias') abrirTareaInstancias(params.tareaId);
   if(id==='mejoras')         renderMejoras();
   if(id==='mejora-detail')   abrirMejoraDetail(params.mejoraId);
 }
