@@ -6487,8 +6487,14 @@ function getFiltrados(){
     if(planDesde||planHasta){
       const pIni=r.fechaInicio||'';const pLim=r.fechaLimite||'';
       if(!pIni&&!pLim)return false;
-      const dentroDesde=planDesde?((pIni&&pIni>=planDesde)||(pLim&&pLim>=planDesde)):true;
-      const dentroHasta=planHasta?((pIni&&pIni<=planHasta)||(pLim&&pLim<=planHasta)):true;
+      // El vencimiento real (fechaLimite) es la referencia — si no tiene
+      // límite cargado, se usa el inicio. Antes comparaba "desde" y "hasta"
+      // contra inicio O límite (lo que sea que diera el OK), así que algo
+      // que arrancó antes de "hasta" pasaba el filtro aunque venciera mucho
+      // después — se veían cosas "vencen más adelante" que no correspondían.
+      const ref=pLim||pIni;
+      const dentroDesde=planDesde?ref>=planDesde:true;
+      const dentroHasta=planHasta?ref<=planHasta:true;
       if(!dentroDesde||!dentroHasta)return false;
     }
     // Fecha de Creación (createdAt)
@@ -8947,8 +8953,14 @@ function renderActividadesMaster(){
     if(fPlanDesde||fPlanHasta){
       const pIni=f.fecha||'';const pLim=f.fechaFin||'';
       if(!pIni&&!pLim)return false;
-      const dentroDesde=fPlanDesde?((pIni&&pIni>=fPlanDesde)||(pLim&&pLim>=fPlanDesde)):true;
-      const dentroHasta=fPlanHasta?((pIni&&pIni<=fPlanHasta)||(pLim&&pLim<=fPlanHasta)):true;
+      // Misma corrección que en Relevamientos: el vencimiento (fechaFin) es
+      // la referencia real contra la que se compara "desde"/"hasta" — si no
+      // tiene fechaFin cargada, se usa la fecha de inicio. Antes, con el OR
+      // entre inicio y límite, algo que arrancaba antes de "hasta" pasaba el
+      // filtro aunque venciera mucho después de esa fecha.
+      const ref=pLim||pIni;
+      const dentroDesde=fPlanDesde?ref>=fPlanDesde:true;
+      const dentroHasta=fPlanHasta?ref<=fPlanHasta:true;
       if(!dentroDesde||!dentroHasta)return false;
     }
     if(q){
