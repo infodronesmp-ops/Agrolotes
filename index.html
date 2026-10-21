@@ -9104,7 +9104,7 @@ function renderActividadesMaster(){
     // si hay o no fecha de realización).
     const estadoBadge=f.estado==='Realizada'?'<span class="badge bg-green">✅ Realizada</span>'
       :'<span class="badge bg-blue">🕒 Pendiente</span>';
-    const fechaRealCell=`<input type="date" class="fi" style="font-size:10px;padding:2px 3px;width:86px" value="${f.fechaRealizacion||''}" onchange="${f.esRelev?`actMEditarFechaRealizacion('${f.id}',true,this.value)`:`actMEditarFechaRealizacion('${f.id}',false,this.value)`}">`;
+    const fechaRealCell=`<input type="date" class="fi" style="font-size:10px;padding:2px 3px;width:86px" value="${f.fechaRealizacion||''}" onchange="${f.esRelev?`actMEditarFechaRealizacion('${f.id}',true,this.value)`:`actMEditarFechaRealizacion('${f.id}',false,this.value)`}">${f.fechaRealizacion?`<div class="muted" style="font-size:10px;margin-top:1px;white-space:nowrap" title="Días desde la realización hasta hoy">⏱ ${haceCuantoTexto(diasDesde(f.fechaRealizacion))}</div>`:''}`;
     const loteLink=f.loteId
       ?`<a href="#" onclick="event.preventDefault();navTo('lote',{loteId:'${f.loteId}',cliId:'${f.clienteId}',campoId:'${f.campoId}'})" style="color:var(--accent);font-weight:500">${f.loteNombre}</a>`
       :`<span class="badge bg-purple" style="font-size:9px" title="Actividad general — no está ligada a ningún lote en particular">general</span>`;
