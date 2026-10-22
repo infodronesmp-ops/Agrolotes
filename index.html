@@ -356,6 +356,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
     <button class="nb" onclick="navTo('papelera')"><span>🗑️</span> Papelera</button>
     <button class="nb" onclick="navTo('tareas-recurrentes')"><span>🔁</span> Actividades recurrentes</button>
     <button class="nb" onclick="navTo('mejoras')"><span>💡</span> Mejoras programadas</button>
+    <button class="nb" onclick="navTo('hitos')"><span>📌</span> Hitos del cultivo</button>
     <button class="nb" onclick="navTo('facturacion')"><span>🧾</span> Facturación</button>
     <button class="nb" onclick="navTo('ot')"><span>📋</span> Órdenes de trabajo</button>
   </div>
@@ -1058,6 +1059,26 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
       <div id="mejora-detail-content"></div>
     </div>
 
+    <!-- HITOS DEL CULTIVO -->
+    <div class="page" id="page-hitos">
+      <div class="ph" style="margin-bottom:10px;font-size:12px;color:var(--text3)">Fechas clave del cultivo (emergencia, espigazón, primera detección de una maleza o enfermedad, material sembrado...) por lote y campaña. Con la fecha de siembra que ya cargás en Actividades, el sistema calcula solo los <strong>días desde la siembra</strong>. Filtrá por un hito y mirá abajo el promedio por material.</div>
+      <div class="filters ph" style="gap:6px;flex-wrap:wrap;margin-bottom:10px">
+        <input type="text" id="h-search" placeholder="Buscar lote, cliente, detalle..." oninput="renderHitos()" style="width:190px">
+        <select id="h-camp" class="fi" style="width:110px" onchange="renderHitos()"></select>
+        <select id="h-tipo" class="fi" style="width:190px" onchange="renderHitos()"></select>
+        <select id="h-cult" class="fi" style="width:130px" onchange="renderHitos()"></select>
+        <select id="h-cli" class="fi" style="width:150px" onchange="renderHitos()"></select>
+        <button class="btn bs bsm" onclick="hitosLimpiar()">Limpiar</button>
+        <button class="btn bp bsm" onclick="openModalHito()">+ Nuevo hito</button>
+        <button class="btn bs bsm" onclick="openModalHitoTipos()">⚙️ Tipos de hito</button>
+      </div>
+      <div id="h-resumen" class="ph" style="margin-bottom:10px"></div>
+      <div class="card">
+        <div class="ch"><span class="ct" id="h-ct">Hitos del cultivo</span></div>
+        <div class="cb" id="h-body"></div>
+      </div>
+    </div>
+
     <div class="page" id="page-facturacion">
       <div class="ph" style="margin-bottom:10px;font-size:12px;color:var(--text3)">Cada fila es una visita (cliente + fecha de realización) — más allá de cuántos campos o lotes hayas relevado ese día, cuenta como un solo relevamiento facturable. Los campos y lotes de esa visita quedan listados adentro, con link directo a cada relevamiento.</div>
       <div class="filters ph" style="gap:6px;flex-wrap:wrap;margin-bottom:10px">
@@ -1352,6 +1373,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
     </div>
     <div class="mf">
       <button class="btn bs" onclick="cancelModalRelev()">Cancelar</button>
+      <button class="btn bs" onclick="hitoDesdeRelev()" title="Registrar un hito (espigazón, emergencia, primera detección...) en este lote con la fecha de este relevamiento">📌 Registrar hito</button>
       <button class="btn bp" onclick="saveRelev()">Guardar relevamiento</button>
     </div>
   </div>
@@ -1919,6 +1941,61 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
   </div>
 </div>
 
+<!-- ══ MODAL HITO DEL CULTIVO ══ -->
+<div class="mo" id="modal-hito">
+  <div class="modal" style="max-width:640px">
+    <div class="mh"><span class="mt" id="mhito-title">Nuevo hito</span><button class="mx" onclick="closeModal('modal-hito')">✕</button></div>
+    <div class="mb">
+      <div class="fg">
+        <div class="fg fg2">
+          <div class="field"><label>Hito *</label>
+            <div class="rf" style="gap:6px"><select id="hito-tipo" class="fi" style="flex:1" onchange="onHitoTipoChange()"></select>
+            <button type="button" class="btn bs bxs" onclick="openModalHitoTipos()" title="Editar la lista de hitos">⚙️</button></div>
+          </div>
+          <div class="field"><label>Fecha *</label><input type="date" id="hito-fecha" class="fi"></div>
+        </div>
+        <div class="fg fg2">
+          <div class="field" id="hito-valor-wrap"><label id="hito-valor-lbl">Detalle</label>
+            <input type="text" id="hito-valor-txt" class="fi" style="display:none" placeholder="Ej: DM 50i52 / Klein Titanio">
+            <select id="hito-valor-sel" class="fi" style="display:none"></select>
+          </div>
+          <div class="field"><label>Campaña</label><select id="hito-camp" class="fi" onchange="hitoRenderLotes()"></select></div>
+        </div>
+        <div class="field"><label>Nota <span class="muted">(opcional)</span></label><input type="text" id="hito-nota" class="fi" placeholder="Ej: 20% de las plantas"></div>
+        <div class="field" id="hito-lotes-wrap">
+          <label>Lotes donde se registra <span class="muted" id="hito-lotes-count"></span></label>
+          <div class="rf" style="gap:6px;flex-wrap:wrap;margin-bottom:6px">
+            <select id="hito-f-cli" class="fi" style="width:160px" onchange="hitoFiltroCliChange()"></select>
+            <select id="hito-f-campo" class="fi" style="width:160px" onchange="hitoRenderLotes()"></select>
+            <input type="text" id="hito-f-txt" class="fi" style="width:140px" placeholder="Buscar lote..." oninput="hitoRenderLotes()">
+            <button type="button" class="btn bs bxs" onclick="hitoTildarVisibles(true)">Tildar los visibles</button>
+            <button type="button" class="btn bs bxs" onclick="hitoTildarVisibles(false)">Destildar</button>
+          </div>
+          <div id="hito-lotes-lista" style="max-height:220px;overflow:auto;border:1px solid var(--border);border-radius:var(--r);padding:6px 8px"></div>
+        </div>
+        <div class="field" id="hito-lote-fijo" style="display:none"><label>Lote</label><div id="hito-lote-fijo-txt" style="font-size:13px"></div></div>
+      </div>
+    </div>
+    <div class="mf">
+      <button class="btn bs" onclick="closeModal('modal-hito')">Cancelar</button>
+      <button class="btn bp" onclick="saveHito()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL TIPOS DE HITO ══ -->
+<div class="mo" id="modal-hito-tipos">
+  <div class="modal" style="max-width:640px">
+    <div class="mh"><span class="mt">Tipos de hito</span><button class="mx" onclick="closeModal('modal-hito-tipos')">✕</button></div>
+    <div class="mb">
+      <div class="muted" style="font-size:11px;margin-bottom:8px">Es la lista de cosas que podés registrar con fecha. <strong>Solo fecha</strong>: etapas (emergencia, espigazón...). <strong>Elegir diagnóstico</strong>: primera detección de una maleza/enfermedad/plaga de tu lista. <strong>Texto</strong>: un dato libre, como el material sembrado.</div>
+      <div id="hito-tipos-lista"></div>
+      <button class="btn bs bsm" style="margin-top:8px" onclick="hitoTipoAgregar()">+ Agregar tipo de hito</button>
+    </div>
+    <div class="mf"><button class="btn bp" onclick="closeModal('modal-hito-tipos')">Listo</button></div>
+  </div>
+</div>
+
 <!-- ══ MODAL CONFIRMAR IMPORTACIÓN DE BACKUP ══ -->
 <div class="mo" id="modal-import-confirm">
   <div class="modal" style="max-width:420px">
@@ -1985,7 +2062,23 @@ let _fbReady=true;
 // Arrancar sincronización inmediatamente (no hay login que esperar)
 setTimeout(_fbInitSync,0);
 
-function ddb(){return{clientes:[],campos:[],lotes:[],productos:[],relevamientos:[],actividades:[],campanas:['2022/23','2023/24','2024/25','2025/26','2026/27'],cultivos:['Soja','Trigo','Maíz','Cebada','Girasol','Sorgo','Barbecho'],malezas:[],ots:[],loteCultivos:{},campanaActiva:'2025/26',subcoadyuvantes:[],tareasRecurrentes:[],mejoras:[],cierreCultivo:cierreCultivoDefault(),cierreOverride:{}};}
+// Lista base de hitos sugerida — editable desde "⚙️ Tipos de hito".
+// modo: 'fecha' (solo la fecha) · 'diag' (elegir maleza/enfermedad/plaga de
+// la lista de diagnósticos) · 'texto' (dato libre, p.ej. el material sembrado).
+function hitoTiposBase(){return[
+  {id:'ht-material',nombre:'Material sembrado',icono:'🧬',modo:'texto',cat:''},
+  {id:'ht-emergencia',nombre:'Emergencia del cultivo',icono:'🌱',modo:'fecha',cat:''},
+  {id:'ht-macollaje',nombre:'Inicio de macollaje',icono:'🌾',modo:'fecha',cat:''},
+  {id:'ht-encanazon',nombre:'Inicio de encañazón',icono:'📏',modo:'fecha',cat:''},
+  {id:'ht-espigazon',nombre:'Inicio de espigazón',icono:'🌾',modo:'fecha',cat:''},
+  {id:'ht-floracion',nombre:'Floración',icono:'🌼',modo:'fecha',cat:''},
+  {id:'ht-llenado',nombre:'Inicio de llenado de grano',icono:'🫘',modo:'fecha',cat:''},
+  {id:'ht-madurez',nombre:'Madurez fisiológica',icono:'🟤',modo:'fecha',cat:''},
+  {id:'ht-det-maleza',nombre:'Primera detección de maleza',icono:'🌿',modo:'diag',cat:'Maleza'},
+  {id:'ht-det-enfermedad',nombre:'Primera detección de enfermedad',icono:'🍂',modo:'diag',cat:'Enfermedad'},
+  {id:'ht-det-plaga',nombre:'Primera detección de plaga',icono:'🐛',modo:'diag',cat:'Plaga'},
+];}
+function ddb(){return{clientes:[],campos:[],lotes:[],productos:[],relevamientos:[],actividades:[],campanas:['2022/23','2023/24','2024/25','2025/26','2026/27'],cultivos:['Soja','Trigo','Maíz','Cebada','Girasol','Sorgo','Barbecho'],malezas:[],ots:[],loteCultivos:{},campanaActiva:'2025/26',subcoadyuvantes:[],tareasRecurrentes:[],mejoras:[],hitos:[],hitoTipos:[],cierreCultivo:cierreCultivoDefault(),cierreOverride:{}};}
 // Defaults de cierre de campaña por cultivo (editables en "📅 Cierre de
 // campaña por cultivo", en Cultivos). soloDia/Mes/Anio = cuando el cultivo es
 // el único o el de 1ª (sin 2ª); segDia/Mes/Anio = cuando actúa como cultivo
@@ -2030,6 +2123,8 @@ let DB=(()=>{try{return JSON.parse(localStorage.getItem(SK))||ddb();}catch{retur
   if(!Array.isArray(DB.ots))DB.ots=[];
   if(!Array.isArray(DB.actividades))DB.actividades=[];
   if(!Array.isArray(DB.mejoras))DB.mejoras=[];
+  if(!Array.isArray(DB.hitos))DB.hitos=[];
+  if(!Array.isArray(DB.hitoTipos)||!DB.hitoTipos.length)DB.hitoTipos=hitoTiposBase();
   // ── Migración formato anidado → plano ──
   // Correr migración si algún cliente todavía tiene campos anidados
   let migracionNecesaria=(DB.clientes||[]).some(cli=>Array.isArray(cli.campos)&&cli.campos.length>0);
@@ -4021,7 +4116,8 @@ async function _fbInitSync(){
         if(fbDB&&fbDB.clientes!==undefined){
           Object.assign(DB,fbDB);
           const def=ddb();
-          ['campanas','cultivos','malezas','ots','actividades','campos','lotes'].forEach(k=>{if(!Array.isArray(DB[k]))DB[k]=def[k]||[];});
+          ['campanas','cultivos','malezas','ots','actividades','campos','lotes','mejoras','hitos'].forEach(k=>{if(!Array.isArray(DB[k]))DB[k]=def[k]||[];});
+          if(!Array.isArray(DB.hitoTipos)||!DB.hitoTipos.length)DB.hitoTipos=hitoTiposBase();
           repararLoteHa();
           migrarAplicadosAActividades();
           purgarPapelera();
@@ -4088,6 +4184,7 @@ const PM={
   papelera:{t:'Papelera',s:'Relevamientos y actividades eliminados — se guardan 30 días por si hace falta restaurarlos'},
   'tareas-recurrentes':{t:'Actividades recurrentes',s:'Plantillas que generan solas una actividad (relevamiento por lote, o cualquier otra sin lote) cada vez que corresponde, para no tener que acordarse'},
   'tarea-instancias':{t:'Instancias generadas',s:'Todo lo que generó esta plantilla alguna vez, de cualquier campaña, haya cambiado o no de alcance'},
+  hitos:{t:'Hitos del cultivo',s:'Fechas clave por lote y campaña — emergencia, espigazón, primeras detecciones, material sembrado — con los días desde la siembra'},
   mejoras:{t:'Mejoras programadas',s:'Cada mejora se carga una vez y después se le enganchan las actividades de los lotes que la llevan adelante'},
   'mejora-detail':{t:'Detalle de mejora',s:'Actividades y relevamientos vinculados a esta mejora'},
   historial:{t:'Historial y Rotación',s:'Cultivo y diagnósticos por lote, campaña a campaña — para decidir la rotación con precedentes'},
@@ -4140,6 +4237,7 @@ function navTo(id,params={}){
   if(id==='cultivo-detail')abrirCultivoDetail(params.cultivo,params.campaña);
   if(id==='tareas-recurrentes')renderTareasRecurrentes();
   if(id==='tarea-instancias') abrirTareaInstancias(params.tareaId);
+  if(id==='hitos')           renderHitos();
   if(id==='mejoras')         renderMejoras();
   if(id==='mejora-detail')   abrirMejoraDetail(params.mejoraId);
 }
@@ -5513,6 +5611,231 @@ function precargarYAbrirRelev(loteId,cliId,campoId){
     rLoteComboSelect(loteId);
     mostrarSnackbar('📋 Datos del lote precargados','blue');
   },80);
+}
+
+// ══ HITOS DEL CULTIVO ══
+// Fechas clave por lote y campaña (emergencia, espigazón, primera detección,
+// material sembrado...). Los días desde la siembra NO se cargan: se calculan
+// contra la actividad Siembra ya realizada de ese lote.
+const hEsc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+function hitoTipoDe(id){return(DB.hitoTipos||[]).find(t=>t.id===id);}
+function diasEntreFechas(a,b){
+  if(!a||!b)return null;
+  const[y1,m1,d1]=a.split('-').map(Number),[y2,m2,d2]=b.split('-').map(Number);
+  return Math.round((Date.UTC(y2,m2-1,d2)-Date.UTC(y1,m1-1,d1))/864e5);
+}
+function siembraDeLote(loteId,camp,fechaRef){
+  const c=(DB.actividades||[]).filter(a=>!a.borrado&&a.tipo==='Siembra'&&a.loteId===loteId&&a.fechaRealizacion);
+  if(!c.length)return null;
+  let pool=c.filter(a=>a.campaña===camp);
+  if(!pool.length)pool=c.filter(a=>!fechaRef||a.fechaRealizacion<=fechaRef);
+  if(!pool.length)return null;
+  pool.sort((a,b)=>a.fechaRealizacion.localeCompare(b.fechaRealizacion));
+  return{fecha:pool[0].fechaRealizacion,variedad:(pool[0].datos&&pool[0].datos.variedad)||''};
+}
+// Material: el hito "Material sembrado" si existe; si no, lo que se escribió en
+// la actividad Siembra (Cultivo / Variedad) — así no se carga dos veces.
+function materialDeLote(loteId,camp){
+  const h=(DB.hitos||[]).filter(x=>x.loteId===loteId&&x.campaña===camp&&x.tipoId==='ht-material'&&x.valor).sort((a,b)=>b.fecha.localeCompare(a.fecha))[0];
+  if(h)return h.valor;
+  return siembraDeLote(loteId,camp)?.variedad||'';
+}
+let _hitoEditId=null,_hitoSel=new Set();
+function hitoValorCampo(){
+  const t=hitoTipoDe(document.getElementById('hito-tipo').value);
+  const modo=t?.modo||'fecha';
+  const txt=document.getElementById('hito-valor-txt'),sel=document.getElementById('hito-valor-sel'),lbl=document.getElementById('hito-valor-lbl');
+  txt.style.display=modo==='texto'?'block':'none';
+  sel.style.display=modo==='diag'?'block':'none';
+  document.getElementById('hito-valor-wrap').style.visibility=modo==='fecha'?'hidden':'visible';
+  if(modo==='texto')lbl.textContent=t.id==='ht-material'?'Material / híbrido / variedad':'Detalle';
+  if(modo==='diag'){
+    lbl.textContent='¿Cuál?';
+    let ds=(DB.malezas||[]).filter(m=>!t.cat||(m.categoria||'Maleza')===t.cat);
+    if(!ds.length)ds=DB.malezas||[];
+    const prev=sel.value;
+    sel.innerHTML='<option value="">Seleccioná...</option>'+ds.map(m=>{const n=m.comun||m.cientifico||'';return`<option value="${hEsc(n)}">${hEsc(n)}</option>`;}).sort().join('');
+    sel.value=prev;
+  }
+}
+function onHitoTipoChange(){hitoValorCampo();}
+function openModalHito(opts={}){
+  _hitoEditId=opts.editId||null;
+  const h=_hitoEditId?(DB.hitos||[]).find(x=>x.id===_hitoEditId):null;
+  document.getElementById('mhito-title').textContent=h?'Editar hito':'Nuevo hito';
+  const tipoSel=document.getElementById('hito-tipo');
+  tipoSel.innerHTML=(DB.hitoTipos||[]).map(t=>`<option value="${t.id}">${t.icono||'📌'} ${hEsc(t.nombre)}</option>`).join('');
+  tipoSel.value=h?h.tipoId:(opts.tipoId||(DB.hitoTipos[0]||{}).id||'');
+  const camp=h?h.campaña:(opts.campaña||getCampanaActiva());
+  document.getElementById('hito-camp').innerHTML=(DB.campanas||[]).map(c=>`<option value="${c}"${c===camp?' selected':''}>${c}</option>`).join('');
+  document.getElementById('hito-fecha').value=h?h.fecha:(opts.fecha||hoyLocal());
+  document.getElementById('hito-nota').value=h?(h.nota||''):'';
+  hitoValorCampo();
+  const v=h?(h.valor||''):'';
+  document.getElementById('hito-valor-txt').value=v;
+  document.getElementById('hito-valor-sel').value=v;
+  _hitoSel=new Set();
+  if(h){
+    const l=DB.lotes.find(x=>x.id===h.loteId);
+    document.getElementById('hito-lotes-wrap').style.display='none';
+    document.getElementById('hito-lote-fijo').style.display='block';
+    document.getElementById('hito-lote-fijo-txt').textContent=(l?.nombre||'?')+' — '+(DB.clientes.find(c=>c.id===l?.clienteId)?.nombre||'');
+  } else {
+    document.getElementById('hito-lotes-wrap').style.display='block';
+    document.getElementById('hito-lote-fijo').style.display='none';
+    if(opts.loteId)_hitoSel.add(opts.loteId);
+    const cs=document.getElementById('hito-f-cli');
+    cs.innerHTML='<option value="">Todos los clientes</option>'+DB.clientes.slice().sort((a,b)=>a.nombre.localeCompare(b.nombre)).map(c=>`<option value="${c.id}">${hEsc(c.nombre)}</option>`).join('');
+    document.getElementById('hito-f-txt').value='';
+    hitoFiltroCliChange();
+  }
+  openModal('modal-hito');
+}
+function hitoFiltroCliChange(){
+  const cli=document.getElementById('hito-f-cli').value;
+  const cs=DB.campos.filter(c=>!cli||c.clienteId===cli).sort((a,b)=>a.nombre.localeCompare(b.nombre));
+  document.getElementById('hito-f-campo').innerHTML='<option value="">Todos los campos</option>'+cs.map(c=>`<option value="${c.id}">${hEsc(c.nombre)}</option>`).join('');
+  hitoRenderLotes();
+}
+function hitoLotesVisibles(){
+  const cli=document.getElementById('hito-f-cli').value,campo=document.getElementById('hito-f-campo').value;
+  const q=(document.getElementById('hito-f-txt').value||'').toLowerCase().trim();
+  return DB.lotes.filter(l=>(!cli||l.clienteId===cli)&&(!campo||l.campoId===campo)&&(!q||(l.nombre||'').toLowerCase().includes(q)))
+    .sort((a,b)=>(DB.clientes.find(c=>c.id===a.clienteId)?.nombre||'').localeCompare(DB.clientes.find(c=>c.id===b.clienteId)?.nombre||'')||(DB.campos.find(c=>c.id===a.campoId)?.nombre||'').localeCompare(DB.campos.find(c=>c.id===b.campoId)?.nombre||'')||naturalCmp(a.nombre,b.nombre));
+}
+function hitoRenderLotes(){
+  const camp=document.getElementById('hito-camp').value;
+  const ls=hitoLotesVisibles();
+  document.getElementById('hito-lotes-lista').innerHTML=ls.length?ls.map(l=>{
+    const cli=DB.clientes.find(c=>c.id===l.clienteId),campo=DB.campos.find(c=>c.id===l.campoId);
+    const cult=baseCultivo(getCultivoDeLote(l.id,camp));
+    return`<label style="display:flex;align-items:center;gap:6px;font-size:12px;padding:2px 0;cursor:pointer"><input type="checkbox" ${_hitoSel.has(l.id)?'checked':''} onchange="hitoToggleLote('${l.id}',this.checked)"> <strong>${hEsc(l.nombre)}</strong> <span class="muted">${hEsc(cli?.nombre||'')} — ${hEsc(campo?.nombre||'')}</span>${cult?` <span class="badge bg-amber">${hEsc(cult)}</span>`:''}</label>`;
+  }).join(''):'<div class="muted" style="font-size:11px">No hay lotes con ese filtro</div>';
+  document.getElementById('hito-lotes-count').textContent=`(${_hitoSel.size} tildado${_hitoSel.size===1?'':'s'})`;
+}
+function hitoToggleLote(id,on){if(on)_hitoSel.add(id);else _hitoSel.delete(id);document.getElementById('hito-lotes-count').textContent=`(${_hitoSel.size} tildado${_hitoSel.size===1?'':'s'})`;}
+function hitoTildarVisibles(on){hitoLotesVisibles().forEach(l=>{if(on)_hitoSel.add(l.id);else _hitoSel.delete(l.id);});hitoRenderLotes();}
+function saveHito(){
+  const tipoId=document.getElementById('hito-tipo').value;
+  const t=hitoTipoDe(tipoId);
+  const fecha=document.getElementById('hito-fecha').value;
+  const camp=document.getElementById('hito-camp').value;
+  if(!t){alert('Elegí el hito');return;}
+  if(!fecha){alert('Cargá la fecha');return;}
+  let valor='';
+  if(t.modo==='texto')valor=document.getElementById('hito-valor-txt').value.trim();
+  if(t.modo==='diag')valor=document.getElementById('hito-valor-sel').value;
+  if(t.modo!=='fecha'&&!valor){alert(t.modo==='diag'?'Elegí cuál (maleza/enfermedad/plaga)':'Completá el detalle');return;}
+  const nota=document.getElementById('hito-nota').value.trim();
+  if(_hitoEditId){
+    const h=DB.hitos.find(x=>x.id===_hitoEditId);
+    if(h)Object.assign(h,{tipoId,fecha,campaña:camp,valor,nota});
+  } else {
+    if(!_hitoSel.size){alert('Tildá al menos un lote');return;}
+    _hitoSel.forEach(loteId=>{
+      DB.hitos.push({id:uid(),loteId,campaña:camp,tipoId,fecha,valor,nota,createdAt:Date.now()});
+    });
+  }
+  save();closeModal('modal-hito');
+  if(document.getElementById('page-hitos').classList.contains('active'))renderHitos();
+  mostrarSnackbar(_hitoEditId?'✅ Hito actualizado':`✅ ${_hitoSel.size} hito(s) registrado(s)`);
+}
+function deleteHito(id){
+  confirmarAccion('¿Eliminar este hito?',()=>{DB.hitos=DB.hitos.filter(h=>h.id!==id);save();renderHitos();});
+}
+function hitoDesdeRelev(){
+  const loteId=document.getElementById('r-lote')?.value;
+  if(!loteId){alert('Elegí primero el lote del relevamiento');return;}
+  openModalHito({loteId,fecha:document.getElementById('r-fecha')?.value||hoyLocal(),campaña:document.getElementById('r-camp')?.value||getCampanaActiva()});
+}
+// ── Catálogo de tipos de hito ──
+function openModalHitoTipos(){renderHitoTiposLista();openModal('modal-hito-tipos');}
+function renderHitoTiposLista(){
+  const cats=(typeof categoriasDiag==='function'?categoriasDiag():[]).map(c=>c.nombre);
+  document.getElementById('hito-tipos-lista').innerHTML=(DB.hitoTipos||[]).map(t=>{
+    const usos=(DB.hitos||[]).filter(h=>h.tipoId===t.id).length;
+    return`<div class="rf" style="gap:6px;align-items:center;margin-bottom:6px">
+      <input class="fi" style="width:46px;text-align:center" value="${hEsc(t.icono||'')}" onchange="hitoTipoEdit('${t.id}','icono',this.value)">
+      <input class="fi" style="flex:1" value="${hEsc(t.nombre)}" onchange="hitoTipoEdit('${t.id}','nombre',this.value)">
+      <select class="fi" style="width:150px" onchange="hitoTipoEdit('${t.id}','modo',this.value)">
+        <option value="fecha"${t.modo==='fecha'?' selected':''}>Solo fecha</option>
+        <option value="diag"${t.modo==='diag'?' selected':''}>Elegir diagnóstico</option>
+        <option value="texto"${t.modo==='texto'?' selected':''}>Texto</option>
+      </select>
+      ${t.modo==='diag'?`<select class="fi" style="width:110px" onchange="hitoTipoEdit('${t.id}','cat',this.value)"><option value="">Todos</option>${cats.map(c=>`<option${c===t.cat?' selected':''}>${hEsc(c)}</option>`).join('')}</select>`:''}
+      <button class="btn bd bxs" onclick="hitoTipoEliminar('${t.id}')" title="${usos?'Tiene '+usos+' hito(s) cargados':'Eliminar'}">✕</button>
+    </div>`;}).join('');
+}
+function hitoTipoEdit(id,campo,val){
+  const t=hitoTipoDe(id);if(!t)return;
+  if(campo==='nombre'&&!val.trim())return renderHitoTiposLista();
+  t[campo]=val;save();
+  if(campo==='modo')renderHitoTiposLista();
+}
+function hitoTipoAgregar(){DB.hitoTipos.push({id:'ht-'+uid(),nombre:'Nuevo hito',icono:'📌',modo:'fecha',cat:''});save();renderHitoTiposLista();}
+function hitoTipoEliminar(id){
+  const usos=(DB.hitos||[]).filter(h=>h.tipoId===id).length;
+  if(usos){alert(`Este tipo ya tiene ${usos} hito(s) cargados — borralos primero desde la solapa Hitos si de verdad querés sacarlo.`);return;}
+  DB.hitoTipos=DB.hitoTipos.filter(t=>t.id!==id);save();renderHitoTiposLista();
+}
+// ── Pantalla Hitos ──
+let _hitoSort={col:'fecha',dir:-1};
+function hitoSortBy(col){if(_hitoSort.col===col)_hitoSort.dir*=-1;else _hitoSort={col,dir:1};renderHitos();}
+function hitosLimpiar(){['h-search','h-camp','h-tipo','h-cult','h-cli'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});renderHitos();}
+function renderHitos(){
+  const cont=document.getElementById('h-body');if(!cont)return;
+  const rowsAll=(DB.hitos||[]).map(h=>{
+    const l=DB.lotes.find(x=>x.id===h.loteId);
+    const cli=DB.clientes.find(c=>c.id===l?.clienteId),campo=DB.campos.find(c=>c.id===l?.campoId);
+    const t=hitoTipoDe(h.tipoId)||{nombre:'(tipo eliminado)',icono:'📌'};
+    const sie=siembraDeLote(h.loteId,h.campaña,h.fecha);
+    return{h,l,cli,campo,t,
+      cult:baseCultivo(getCultivoDeLote(h.loteId,h.campaña)),
+      dias:(sie&&h.tipoId!=='ht-material')?diasEntreFechas(sie.fecha,h.fecha):null,
+      siembra:sie?sie.fecha:'',
+      material:materialDeLote(h.loteId,h.campaña)};
+  }).filter(r=>r.l);
+  // opciones de filtro (solo lo que existe)
+  const fill=(id,first,vals,fmt)=>{const e=document.getElementById(id);if(!e)return;const pv=e.value;e.innerHTML=`<option value="">${first}</option>`+vals.map(v=>`<option value="${v.v}">${hEsc(v.l)}</option>`).join('');e.value=pv;};
+  fill('h-camp','Campaña',[...new Set(rowsAll.map(r=>r.h.campaña))].sort().reverse().map(v=>({v,l:v})));
+  fill('h-tipo','Todos los hitos',(DB.hitoTipos||[]).map(t=>({v:t.id,l:(t.icono||'')+' '+t.nombre})));
+  fill('h-cult','Cultivo',[...new Set(rowsAll.map(r=>r.cult).filter(Boolean))].sort().map(v=>({v,l:v})));
+  fill('h-cli','Cliente',[...new Set(rowsAll.map(r=>r.cli?.nombre).filter(Boolean))].sort().map(v=>({v,l:v})));
+  const q=(document.getElementById('h-search').value||'').toLowerCase().trim();
+  const fCamp=document.getElementById('h-camp').value,fTipo=document.getElementById('h-tipo').value,fCult=document.getElementById('h-cult').value,fCli=document.getElementById('h-cli').value;
+  let rows=rowsAll.filter(r=>(!fCamp||r.h.campaña===fCamp)&&(!fTipo||r.h.tipoId===fTipo)&&(!fCult||r.cult===fCult)&&(!fCli||r.cli?.nombre===fCli)
+    &&(!q||[r.l.nombre,r.cli?.nombre,r.campo?.nombre,r.t.nombre,r.h.valor,r.h.nota,r.material].join(' ').toLowerCase().includes(q)));
+  const keyFns={cliente:r=>(r.cli?.nombre||'')+(r.campo?.nombre||''),lote:r=>r.l.nombre,cultivo:r=>r.cult,camp:r=>r.h.campaña,hito:r=>r.t.nombre,valor:r=>r.h.valor||'',fecha:r=>r.h.fecha,dias:r=>r.dias==null?-1:r.dias,material:r=>r.material};
+  const kf=keyFns[_hitoSort.col]||keyFns.fecha;
+  rows.sort((a,b)=>{const x=kf(a),y=kf(b);if(x<y)return -1*_hitoSort.dir;if(x>y)return 1*_hitoSort.dir;return 0;});
+  document.getElementById('h-ct').textContent=`Hitos del cultivo (${rows.length}${rows.length!==rowsAll.length?' de '+rowsAll.length:''})`;
+  // Resumen por material (solo si se filtró un hito y hay días calculables)
+  const res=document.getElementById('h-resumen');
+  const conDias=rows.filter(r=>r.dias!=null);
+  if(fTipo&&conDias.length){
+    const g={};
+    conDias.forEach(r=>{const k=r.material||'Sin dato de material';(g[k]=g[k]||[]).push(r.dias);});
+    const tt=hitoTipoDe(fTipo);
+    res.innerHTML=`<div class="card"><div class="ch"><span class="ct">${tt?.icono||''} ${hEsc(tt?.nombre||'')} — días desde la siembra, por material</span></div><div class="cb"><div class="tw"><table><thead><tr><th>Material</th><th>Lotes</th><th>Promedio</th><th>Mínimo</th><th>Máximo</th></tr></thead><tbody>`
+      +Object.entries(g).sort((a,b)=>a[0].localeCompare(b[0])).map(([k,v])=>`<tr><td><strong>${hEsc(k)}</strong></td><td class="mono">${v.length}</td><td class="mono">${(v.reduce((s,x)=>s+x,0)/v.length).toFixed(1)} días</td><td class="mono">${Math.min(...v)}</td><td class="mono">${Math.max(...v)}</td></tr>`).join('')
+      +`</tbody></table></div></div></div>`;
+  } else res.innerHTML='';
+  if(!rows.length){cont.innerHTML=`<div class="empty"><div class="empty-icon">📌</div><div class="empty-t">${rowsAll.length?'Nada coincide con esos filtros':'Todavía no registraste hitos'}</div><div class="empty-s">Usá "+ Nuevo hito" (podés tildar varios lotes de una vez) o el botón "📌 Registrar hito" dentro de un relevamiento</div></div>`;return;}
+  const th=(t,c)=>`<th onclick="hitoSortBy('${c}')" style="cursor:pointer;user-select:none" title="Ordenar">${t}${_hitoSort.col===c?(_hitoSort.dir>0?' ▲':' ▼'):''}</th>`;
+  cont.innerHTML='<div class="tw"><table><thead><tr>'+th('Cliente / Campo','cliente')+th('Lote','lote')+th('Cultivo','cultivo')+th('Campaña','camp')+th('Hito','hito')+th('Detalle','valor')+th('Fecha','fecha')+th('Días desde siembra','dias')+th('Material','material')+'<th>Nota</th><th class="ph"></th></tr></thead><tbody>'
+    +rows.map(r=>`<tr>
+      <td style="font-size:12px">${hEsc(r.cli?.nombre||'—')} <span class="muted">— ${hEsc(r.campo?.nombre||'—')}</span></td>
+      <td><a href="#" onclick="event.preventDefault();navTo('lote',{loteId:'${r.l.id}'})" style="color:inherit;text-decoration:underline;text-decoration-style:dotted">${hEsc(r.l.nombre)}</a></td>
+      <td>${r.cult?`<span class="badge bg-amber">${hEsc(r.cult)}</span>`:'—'}</td>
+      <td class="mono" style="font-size:11px">${r.h.campaña}</td>
+      <td>${r.t.icono||'📌'} ${hEsc(r.t.nombre)}</td>
+      <td>${hEsc(r.h.valor||'')||'<span class="muted">—</span>'}</td>
+      <td class="mono">${r.h.fecha}</td>
+      <td class="mono">${r.dias!=null?`<strong>${r.dias}</strong> d <span class="muted" style="font-size:10px">(siembra ${r.siembra})</span>`:(r.h.tipoId==='ht-material'?'<span class="muted">—</span>':'<span class="muted" title="No hay una Siembra realizada cargada para este lote">sin siembra</span>')}</td>
+      <td style="font-size:12px">${hEsc(r.material)||'<span class="muted">—</span>'}</td>
+      <td style="font-size:11px;max-width:160px">${hEsc(r.h.nota||'')}</td>
+      <td class="ph rf"><button class="btn bs bxs" onclick="openModalHito({editId:'${r.h.id}'})" title="Editar">✏️</button><button class="btn bd bxs" onclick="deleteHito('${r.h.id}')" title="Eliminar">✕</button></td>
+    </tr>`).join('')+'</tbody></table></div>';
 }
 
 // ══ MEJORAS PROGRAMADAS ══
@@ -11197,9 +11520,10 @@ function confirmarImportacionBackup(){
   const {_version,_exportedAt,_app,...dbData}=parsed;
   Object.keys(DB).forEach(k=>delete DB[k]);
   Object.assign(DB,dbData);
-  ['clientes','campos','lotes','relevamientos','productos','malezas','actividades','ots','campanas','cultivos','tareasRecurrentes'].forEach(k=>{
+  ['clientes','campos','lotes','relevamientos','productos','malezas','actividades','ots','campanas','cultivos','tareasRecurrentes','mejoras','hitos'].forEach(k=>{
     if(!Array.isArray(DB[k]))DB[k]=[];
   });
+  if(!Array.isArray(DB.hitoTipos)||!DB.hitoTipos.length)DB.hitoTipos=hitoTiposBase();
   if(!DB.cierreCultivo||typeof DB.cierreCultivo!=='object')DB.cierreCultivo=cierreCultivoDefault();
   if(!DB.cierreOverride||typeof DB.cierreOverride!=='object')DB.cierreOverride={};
   repararLoteHa();
