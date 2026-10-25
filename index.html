@@ -265,6 +265,11 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
 .mal-combo-input{width:100%;}
 .mal-combo-drop{display:none;position:absolute;top:100%;left:0;right:0;z-index:1100;background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:0 4px 16px rgba(0,0,0,.12);max-height:200px;overflow-y:auto;}
 .mal-combo-drop.open{display:block;}
+/* La tarjeta recorta lo que se sale (overflow:hidden), y eso cortaba el desplegable
+   del buscador de diagnóstico/producto cuando la tarjeta tenía pocas filas — quedaba
+   tapado por la tarjeta de abajo. Mientras hay uno abierto, la tarjeta deja de recortar. */
+.card:has(.mal-combo-drop.open){overflow:visible;position:relative;z-index:5;}
+.card:has(.mal-combo-drop.open)>.ch{border-radius:var(--rl) var(--rl) 0 0;}
 .mal-combo-opt{padding:7px 11px;font-size:12px;cursor:pointer;border-bottom:1px solid var(--bg3);}
 .mal-combo-opt:last-child{border-bottom:none;}
 .mal-combo-opt:hover,.mal-combo-opt.sel{background:var(--accent-bg);color:var(--accent2);}
@@ -334,6 +339,36 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
 #db-body-wrap.collapsed{display:none;}
 .rp-alert-row{display:flex;align-items:flex-start;gap:8px;padding:8px 10px;border-radius:8px;background:var(--amber-bg);margin-bottom:6px;font-size:12px;}
 .rp-alert-row.high{background:var(--red-bg);}
+/* ── Vistas ── */
+.vnav{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px;border-bottom:1px solid var(--border);padding-bottom:8px;}
+.vtab{border:1px solid var(--border);background:var(--bg);color:var(--text2);border-radius:20px;padding:5px 13px;font-size:12px;font-family:'Sora',sans-serif;cursor:pointer;}
+.vtab:hover{border-color:var(--accent);}
+.vtab.on{background:var(--accent);color:#fff;border-color:var(--accent);}
+.vbar{gap:6px;flex-wrap:wrap;margin-bottom:10px;align-items:center;display:flex;}
+.vbar input[type=text]{width:170px;}
+.vaviso{background:var(--blue-bg);color:var(--blue);border-radius:var(--r);padding:7px 11px;font-size:12px;margin-bottom:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+.vaviso a{cursor:pointer;text-decoration:underline;font-weight:600;}
+.vbulk{background:var(--accent-bg);color:var(--accent2);border-radius:var(--r);padding:7px 11px;font-size:12px;margin-bottom:10px;display:none;gap:10px;align-items:center;}
+.vtbl{border-collapse:collapse;width:100%;font-size:12px;min-width:880px;}
+.vtbl th{position:sticky;top:0;background:var(--bg2);text-align:left;padding:7px 8px;border-bottom:2px solid var(--border);font-size:11px;vertical-align:bottom;z-index:2;}
+.vtbl th small{display:block;font-weight:400;color:var(--text3);font-size:10px;}
+.vtbl td{padding:5px 8px;border-bottom:1px solid var(--border);vertical-align:top;}
+.vtbl tr.vg1 td{background:var(--bg2);font-weight:600;cursor:pointer;}
+.vtbl tr.vg2 td{background:rgba(120,120,120,.07);font-weight:500;cursor:pointer;font-size:11.5px;}
+.vtbl td.vn{text-align:center;color:var(--text3);font-weight:600;}
+.vtbl td.vn.hot{color:var(--red);}
+.vtbl td.vn.ok{color:var(--accent2);}
+.vchip{display:block;border-radius:6px;padding:3px 6px;margin-bottom:3px;font-size:11px;line-height:1.3;cursor:pointer;background:var(--accent-bg);border-left:3px solid var(--accent);}
+.vchip:hover{filter:brightness(.95);}
+.vchip.c-venc{background:var(--red-bg);border-left-color:var(--red);}
+.vchip.c-sem{background:var(--amber-bg);border-left-color:var(--amber);}
+.vchip.c-prox{background:var(--blue-bg);border-left-color:var(--blue);}
+.vchip.vfut{opacity:.65;}
+.vchip .vd{font-family:'DM Mono',monospace;font-size:10px;opacity:.75;margin-right:3px;}
+.vmas{font-size:10.5px;color:var(--accent);cursor:pointer;text-decoration:underline;}
+.vseg{display:inline-flex;border:1px solid var(--border);border-radius:20px;overflow:hidden;}
+.vseg button{border:none;background:var(--bg);padding:5px 12px;font-size:12px;cursor:pointer;font-family:'Sora',sans-serif;color:var(--text2);}
+.vseg button.on{background:var(--accent);color:#fff;}
 </style>
 <!-- Firebase SDK -->
 </head>
@@ -347,21 +382,19 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
   <div class="brand"><h1>🌾 AgroLotes</h1><small>v2.0 — Relevamientos y OT</small></div>
   <div class="nav-sec">
     <span class="nav-lbl">Principal</span>
-    <button class="nb active" onclick="navTo('dashboard')"><span>📈</span> Reportes</button>
-    <button class="nb" onclick="navTo('tablero')"><span>🗺</span> Tablero de Lotes</button>
-    <button class="nb" onclick="navTo('relevamientos')"><span>🔍</span> Relevamientos</button>
+    <button class="nb active" onclick="navTo('vistas-venc')"><span>👁</span> Vistas</button>
     <button class="nb" onclick="navTo('actividades')"><span>🗓️</span> Actividades</button>
-    <button class="nb" onclick="navTo('calendario')"><span>📆</span> Calendario</button>
-    <button class="nb" onclick="navTo('planificacion')"><span>📊</span> Planificación</button>
+    <button class="nb" onclick="navTo('relevamientos')"><span>🔍</span> Relevamientos</button>
     <button class="nb" onclick="navTo('papelera')"><span>🗑️</span> Papelera</button>
     <button class="nb" onclick="navTo('tareas-recurrentes')"><span>🔁</span> Actividades recurrentes</button>
     <button class="nb" onclick="navTo('mejoras')"><span>💡</span> Mejoras programadas</button>
     <button class="nb" onclick="navTo('hitos')"><span>📌</span> Hitos del cultivo</button>
     <button class="nb" onclick="navTo('facturacion')"><span>🧾</span> Facturación</button>
-    <button class="nb" onclick="navTo('ot')"><span>📋</span> Órdenes de trabajo</button>
   </div>
   <div class="nav-sec">
     <span class="nav-lbl">Gestión</span>
+    <button class="nb" onclick="navTo('dashboard')"><span>📈</span> Reportes</button>
+    <button class="nb" onclick="navTo('ot')"><span>📋</span> Órdenes de trabajo</button>
     <button class="nb" onclick="navTo('clientes')"><span>👤</span> Clientes / Lotes</button>
     <button class="nb" onclick="navTo('campos')"><span>📍</span> Campos</button>
     <button class="nb" onclick="navTo('productos')"><span>🧴</span> Soluciones</button>
@@ -1059,6 +1092,21 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
       <div id="mejora-detail-content"></div>
     </div>
 
+    <!-- VISTAS -->
+    <div class="page" id="page-vistas-venc">
+      <div class="vbar filters ph" id="vvenc-bar"></div>
+      <div id="vvenc-bulk" class="vbulk ph"></div>
+      <div id="vvenc-out" style="overflow:auto"></div>
+    </div>
+    <div class="page" id="page-vistas-estado">
+      <div class="vbar filters ph" id="vest-bar"></div>
+      <div id="vest-out" style="overflow:auto"></div>
+    </div>
+    <div class="page" id="page-vistas-cultivo">
+      <div class="vbar filters ph" id="vcul-bar"></div>
+      <div id="vcul-out" style="overflow:auto"></div>
+    </div>
+
     <!-- HITOS DEL CULTIVO -->
     <div class="page" id="page-hitos">
       <div class="ph" style="margin-bottom:10px;font-size:12px;color:var(--text3)">Fechas clave del cultivo (emergencia, espigazón, primera detección de una maleza o enfermedad, material sembrado...) por lote y campaña. Con la fecha de siembra que ya cargás en Actividades, el sistema calcula solo los <strong>días desde la siembra</strong>. Filtrá por un hito y mirá abajo el promedio por material.</div>
@@ -1310,7 +1358,8 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
           <div class="field"><label>Fecha inicio <span class="muted">(opcional)</span></label><input type="date" id="r-fecha-inicio" class="fi"></div>
           <div class="field"><label>Fecha límite <span class="muted">(opcional)</span></label><input type="date" id="r-fecha-limite" class="fi"></div>
         </div>
-        <div class="field mb8">
+        <div id="r-multi-info" style="display:none;background:var(--accent-bg);border:1px solid var(--accent);border-radius:var(--r);padding:8px 10px;margin-bottom:8px;font-size:12px"></div>
+        <div class="field mb8" id="r-lote-field">
           <label>Lote *</label>
           <div class="mal-combo" style="position:relative">
             <input type="text" id="r-lote-txt" class="fi mal-combo-input" placeholder="Buscar por nombre de lote, campo o cliente..."
@@ -1321,7 +1370,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
             <div class="mal-combo-drop" id="r-lote-drop"></div>
           </div>
         </div>
-        <div class="rf" style="gap:8px;align-items:center;margin-bottom:8px">
+        <div class="rf" id="r-nuevo-lote-row" style="gap:8px;align-items:center;margin-bottom:8px">
           <button class="btn bs bxs" onclick="iniciarNuevoLoteDesdeRelev()">+ Nuevo lote</button>
           <span class="muted" style="font-size:11px">¿No encontrás el lote? Elegí primero el cliente arriba.</span>
         </div>
@@ -1477,6 +1526,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
     <div class="mh"><span class="mt" id="mact-title">Nueva actividad</span><button class="mx" onclick="cancelModalActividad()">✕</button></div>
     <div class="mb">
       <div class="fg">
+        <div id="act-multi-info" style="display:none;background:var(--accent-bg);border:1px solid var(--accent);border-radius:var(--r);padding:8px 10px;margin-bottom:8px;font-size:12px"></div>
         <div class="field" id="act-lote-wrap" style="display:none">
           <label>Lote *</label>
           <div class="mal-combo" style="position:relative">
@@ -4132,6 +4182,7 @@ async function _fbInitSync(){
           localStorage.setItem(SK,JSON.stringify(DB));
           localStorage.setItem(SK+'_ts',fbTs);
           renderDashboard();
+          try{vistasRefrescarSuave();}catch(e){}
           _fbShowSyncStatus('ok');
           mostrarSnackbar('✅ Datos sincronizados desde la nube');
           generarTareasRecurrentesActivas();
@@ -4164,6 +4215,9 @@ function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2
 
 // ══ NAV ══
 const PM={
+  'vistas-venc':{t:'Vistas · Por vencimiento',s:'Cada lote en una fila — qué venció, qué vence esta semana, la próxima y en los próximos 30 días'},
+  'vistas-estado':{t:'Vistas · Por estado',s:'Pendientes y realizadas, agrupadas como prefieras'},
+  'vistas-cultivo':{t:'Vistas · Por cultivo',s:'Cultivo → Cliente → Lote, con hectáreas en cada nivel'},
   dashboard:{t:'Reportes',s:'Estadísticas, malezas, productos y estacionalidad'},
   tablero:{t:'Tablero de Lotes',s:'Vista operativa de todos los lotes'},
   relevamientos:{t:'Relevamientos',s:'Historial de relevamientos por lote y campaña'},
@@ -4180,7 +4234,7 @@ const PM={
   malezas:{t:'Diagnósticos',s:'Catálogo de diagnósticos: malezas, enfermedades, plagas y más'},
   diagnostico:{t:'Diagnóstico',s:'Presencia por campaña, cliente, campo y lote'},
   actividades:{t:'Actividades',s:'Relevamientos y actividades de todos los lotes — realizadas y programadas'},
-  planificacion:{t:'Planificación',s:'Qué tiene cada lote en la campaña — y qué falta cargar'},
+  planificacion:{t:'Vistas · Por momento del cultivo (Planificación)',s:'Qué tiene cada lote en la campaña — y qué falta cargar'},
   papelera:{t:'Papelera',s:'Relevamientos y actividades eliminados — se guardan 30 días por si hace falta restaurarlos'},
   'tareas-recurrentes':{t:'Actividades recurrentes',s:'Plantillas que generan solas una actividad (relevamiento por lote, o cualquier otra sin lote) cada vez que corresponde, para no tener que acordarse'},
   'tarea-instancias':{t:'Instancias generadas',s:'Todo lo que generó esta plantilla alguna vez, de cualquier campaña, haya cambiado o no de alcance'},
@@ -4188,7 +4242,7 @@ const PM={
   mejoras:{t:'Mejoras programadas',s:'Cada mejora se carga una vez y después se le enganchan las actividades de los lotes que la llevan adelante'},
   'mejora-detail':{t:'Detalle de mejora',s:'Actividades y relevamientos vinculados a esta mejora'},
   historial:{t:'Historial y Rotación',s:'Cultivo y diagnósticos por lote, campaña a campaña — para decidir la rotación con precedentes'},
-  calendario:{t:'Calendario de Actividades',s:'Por campo y lote, qué hay cargado mes a mes — últimos 2 meses y los próximos 9'},
+  calendario:{t:'Vistas · Por mes (Calendario)',s:'Por campo y lote, qué hay cargado mes a mes — últimos 2 meses y los próximos 9'},
   facturacion:{t:'Facturación',s:'Visitas realizadas (cliente + campo + fecha) para saber cómo facturar cada recorrida'},
 };
 let _prevPage='dashboard';
@@ -4209,6 +4263,10 @@ function navTo(id,params={}){
   // cada pestaña nueva arrancaba donde había quedado scrolleada la anterior.
   const _cont=document.querySelector('.content');if(_cont)_cont.scrollTop=0;
   document.querySelectorAll('.nb').forEach(b=>{if((b.getAttribute('onclick')||'').includes("'"+id+"'"))b.classList.add('active');});
+  if(typeof VISTAS_IDS!=='undefined'&&VISTAS_IDS.includes(id)){
+    document.querySelectorAll('.nb').forEach(b=>{if((b.getAttribute('onclick')||'').includes("'vistas-venc'"))b.classList.add('active');});
+    vistasNavInject(id);
+  }
   document.getElementById('tb-title').textContent=PM[id].t;
   document.getElementById('tb-sub').textContent=PM[id].s;
   // Reset automático de filtros al cambiar de solapa
@@ -4238,13 +4296,16 @@ function navTo(id,params={}){
   if(id==='tareas-recurrentes')renderTareasRecurrentes();
   if(id==='tarea-instancias') abrirTareaInstancias(params.tareaId);
   if(id==='hitos')           renderHitos();
+  if(id==='vistas-venc')     renderVistasVenc();
+  if(id==='vistas-estado')   renderVistasEstado();
+  if(id==='vistas-cultivo')  renderVistasCultivo();
   if(id==='mejoras')         renderMejoras();
   if(id==='mejora-detail')   abrirMejoraDetail(params.mejoraId);
 }
 
 // ══ MODALES ══
 function openModal(id){document.getElementById(id).classList.add('open');}
-function closeModal(id){document.getElementById(id).classList.remove('open');}
+function closeModal(id){document.getElementById(id).classList.remove('open');setTimeout(()=>{try{vistasRefrescarSuave();}catch(e){}},50);}
 // Cancelar "Nuevo diagnóstico" / "Nueva solución" abiertos desde un relevamiento:
 // hay que volver al relevamiento (con lo ya cargado), no dejarlo cerrado.
 function cancelModalMaleza(){
@@ -5442,6 +5503,26 @@ function renderProductos(){
 
 // ══ RELEVAMIENTOS ══
 let _editRelevId=null,_prodRowN=0,_malRowN=0;
+// Modo "varios lotes": el mismo formulario de relevamiento, pero al guardar crea
+// uno idéntico (diagnósticos, soluciones, fechas, actividades derivadas) en cada
+// lote del carrito, en vez de uno solo. null = modo normal.
+let _relevMultiLotes=null;
+function relevActivarMulti(loteIds){
+  _relevMultiLotes=loteIds.slice();
+  document.getElementById('r-lote-field').style.display='none';
+  document.getElementById('r-nuevo-lote-row').style.display='none';
+  const info=document.getElementById('r-multi-info');
+  info.style.display='block';
+  info.innerHTML=`<strong>📋 Se va a crear este mismo relevamiento en ${loteIds.length} lotes</strong> (con los diagnósticos, soluciones y fechas que cargues acá):<br>`
+    +`<span class="muted">${loteIds.map(id=>{const l=DB.lotes.find(x=>x.id===id);const c=DB.clientes.find(x=>x.id===l?.clienteId);return(l?.nombre||'?')+(c?' ('+c.nombre+')':'');}).join(' · ')}</span>`;
+  document.getElementById('mrelev-title').textContent=`Nuevo relevamiento — ${loteIds.length} lotes`;
+}
+function relevDesactivarMulti(){
+  _relevMultiLotes=null;
+  const f=document.getElementById('r-lote-field');if(f)f.style.display='';
+  const n=document.getElementById('r-nuevo-lote-row');if(n)n.style.display='';
+  const i=document.getElementById('r-multi-info');if(i)i.style.display='none';
+}
 let _seleccionados=new Set();
 
 
@@ -6051,6 +6132,7 @@ function renderMejoraDetail(){
 }
 function openModalRelev(editId=null){
   _editRelevId=editId;_prodRowN=0;_malRowN=0;
+  relevDesactivarMulti();
   document.getElementById('mrelev-title').textContent=editId?'Editar relevamiento':'Nuevo relevamiento';
   document.getElementById('r-fecha').value=hoyLocal();
   document.getElementById('r-programado').checked=false;
@@ -6416,7 +6498,8 @@ function saveRelev(){
   const cliId=document.getElementById('r-cli').value;
   const campoId=document.getElementById('r-campo').value;
   const loteId=document.getElementById('r-lote').value;
-  if(!campaña||!cliId||!campoId||!loteId){alert('Completá campaña, cliente, campo y lote');return;}
+  const esMulti=!_editRelevId&&Array.isArray(_relevMultiLotes)&&_relevMultiLotes.length>1;
+  if(!campaña||(!esMulti&&(!cliId||!campoId||!loteId))){alert('Completá campaña, cliente, campo y lote');return;}
   if(!programado&&!fecha){alert('Completá la fecha de realización (o tildá "Programar para más adelante")');return;}
   const malezas=[];
   document.querySelectorAll('[id^="mr-"]').forEach(row=>{
@@ -6441,7 +6524,7 @@ function saveRelev(){
   const cli=DB.clientes.find(c=>c.id===cliId);
   const campo=DB.campos.find(c=>c.id===campoId);
   const lote=DB.lotes.find(l=>l.id===loteId);
-  const obj={
+  const objBase={
     id:_editRelevId||uid(),fecha:fecha||null,fechaInicio,fechaLimite,campaña,
     cultivo:document.getElementById('r-cultivo').value.trim(),
     clienteId:cliId,campoId,loteId,
@@ -6464,18 +6547,35 @@ function saveRelev(){
     corto:_editRelevId?(DB.relevamientos.find(r=>r.id===_editRelevId)?.corto||nextRelevCodigo()):nextRelevCodigo(),
     borradorTs:null,
   };
+  // Modo normal: un solo destino (null = el lote del formulario). Modo "varios
+  // lotes": una copia completa por cada lote del carrito, cada una con SU
+  // cliente/campo/lote/cultivo, y sus propias actividades derivadas.
+  const targets=esMulti?_relevMultiLotes.slice():[null];
+  let mensajeExtra='';
+  let cerradosProg=0,creadosMulti=0;
+  const tiposCreados=[];
+  targets.forEach(tid=>{
+  let obj=objBase;
+  if(tid){
+    const l2=DB.lotes.find(l=>l.id===tid);if(!l2)return;
+    const c2=DB.clientes.find(c=>c.id===l2.clienteId),k2=DB.campos.find(c=>c.id===l2.campoId);
+    obj={...objBase,id:uid(),clienteId:l2.clienteId,campoId:l2.campoId,loteId:l2.id,
+      clienteNombre:c2?.nombre||'',campoNombre:k2?.nombre||'',loteNombre:l2.nombre||'',loteHa:l2.ha||0,
+      cultivo:getCultivoDeLote(l2.id,campaña)||'',
+      malezas:malezas.map(m=>({...m})),productos:productos.map(p=>({...p})),corto:nextRelevCodigo()};
+    creadosMulti++;
+  }
   const esNuevo=!_editRelevId;
   if(_editRelevId){const i=DB.relevamientos.findIndex(r=>r.id===_editRelevId);if(i>=0)DB.relevamientos[i]=obj;else DB.relevamientos.push(obj);}
   else DB.relevamientos.push(obj);
   // Si este lote tenía un "Relevamiento programado" (Actividad pendiente, sin
   // relevamiento vinculado todavía), se cierra solo con este relevamiento recién cargado.
-  let mensajeExtra='';
   if(esNuevo){
     const pendientes=(DB.actividades||[]).filter(a=>a.loteId===obj.loteId&&a.tipo==='Relevamiento'&&estadoDe(a)==='Pendiente'&&!a.relevId).sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||''));
     if(pendientes.length){
       const act=pendientes[0];
       act.relevId=obj.id;act.estado='Realizada';act.fechaRealizacion=obj.fecha;
-      mensajeExtra=' — se cerró el relevamiento programado que tenías para este lote';
+      cerradosProg++;
     }
   }
   // Actividades que se desprenden de este relevamiento (0, 1 o varias — un
@@ -6483,7 +6583,6 @@ function saveRelev(){
   // (tiene data-act-id) se actualiza solo en fecha/datos, nunca en su cuerpo
   // propio (diagnóstico/productos), que ya tiene vida aparte.
   const bloques=[...document.querySelectorAll('#r-act-blocks [id^="ractb-"]')];
-  const tiposCreados=[];
   bloques.forEach(block=>{
     const idx=block.id.split('ractb-')[1];
     const actTipo=document.getElementById('r-act-tipo-'+idx)?.value||'';
@@ -6544,7 +6643,11 @@ function saveRelev(){
       }
     }
   });
-  if(tiposCreados.length)mensajeExtra+=(mensajeExtra?' · ':' — ')+tiposCreados.join(', ');
+  });// fin targets.forEach
+  if(cerradosProg)mensajeExtra=cerradosProg>1?` — se cerraron ${cerradosProg} relevamientos programados`:' — se cerró el relevamiento programado que tenías para este lote';
+  const tiposUnicos=[...new Set(tiposCreados)];
+  if(tiposUnicos.length)mensajeExtra+=(mensajeExtra?' · ':' — ')+tiposUnicos.join(', ')+(esMulti?' en cada lote':'');
+  if(esMulti){mensajeExtra=` (${creadosMulti} lotes)`+mensajeExtra;relevDesactivarMulti();}
   save();closeModal('modal-relev');renderRelev();renderDashboard();
   if(document.getElementById('act-m-body'))renderActividadesMaster();
   if(document.getElementById('plan-body'))renderPlanificacion();
@@ -7972,8 +8075,31 @@ function tlGuardarActividadMasiva(){
   const mejoraId=document.getElementById('tl-act-mejora-id')?.value||null;
   const mejora=!!mejoraId;
   let count=0;
-  if(tipo==='Relevamiento'&&loteIds.length===1){
-    // Un solo lote: en vez de dejar un Relevamiento "cáscara" sin diagnóstico
+  if(tipo==='Aplicación'){
+    // Igual que Relevamiento: se abre el formulario real (productos, dosis,
+    // fechas) y lo que cargues se crea completo en cada lote del carrito.
+    const l0=DB.lotes.find(l=>l.id===loteIds[0]);
+    closeModal('modal-act-masiva');
+    if(!l0)return;
+    openModalActividad(l0.id,l0.clienteId,l0.campoId);
+    document.getElementById('act-tipo').value='Aplicación';
+    onActTipoChange();
+    if(!document.querySelector('#act-apl-prod-rows [id^="adpr-"]'))addProdRowApl();
+    document.getElementById('act-fecha').value=fechaA||'';
+    document.getElementById('act-fecha-fin').value=fechaFinA||'';
+    document.getElementById('act-camp').value=campaña||'';
+    document.getElementById('act-obs').value=obs||'';
+    document.getElementById('act-fecha-real').value=fechaReal||'';
+    if(mejoraId){pintarMejoraSelect('act-mejora-id',mejoraId);onMejoraSelChange('act-mejora-id','act-mejora-info');}
+    window._actNuevoMomento=_tlMasivaMomento||null;
+    if(loteIds.length>1)actActivarMulti(loteIds);
+    _tlMasivaCarrito=new Set();
+    _tlMasivaMomento=null;
+    tlLimpiarSeleccion();
+    return;
+  }
+  if(tipo==='Relevamiento'){
+    // Uno o varios lotes: en vez de dejar Relevamientos "cáscara" sin diagnóstico
     // (que después hay que acordarse de volver a abrir), se abre directo el
     // formulario real para completarlo ya mismo — mismo criterio que ya usa
     // el modal de Actividad individual. Si venía con fecha real (carrito
@@ -7984,10 +8110,16 @@ function tlGuardarActividadMasiva(){
     closeModal('modal-act-masiva');
     if(!lote)return;
     openModalRelev(null);
+    // Varios lotes: el formulario se abre en modo "varios lotes" y al guardar
+    // crea el mismo relevamiento completo (diagnósticos, soluciones, etc.) en
+    // cada uno. Si querés solo programarlos vacíos, tildás "Programar para
+    // más adelante" y dejás los diagnósticos sin cargar.
+    const multi=loteIds.length>1;
     setTimeout(()=>{
       const cf=document.getElementById('r-cli-filtro');
       if(cf)cf.value=lote.clienteId;
       rLoteComboSelect(loteId);
+      if(multi){document.getElementById('r-lote-info').style.display='none';relevActivarMulti(loteIds);}
       const campSel=document.getElementById('r-camp');if(campSel&&campaña)campSel.value=campaña;
       if(obs)document.getElementById('r-obs').value=obs;
       if(fechaReal){
@@ -8568,8 +8700,24 @@ function desprenderRActBlock(idx){
 }
 
 let _editActId=null,_actLoteCtx=null;
+// Modo "varios lotes" para Aplicación: el mismo formulario (productos, dosis,
+// fechas) crea una Aplicación completa e independiente en cada lote del carrito.
+let _actMultiLotes=null;
+function actActivarMulti(loteIds){
+  _actMultiLotes=loteIds.slice();
+  const info=document.getElementById('act-multi-info');
+  info.style.display='block';
+  info.innerHTML=`<strong>📋 Se va a crear esta misma actividad en ${loteIds.length} lotes</strong> (con los productos, dosis y fechas que cargues acá):<br>`
+    +`<span class="muted">${loteIds.map(id=>{const l=DB.lotes.find(x=>x.id===id);const c=DB.clientes.find(x=>x.id===l?.clienteId);return(l?.nombre||'?')+(c?' ('+c.nombre+')':'');}).join(' · ')}</span>`;
+  document.getElementById('mact-title').textContent=`Nueva actividad — ${loteIds.length} lotes`;
+}
+function actDesactivarMulti(){
+  _actMultiLotes=null;
+  const i=document.getElementById('act-multi-info');if(i)i.style.display='none';
+}
 
 function openModalActividad(loteId,cliId,campoId,editId=null){
+  actDesactivarMulti();
   _actLoteCtx=loteId?{loteId,cliId,campoId}:null;
   _editActId=editId;
   document.getElementById('mact-title').textContent=editId?'Editar actividad':'Nueva actividad';
@@ -8890,15 +9038,33 @@ function saveActividad(){
     obj.historial=historial;
     window._aplResyncDiag=null;
   }
-  if(_editActId){
+  const esMultiAct=!_editActId&&Array.isArray(_actMultiLotes)&&_actMultiLotes.length>1;
+  let creadasMulti=0;
+  if(window._actNuevoMomento&&!_editActId)obj.momento=window._actNuevoMomento;
+  if(esMultiAct){
+    // Una copia completa e independiente por cada lote (cada una con SU
+    // cliente/campo/lote y SU propio código), sin relevamiento de origen.
+    _actMultiLotes.forEach(lid=>{
+      const l=DB.lotes.find(x=>x.id===lid);if(!l)return;
+      const copia={...obj,id:uid(),loteId:l.id,clienteId:l.clienteId,campoId:l.campoId,datos:{...(obj.datos||{})},corto:nextActCodigo()};
+      if(tipo==='Aplicación'){
+        copia.productos=(obj.productos||[]).map(p=>({...p}));
+        copia.diagnostico=(obj.diagnostico||[]).map(m=>({...m}));
+        copia.historial=[];
+      }
+      DB.actividades.push(copia);creadasMulti++;
+    });
+  } else if(_editActId){
     const i=DB.actividades.findIndex(a=>a.id===_editActId);
     if(i>=0)DB.actividades[i]=obj;else DB.actividades.push(obj);
   } else {
     DB.actividades.push(obj);
   }
   window._actNuevaRelevId=null;
+  window._actNuevoMomento=null;
+  actDesactivarMulti();
   save();closeModal('modal-actividad');
-  mostrarSnackbar('✅ Actividad guardada');
+  mostrarSnackbar(esMultiAct?`✅ Actividad "${tipo}" creada en ${creadasMulti} lotes`:'✅ Actividad guardada');
   if(document.getElementById('lote-detail-content')&&_actLoteCtx)renderLoteDetail(_actLoteCtx.loteId,_actLoteCtx.cliId,_actLoteCtx.campoId);
   if(document.getElementById('act-m-body'))renderActividadesMaster();
   if(document.getElementById('plan-body'))renderPlanificacion();
@@ -9472,7 +9638,7 @@ function renderActividadesMaster(){
     const linkRelevVinculado=relevVinculadoCadena?` <span style="font-size:10px">🔗 ${relevVinculadoCadena}</span>`:'';
     const celdas=[
       {k:'chk',w:28,html:`<td class="ph">${chk}</td>`},
-      {k:'tipo',w:115,html:`<td style="font-size:12px">${codigoBadge}${tipoLink}${origenLink}${ligadaBadge}${recurrenteBadge}${mejoraBadgeF}${linkRelevVinculado}</td>`},
+      {k:'tipo',w:115,html:`<td style="font-size:12px">${codigoBadge}${tipoLink}${origenLink}${ligadaBadge}${recurrenteBadge}${mejoraBadgeF}${linkRelevVinculado}${(()=>{const d=vDetalleFila(f);return d?`<div class="muted" style="font-size:10.5px;margin-top:2px" title="${hEsc(d)}">${hEsc(vTxt(d,46))}</div>`:'';})()}</td>`},
       {k:'lote',w:95,html:`<td>${loteLink}</td>`},
       {k:'cliente',w:125,html:`<td style="font-size:12px">${f.campoId?`${f.clienteNombre} <span class="muted">— </span><a href="#" onclick="event.preventDefault();navTo('campo-detail',{campoId:'${f.campoId}'})" style="color:var(--text2);text-decoration:underline;text-decoration-style:dotted" title="Ver ficha del campo">${f.campoNombre}</a>`:'<span class="muted">—</span>'}</td>`},
       {k:'creada',w:68,html:`<td class="mono muted" style="font-size:10px">${f.creada||'—'}</td>`},
@@ -11448,11 +11614,410 @@ function crc32(buf){
 }
 
 
+// ══════════════════════════════════════════════
+// VISTAS — solapa única que reemplaza Tablero / Calendario / Planificación como entrada.
+// No guarda nada propio: todo se calcula en el momento a partir de relevamientos y actividades.
+// ══════════════════════════════════════════════
+const VISTAS_IDS=['vistas-venc','vistas-estado','calendario','planificacion','vistas-cultivo'];
+const VISTAS_TABS=[
+  {id:'vistas-venc',t:'⏰ Por vencimiento'},
+  {id:'vistas-estado',t:'✅ Por estado'},
+  {id:'calendario',t:'📆 Por mes'},
+  {id:'planificacion',t:'🌱 Por momento del cultivo'},
+  {id:'vistas-cultivo',t:'🌾 Por cultivo'}
+];
+// Estado compartido entre las vistas (los filtros se mantienen al pasar de una a otra)
+const _vv={horizonte:'30',agr:'cli',soloPend:false,q:'',camp:'',colap:new Set(),exp:new Set(),sel:new Set(),estado:'pend',agrEst:'semana',realDias:'30',_grupos:{}};
+function vistasNavInject(id){
+  const pg=document.getElementById('page-'+id);if(!pg)return;
+  let nav=pg.querySelector(':scope>.vnav');
+  if(!nav){nav=document.createElement('div');nav.className='vnav ph';pg.insertBefore(nav,pg.firstChild);}
+  nav.innerHTML=VISTAS_TABS.map(x=>`<button class="vtab${x.id===id?' on':''}" onclick="navTo('${x.id}')">${x.t}</button>`).join('');
+}
+function vistasRefrescarSuave(){
+  const pg=document.querySelector('.page.active')?.id;
+  if(pg==='page-vistas-venc')vvOut();
+  else if(pg==='page-vistas-estado')vestOut();
+  else if(pg==='page-vistas-cultivo')vculOut();
+}
+function vistasRender(){vistasRefrescarSuave();}
+function vistasLimpiar(){
+  ['vv-cli','vv-campo','vv-cult','vv-tipo'].forEach(f=>_mselGet(f).clear());
+  _vv.q='';_vv.soloPend=false;
+  const pg=document.querySelector('.page.active')?.id;
+  if(pg==='page-vistas-venc')renderVistasVenc();
+  else if(pg==='page-vistas-estado')renderVistasEstado();
+  else if(pg==='page-vistas-cultivo')renderVistasCultivo();
+}
+// ── fechas ──
+function vAdd(s,n){const[y,m,d]=s.split('-').map(Number);const dt=new Date(y,m-1,d+n);return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');}
+function vDow(s){const[y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d).getDay();}
+function vFmt(s){return s?s.slice(8,10)+'/'+s.slice(5,7):'';}
+function vFmtL(s){return s?s.slice(8,10)+'/'+s.slice(5,7)+'/'+s.slice(0,4):'—';}
+function vLunes(s){const dw=vDow(s);return vAdd(s,dw===0?-6:1-dw);}
+function vRangos(){const hoy=hoyLocal();const finSem=vAdd(hoy,(7-vDow(hoy))%7);return{hoy,finSem,finProx:vAdd(finSem,7),fin30:vAdd(hoy,30)};}
+function vBucket(ref,R){if(!ref)return'sin';if(ref<R.hoy)return'venc';if(ref<=R.finSem)return'sem';if(ref<=R.finProx)return'prox';if(ref<=R.fin30)return'd30';return'mas';}
+const V_MESES=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+function vTxt(s,n){s=(s||'').replace(/\s+/g,' ').trim();return s.length>n?s.slice(0,n-1)+'…':s;}
+// ── datos: una lista única de "cosas" (relevamientos + actividades) ──
+function vProdNombres(arr){return(arr||[]).map(p=>(DB.productos||[]).find(x=>x.id===p.productoId)?.nombre||'').filter(Boolean);}
+function vDetalle(diag,prods,obs){
+  const l=(a,n)=>a.slice(0,n).join(', ')+(a.length>n?' +'+(a.length-n):'');
+  let t=diag.length?l(diag,2):'';
+  if(prods.length)t+=(t?' → ':'')+l(prods,2);
+  if(!t)t=vTxt(obs,32);
+  return t;
+}
+function vItems(){
+  const out=[];
+  const mej=id=>id?((DB.mejoras||[]).find(m=>m.id===id)?.nombre||''):'';
+  (DB.relevamientos||[]).forEach(r=>{
+    if(r.borrado||r.estado==='Borrador')return;
+    const diag=(r.malezas||[]).map(m=>m.nombre).filter(Boolean);
+    out.push({kind:'R',id:r.id,tipo:'Relevamiento',icono:'🔬',pend:!r.fecha,ini:r.fechaInicio||'',lim:r.fechaLimite||'',real:r.fecha||'',
+      loteId:r.loteId||'',cliId:r.clienteId||'',campoId:r.campoId||'',camp:r.campaña||'',
+      det:vDetalle(diag,vProdNombres(r.productos),r.obs),codigo:r.corto||'',mejora:mej(r.mejoraId),rec:!!r.tareaRecurrenteId});
+  });
+  (DB.actividades||[]).forEach(a=>{
+    if(a.borrado||a.tipo==='Relevamiento')return;
+    const pend=estadoDe(a)==='Pendiente';
+    let det=vProdNombres(a.productos).slice(0,2).join(', ');
+    if(!det&&a.datos&&a.datos.variedad)det=a.datos.variedad;
+    if(!det)det=vTxt(a.obs,32);
+    out.push({kind:'A',id:a.id,tipo:a.tipo,icono:(ACT_TIPOS[a.tipo]||{}).icono||'📝',pend,ini:a.fecha||'',lim:a.fechaFin||'',
+      real:pend?'':(a.fechaRealizacion||a.fecha||''),loteId:a.loteId||'',cliId:a.clienteId||'',campoId:a.campoId||'',camp:a.campaña||'',
+      det,codigo:a.corto||'',mejora:mej(a.mejoraId),rec:!!a.tareaRecurrenteId});
+  });
+  out.forEach(i=>{i.ref=i.pend?(i.lim||i.ini||''):i.real;});
+  return out;
+}
+// "Qué es" de una fila del listado de Actividades (diagnóstico / productos / observación)
+function vDetalleFila(f){
+  if(f.esRelev){const r=(DB.relevamientos||[]).find(x=>x.id===f.id);return r?vDetalle((r.malezas||[]).map(m=>m.nombre).filter(Boolean),vProdNombres(r.productos),r.obs):'';}
+  const a=(DB.actividades||[]).find(x=>x.id===f.id);if(!a)return'';
+  return vProdNombres(a.productos).slice(0,2).join(', ')||(a.datos&&a.datos.variedad)||vTxt(a.obs,40);
+}
+function vAbrir(kind,id){if(kind==='R')editRelevFromMaster(id);else openModalActividad(null,null,null,id);}
+function vCampSel(){return _vv.camp||getCampanaActiva();}
+function vCultivosLote(loteId){return cultivosDeLote(loteId,vCampSel());}
+function vCtx(){
+  const L={},C={},K={};
+  (DB.lotes||[]).forEach(l=>L[l.id]=l);(DB.campos||[]).forEach(c=>C[c.id]=c);(DB.clientes||[]).forEach(c=>K[c.id]=c);
+  return{L,C,K};
+}
+function vLoteTxt(it,ctx){const l=ctx.L[it.loteId];return l?l.nombre:'';}
+function vQtxt(it,ctx){
+  const l=ctx.L[it.loteId],c=ctx.C[it.campoId||l?.campoId],k=ctx.K[it.cliId||l?.clienteId];
+  return[it.tipo,it.det,it.codigo,it.mejora,l?.nombre,c?.nombre,k?.nombre].join(' ').toLowerCase();
+}
+// Filtros compartidos
+function vFiltrar(items,ctx){
+  const fc=_mselGet('vv-cli'),fp=_mselGet('vv-campo'),fk=_mselGet('vv-cult'),ft=_mselGet('vv-tipo');
+  const q=(_vv.q||'').toLowerCase().trim();
+  return items.filter(it=>{
+    const l=ctx.L[it.loteId];
+    if(it.loteId&&!l)return false;
+    if(fc.size&&!fc.has(it.cliId||l?.clienteId))return false;
+    if(fp.size&&!fp.has(it.campoId||l?.campoId))return false;
+    if(fk.size){if(!l)return false;const cs=vCultivosLote(l.id);if(!cs.some(c=>fk.has(c)))return false;}
+    if(ft.size&&!ft.has(it.tipo))return false;
+    if(q&&!vQtxt(it,ctx).includes(q))return false;
+    return true;
+  });
+}
+function vLotePasa(l,ctx){
+  const fc=_mselGet('vv-cli'),fp=_mselGet('vv-campo'),fk=_mselGet('vv-cult');
+  if(fc.size&&!fc.has(l.clienteId))return false;
+  if(fp.size&&!fp.has(l.campoId))return false;
+  if(fk.size&&!vCultivosLote(l.id).some(c=>fk.has(c)))return false;
+  return true;
+}
+function vBarra(pg,extraHtml){
+  const el=document.getElementById(pg+'-bar');if(!el)return;
+  const camps=(DB.campanas||[]);
+  const sel=vCampSel();
+  el.innerHTML=`<input type="text" class="fi" placeholder="Buscar lote, cliente, producto..." value="${hEsc(_vv.q)}" oninput="_vv.q=this.value;vistasRender()">
+    <span class="muted" style="font-size:11px">Campaña</span>
+    <select class="fi" style="width:100px" onchange="_vv.camp=this.value;vistasRender()">${camps.map(c=>`<option value="${c}"${c===sel?' selected':''}>${c}</option>`).join('')}</select>
+    <div class="msel" id="msel-${pg}-cli"></div><div class="msel" id="msel-${pg}-campo"></div><div class="msel" id="msel-${pg}-cult"></div><div class="msel" id="msel-${pg}-tipo"></div>
+    ${extraHtml||''}
+    <button class="btn bs bsm" onclick="vistasLimpiar()">Limpiar</button>`;
+  const cb=()=>vistasRender();
+  mselRender(`msel-${pg}-cli`,'vv-cli','Cliente',(DB.clientes||[]).map(c=>({value:c.id,label:hEsc(c.nombre)})).sort((a,b)=>naturalCmp(a.label,b.label)),cb);
+  mselRender(`msel-${pg}-campo`,'vv-campo','Campo',(DB.campos||[]).map(c=>({value:c.id,label:hEsc(c.nombre)+' <span class="muted">('+hEsc((DB.clientes||[]).find(k=>k.id===c.clienteId)?.nombre||'')+')</span>'})).sort((a,b)=>naturalCmp(a.label,b.label)),cb);
+  const cults=[...new Set((DB.cultivos||[]).map(baseCultivo).filter(Boolean))].sort();
+  mselRender(`msel-${pg}-cult`,'vv-cult','Cultivo',cults.map(c=>({value:c,label:hEsc(c)})),cb);
+  const tipos=['Relevamiento',...Object.keys(ACT_TIPOS)];
+  mselRender(`msel-${pg}-tipo`,'vv-tipo','Tipo',tipos.map(t=>({value:t,label:((ACT_TIPOS[t]||{}).icono||'🔬')+' '+hEsc(t)})),cb);
+}
+function vChipHtml(it,R){
+  const b=vBucket(it.ref,R);
+  const cls=it.pend?(b==='venc'?'c-venc':b==='sem'?'c-sem':b==='prox'?'c-prox':''):'';
+  const fut=it.pend&&it.ini&&it.ini>R.hoy?' vfut':'';
+  const txt=it.tipo+(it.det?': '+it.det:'');
+  const full=txt+(it.codigo?' ['+it.codigo+']':'')+(it.mejora?' · 💡 '+it.mejora:'')+(it.rec?' · 🔁 recurrente':'')+(it.ini?' · desde '+vFmtL(it.ini):'')+(it.lim?' · límite '+vFmtL(it.lim):'');
+  return`<div class="vchip ${cls}${fut}" title="${hEsc(full)}" onclick="event.stopPropagation();vAbrir('${it.kind}','${it.id}')"><span class="vd">${vFmt(it.ref)}</span>${it.icono} ${hEsc(vTxt(txt,38))}${it.mejora?' 💡':''}${it.rec?' 🔁':''}</div>`;
+}
+// ══ POR VENCIMIENTO ══
+function renderVistasVenc(){
+  vBarra('vvenc',`<select class="fi" style="width:150px" onchange="_vv.agr=this.value;vvOut()" title="Cómo agrupar las filas">
+      <option value="cli"${_vv.agr==='cli'?' selected':''}>Agrupar: Cliente › Campo</option>
+      <option value="cultivo"${_vv.agr==='cultivo'?' selected':''}>Agrupar: Cultivo › Cliente</option>
+      <option value="campo"${_vv.agr==='campo'?' selected':''}>Agrupar: Campo</option>
+      <option value="ninguno"${_vv.agr==='ninguno'?' selected':''}>Sin agrupar</option></select>
+    <label style="font-size:12px;display:flex;gap:4px;align-items:center"><input type="checkbox" ${_vv.soloPend?'checked':''} onchange="_vv.soloPend=this.checked;vvOut()"> Solo lotes con pendientes</label>`);
+  vvOut();
+}
+function vvToggleHor(){_vv.horizonte=_vv.horizonte==='30'?'todo':'30';vvOut();}
+function vvExp(k){if(_vv.exp.has(k))_vv.exp.delete(k);else _vv.exp.add(k);vvOut();}
+function vvColap(k){if(_vv.colap.has(k))_vv.colap.delete(k);else _vv.colap.add(k);vvOut();}
+function vvSelLote(id,ch){if(ch)_vv.sel.add(id);else _vv.sel.delete(id);vvBulk();}
+function vvSelGrupo(key,ch){(_vv._grupos[key]||[]).forEach(id=>{if(ch)_vv.sel.add(id);else _vv.sel.delete(id);});vvOut();}
+function vvBulk(){
+  const el=document.getElementById('vvenc-bulk');if(!el)return;
+  const n=_vv.sel.size;
+  if(!n){el.style.display='none';return;}
+  el.style.display='flex';
+  el.innerHTML=`<strong>${n} lote${n>1?'s':''} seleccionado${n>1?'s':''}</strong><button class="btn bp bsm" onclick="vvCrear()">➕ Crear actividad en estos lotes</button><button class="btn bs bsm" onclick="_vv.sel.clear();vvOut()">Deseleccionar</button>`;
+}
+function vvCrear(){if(!_vv.sel.size)return;abrirModalActividadMasiva([..._vv.sel],'',vCampSel());}
+function vvOut(){
+  const out=document.getElementById('vvenc-out');if(!out)return;
+  const ctx=vCtx(),R=vRangos();
+  const items=vFiltrar(vItems().filter(i=>i.pend),ctx);
+  const cols=[
+    {k:'venc',t:'🔴 Vencidas'},
+    {k:'sem',t:'Vencen esta semana',s:'hasta el '+vFmt(R.finSem)},
+    {k:'prox',t:'Vencen semana próxima',s:vFmt(vAdd(R.finSem,1))+' al '+vFmt(R.finProx)},
+    {k:'d30',t:'Vencen en 30 días',s:'hasta el '+vFmt(R.fin30)},
+    {k:'mas',t:'Más de 30 días'},
+    {k:'sin',t:'Sin fecha'}
+  ];
+  const ver30=_vv.horizonte==='30';
+  const vis=cols.filter(c=>!ver30||!['mas','sin'].includes(c.k));
+  const porLote={},gen=[];
+  items.forEach(it=>{
+    const b=vBucket(it.ref,R);
+    if(!it.loteId){gen.push({it,b});return;}
+    (porLote[it.loteId]=porLote[it.loteId]||[]).push({it,b});
+  });
+  const ocultos=ver30?items.filter(i=>['mas','sin'].includes(vBucket(i.ref,R))).length:0;
+  const q=(_vv.q||'').toLowerCase().trim();
+  // filas
+  let filas=(DB.lotes||[]).filter(l=>vLotePasa(l,ctx)).map(l=>{
+    const c=ctx.C[l.campoId],k=ctx.K[l.clienteId];
+    const cs=vCultivosLote(l.id);
+    return{l,cName:c?.nombre||'—',kName:k?.nombre||'—',cult:cs[0]||'Sin cultivo cargado',items:porLote[l.id]||[]};
+  });
+  filas=filas.filter(f=>{
+    const visCount=f.items.filter(x=>vis.some(c=>c.k===x.b)).length;
+    if(_vv.soloPend&&!visCount)return false;
+    if(q&&!f.items.length&&![f.l.nombre,f.cName,f.kName].join(' ').toLowerCase().includes(q))return false;
+    return true;
+  });
+  const agr=_vv.agr;
+  const k1=f=>agr==='cli'?f.kName:agr==='cultivo'?f.cult:agr==='campo'?(f.kName+' — '+f.cName):'';
+  const k2=f=>agr==='cli'?f.cName:agr==='cultivo'?f.kName:'';
+  filas.sort((a,b)=>naturalCmp(k1(a),k1(b))||naturalCmp(k2(a),k2(b))||naturalCmp(a.l.nombre,b.l.nombre));
+  // acumulados por grupo
+  const g1={},g2={};_vv._grupos={};
+  const acum=(g,key,f)=>{
+    const o=g[key]=g[key]||{n:0,ha:0,cnt:{},ids:[]};
+    o.n++;o.ha+=(+f.l.ha||0);o.ids.push(f.l.id);
+    f.items.forEach(x=>{o.cnt[x.b]=(o.cnt[x.b]||0)+1;});
+  };
+  filas.forEach(f=>{if(agr!=='ninguno')acum(g1,k1(f),f);if(k2(f))acum(g2,k1(f)+'|'+k2(f),f);});
+  Object.keys(g1).forEach(k=>_vv._grupos['g1:'+k]=g1[k].ids);
+  Object.keys(g2).forEach(k=>_vv._grupos['g2:'+k]=g2[k].ids);
+  const totales={};
+  items.forEach(it=>{const b=vBucket(it.ref,R);totales[b]=(totales[b]||0)+1;});
+  const numCells=cnt=>vis.map(c=>{const v=cnt[c.k]||0;return`<td class="vn${v&&c.k==='venc'?' hot':''}">${v||''}</td>`;}).join('');
+  const checkTodos=ids=>ids.length&&ids.every(i=>_vv.sel.has(i));
+  let h='';
+  if(ver30){
+    h+=`<div class="vaviso">👁 Mostrando solo lo que vence hasta los <strong>próximos 30 días</strong> (hasta el ${vFmtL(R.fin30)}) y lo vencido.${ocultos?` Hay <strong>${ocultos}</strong> actividad${ocultos>1?'es':''} más adelante o sin fecha, ocultas.`:''} <a onclick="vvToggleHor()">Ver todo</a></div>`;
+  }else{
+    h+=`<div class="vaviso">👁 Mostrando <strong>todo</strong>, también lo que vence en más de 30 días y lo que no tiene fecha. <a onclick="vvToggleHor()">Volver a próximos 30 días</a></div>`;
+  }
+  h+=`<table class="vtbl"><thead><tr><th style="width:26px"></th><th style="min-width:150px">Lote</th>${vis.map(c=>`<th style="min-width:${c.k==='venc'?190:170}px">${c.t}${c.s?`<small>${c.s}</small>`:''}<small><strong>${totales[c.k]||0}</strong> en total</small></th>`).join('')}</tr></thead><tbody>`;
+  let last1=null,last2=null;
+  const cell=(f,c)=>{
+    const arr=f.items.filter(x=>x.b===c.k).sort((a,b)=>(a.it.ref||'').localeCompare(b.it.ref||''));
+    if(!arr.length)return'<td></td>';
+    const key=f.l.id+'|'+c.k,abierto=_vv.exp.has(key),max=3;
+    const mostrar=abierto?arr:arr.slice(0,max);
+    return`<td>${mostrar.map(x=>vChipHtml(x.it,R)).join('')}${arr.length>max?`<a class="vmas" onclick="vvExp('${key}')">${abierto?'ver menos':'+'+(arr.length-max)+' más'}</a>`:''}</td>`;
+  };
+  filas.forEach(f=>{
+    const a1=k1(f),a2=k2(f);
+    const key1='g1:'+a1,key2='g2:'+a1+'|'+a2;
+    if(agr!=='ninguno'&&a1!==last1){
+      const g=g1[a1];last1=a1;last2=null;
+      h+=`<tr class="vg1" onclick="vvColap('${hEsc(key1).replace(/'/g,"\\'")}')"><td onclick="event.stopPropagation()"><input type="checkbox" ${checkTodos(g.ids)?'checked':''} onchange="vvSelGrupo('${hEsc(key1).replace(/'/g,"\\'")}',this.checked)"></td><td>${_vv.colap.has(key1)?'▸':'▾'} ${hEsc(a1)}<small class="muted" style="display:block;font-weight:400">${g.n} lote${g.n>1?'s':''} · ${Math.round(g.ha*10)/10} ha</small></td>${numCells(g.cnt)}</tr>`;
+    }
+    if(_vv.colap.has(key1))return;
+    if(a2&&a2!==last2){
+      const g=g2[a1+'|'+a2];last2=a2;
+      h+=`<tr class="vg2" onclick="vvColap('${hEsc(key2).replace(/'/g,"\\'")}')"><td onclick="event.stopPropagation()"><input type="checkbox" ${checkTodos(g.ids)?'checked':''} onchange="vvSelGrupo('${hEsc(key2).replace(/'/g,"\\'")}',this.checked)"></td><td style="padding-left:18px">${_vv.colap.has(key2)?'▸':'▾'} ${hEsc(a2)}<small class="muted" style="display:block;font-weight:400">${g.n} lote${g.n>1?'s':''} · ${Math.round(g.ha*10)/10} ha</small></td>${numCells(g.cnt)}</tr>`;
+    }
+    if(a2&&_vv.colap.has(key2))return;
+    const pad=agr==='ninguno'?0:(a2?32:18);
+    h+=`<tr><td><input type="checkbox" ${_vv.sel.has(f.l.id)?'checked':''} onchange="vvSelLote('${f.l.id}',this.checked)"></td><td style="padding-left:${pad+8}px"><a href="#" onclick="event.preventDefault();navTo('lote',{loteId:'${f.l.id}',cliId:'${f.l.clienteId}',campoId:'${f.l.campoId}'})" style="color:inherit;font-weight:600;text-decoration:underline;text-decoration-style:dotted">${hEsc(f.l.nombre)}</a>${f.l.ha?` <span class="muted">${f.l.ha} ha</span>`:''}<small class="muted" style="display:block">${agr==='ninguno'?hEsc(f.kName)+' — '+hEsc(f.cName)+' · ':''}${agr==='cli'||agr==='ninguno'||agr==='campo'?hEsc(f.cult==='Sin cultivo cargado'?'sin cultivo':f.cult):''}${agr==='cultivo'?hEsc(f.cName):''}</small></td>${vis.map(c=>cell(f,c)).join('')}</tr>`;
+  });
+  if(!filas.length)h+=`<tr><td colspan="${vis.length+2}" class="muted" style="padding:20px;text-align:center">No hay lotes con esos filtros.</td></tr>`;
+  if(gen.length&&!_mselGet('vv-cli').size&&!_mselGet('vv-campo').size&&!_mselGet('vv-cult').size){
+    h+=`<tr class="vg1"><td></td><td>📋 Generales (sin lote)</td>${numCells(gen.reduce((o,x)=>{o[x.b]=(o[x.b]||0)+1;return o;},{}))}</tr>`;
+    h+=`<tr><td></td><td class="muted" style="padding-left:18px">Tareas que no son de un lote</td>${vis.map(c=>{
+      const arr=gen.filter(x=>x.b===c.k);
+      return`<td>${arr.map(x=>vChipHtml(x.it,R)).join('')}</td>`;}).join('')}</tr>`;
+  }
+  h+='</tbody></table>';
+  out.innerHTML=h;
+  vvBulk();
+}
+// ══ POR ESTADO (Pendientes / Realizadas) ══
+function renderVistasEstado(){
+  vBarra('vest',`<div class="vseg"><button class="${_vv.estado==='pend'?'on':''}" onclick="_vv.estado='pend';renderVistasEstado()">⏳ Pendientes</button><button class="${_vv.estado==='real'?'on':''}" onclick="_vv.estado='real';renderVistasEstado()">✅ Realizadas</button></div>
+    <select class="fi" style="width:150px" onchange="_vv.agrEst=this.value;vestOut()" title="Cómo agrupar">
+      ${[['semana','Agrupar: Semana'],['mes','Agrupar: Mes'],['cliente','Agrupar: Cliente'],['campo','Agrupar: Campo'],['lote','Agrupar: Lote'],['cultivo','Agrupar: Cultivo'],['tipo','Agrupar: Tipo'],['ninguno','Sin agrupar']].map(o=>`<option value="${o[0]}"${_vv.agrEst===o[0]?' selected':''}>${o[1]}</option>`).join('')}</select>
+    ${_vv.estado==='real'?`<select class="fi" style="width:150px" onchange="_vv.realDias=this.value;vestOut()"><option value="30"${_vv.realDias==='30'?' selected':''}>Últimos 30 días</option><option value="90"${_vv.realDias==='90'?' selected':''}>Últimos 90 días</option><option value="todo"${_vv.realDias==='todo'?' selected':''}>Todas</option></select>`:''}`);
+  vestOut();
+}
+function vestOut(){
+  const out=document.getElementById('vest-out');if(!out)return;
+  const ctx=vCtx(),R=vRangos(),pend=_vv.estado==='pend';
+  let items=vFiltrar(vItems(),ctx).filter(i=>i.pend===pend);
+  let aviso='';
+  if(pend){
+    if(_vv.horizonte==='30'){
+      const antes=items.length;
+      items=items.filter(i=>i.ref&&i.ref<=R.fin30);
+      const oc=antes-items.length;
+      aviso=`<div class="vaviso">👁 Pendientes hasta los <strong>próximos 30 días</strong> (hasta el ${vFmtL(R.fin30)}), más lo vencido.${oc?` Hay <strong>${oc}</strong> más adelante o sin fecha, ocultas.`:''} <a onclick="vvToggleHor()">Ver todo</a></div>`;
+    }else aviso=`<div class="vaviso">👁 Mostrando <strong>todos</strong> los pendientes. <a onclick="vvToggleHor()">Volver a próximos 30 días</a></div>`;
+  }else if(_vv.realDias!=='todo'){
+    const desde=vAdd(R.hoy,-(+_vv.realDias));
+    items=items.filter(i=>i.real>=desde);
+  }
+  const dir=pend?1:-1;
+  items.sort((a,b)=>dir*((a.ref||'9999').localeCompare(b.ref||'9999')));
+  const gk=_vv.agrEst;
+  const grp=it=>{
+    const l=ctx.L[it.loteId],c=ctx.C[it.campoId||l?.campoId],k=ctx.K[it.cliId||l?.clienteId];
+    switch(gk){
+      case'semana':{
+        if(!it.ref)return['9','Sin fecha'];
+        if(pend&&it.ref<R.hoy)return['0','🔴 Vencidas'];
+        const lu=vLunes(it.ref),dom=vAdd(lu,6);
+        let tag='';if(lu===vLunes(R.hoy))tag=' · esta semana';else if(lu===vAdd(vLunes(R.hoy),7))tag=' · semana próxima';
+        return[lu,'Semana del '+vFmt(lu)+' al '+vFmt(dom)+tag];}
+      case'mes':return it.ref?[it.ref.slice(0,7),V_MESES[+it.ref.slice(5,7)-1]+' '+it.ref.slice(0,4)]:['9','Sin fecha'];
+      case'cliente':return[k?.nombre||'—',k?.nombre||'Sin cliente'];
+      case'campo':return[(k?.nombre||'')+(c?.nombre||''),(k?.nombre||'—')+' — '+(c?.nombre||'—')];
+      case'lote':return[(k?.nombre||'')+(l?.nombre||''),l?(l.nombre+' · '+(k?.nombre||'')):'📋 Generales (sin lote)'];
+      case'cultivo':{const cs=l?vCultivosLote(l.id):[];return[cs[0]||'~',cs[0]||'Sin cultivo cargado'];}
+      case'tipo':return[it.tipo,it.icono+' '+it.tipo];
+      default:return['',''];
+    }
+  };
+  const grupos={};
+  items.forEach(it=>{const[sk,lb]=grp(it);const g=grupos[sk]=grupos[sk]||{sk,lb,arr:[]};g.arr.push(it);});
+  let keys=Object.keys(grupos);
+  if(gk==='semana'||gk==='mes')keys.sort((a,b)=>(pend?1:-1)*a.localeCompare(b));
+  else keys.sort(naturalCmp);
+  const fila=it=>{
+    const l=ctx.L[it.loteId],c=ctx.C[it.campoId||l?.campoId],k=ctx.K[it.cliId||l?.clienteId];
+    let fecha;
+    if(pend){
+      const d=it.ref?diasDesde(it.ref):null; // positivo = vencida
+      let rel='';
+      if(d!==null){rel=d>0?`<span class="badge bg-red">venció hace ${d} d</span>`:d===0?'<span class="badge bg-amber">vence hoy</span>':`<span class="muted">en ${-d} d</span>`;}
+      fecha=`${it.ref?vFmtL(it.ref):'<span class="muted">sin fecha</span>'}<div>${rel}</div>`;
+    }else{
+      const d=diasDesde(it.real);
+      fecha=`${vFmtL(it.real)}<div class="muted" style="font-size:10.5px">⏱ ${haceCuantoTexto(d)}</div>`;
+    }
+    const txt=it.tipo+(it.det?': '+it.det:'');
+    return`<tr><td style="white-space:nowrap">${fecha}</td><td><a href="#" onclick="event.preventDefault();vAbrir('${it.kind}','${it.id}')" style="color:inherit;text-decoration:underline;text-decoration-style:dotted" title="${hEsc(it.codigo)}">${it.icono} ${hEsc(txt)}</a>${it.mejora?` <span class="mejora-pill">💡 ${hEsc(it.mejora)}</span>`:''}${it.rec?' <span class="badge bg-blue" style="font-size:9px">🔁</span>':''}${it.codigo?` <span class="badge bg-gray mono" style="font-size:9px">${hEsc(it.codigo)}</span>`:''}</td><td>${l?hEsc(l.nombre):'<span class="muted">—</span>'}</td><td>${hEsc(k?.nombre||'—')} <span class="muted">—</span> ${hEsc(c?.nombre||'—')}</td><td>${l?hEsc(vCultivosLote(l.id).join(' / ')||'—'):'—'}</td></tr>`;
+  };
+  let h=aviso;
+  h+=`<div class="muted" style="font-size:11px;margin-bottom:6px">${items.length} ${pend?'pendiente':'realizada'}${items.length===1?'':'s'}</div>`;
+  h+=`<table class="vtbl" style="min-width:760px"><thead><tr><th style="width:130px">${pend?'Vence':'Realizada'}</th><th>Qué</th><th>Lote</th><th>Cliente — Campo</th><th>Cultivo</th></tr></thead><tbody>`;
+  keys.forEach(sk=>{
+    const g=grupos[sk];
+    if(gk!=='ninguno')h+=`<tr class="vg1"><td colspan="5" style="cursor:default">${hEsc(g.lb)} <span class="muted" style="font-weight:400">· ${g.arr.length}</span></td></tr>`;
+    h+=g.arr.map(fila).join('');
+  });
+  if(!items.length)h+=`<tr><td colspan="5" class="muted" style="padding:20px;text-align:center">No hay ${pend?'pendientes':'realizadas'} con esos filtros.</td></tr>`;
+  h+='</tbody></table>';
+  out.innerHTML=h;
+}
+// ══ POR CULTIVO (Cultivo → Cliente → Lote) ══
+function renderVistasCultivo(){
+  vBarra('vcul','');
+  vculOut();
+}
+function vculColap(k){if(_vv.colap.has(k))_vv.colap.delete(k);else _vv.colap.add(k);vculOut();}
+function vculCrear(key){abrirModalActividadMasiva((_vv._grupos[key]||[]).slice(),'',vCampSel());}
+function vculOut(){
+  const out=document.getElementById('vcul-out');if(!out)return;
+  const ctx=vCtx(),R=vRangos(),camp=vCampSel();
+  const q=(_vv.q||'').toLowerCase().trim();
+  const info={};
+  vItems().forEach(it=>{
+    if(!it.loteId)return;
+    const o=info[it.loteId]=info[it.loteId]||{pend:0,venc:0,prox:'',ult:''};
+    if(it.pend){o.pend++;if(it.ref&&it.ref<R.hoy)o.venc++;if(it.ref&&(!o.prox||it.ref<o.prox)&&it.ref>=R.hoy)o.prox=it.ref;}
+    else if(it.real&&it.real>o.ult)o.ult=it.real;
+  });
+  const arbol={};const unicos=new Map();
+  (DB.lotes||[]).forEach(l=>{
+    if(!vLotePasa(l,ctx))return;
+    const c=ctx.C[l.campoId],k=ctx.K[l.clienteId];
+    if(q&&![l.nombre,c?.nombre,k?.nombre].join(' ').toLowerCase().includes(q))return;
+    unicos.set(l.id,+l.ha||0);
+    const cs=vCultivosLote(l.id);
+    (cs.length?cs:['Sin cultivo cargado']).forEach(cu=>{
+      const n1=arbol[cu]=arbol[cu]||{ha:0,ids:[],cli:{}};
+      n1.ha+=(+l.ha||0);n1.ids.push(l.id);
+      const kn=k?.nombre||'—';
+      const n2=n1.cli[kn]=n1.cli[kn]||{ha:0,ids:[],lotes:[]};
+      n2.ha+=(+l.ha||0);n2.ids.push(l.id);n2.lotes.push({l,cName:c?.nombre||'—'});
+    });
+  });
+  _vv._grupos={};
+  const ha=x=>Math.round(x*10)/10;
+  const totalHa=[...unicos.values()].reduce((s,x)=>s+x,0);
+  let h=`<div class="vaviso" style="background:var(--accent-bg);color:var(--accent2)">🌾 Campaña <strong>${camp}</strong> · <strong>${unicos.size}</strong> lotes · <strong>${ha(totalHa)}</strong> ha en total. <span style="opacity:.8">Un lote con cultivo de 1ª y de 2ª aparece en los dos, pero se cuenta una sola vez en el total.</span></div>`;
+  h+='<table class="vtbl" style="min-width:720px"><thead><tr><th>Cultivo › Cliente › Lote</th><th style="width:90px">Hectáreas</th><th style="width:90px">Lotes</th><th style="width:110px">Pendientes</th><th style="width:130px">Próx. vencimiento</th><th style="width:130px">Última realizada</th><th style="width:110px"></th></tr></thead><tbody>';
+  const cultKeys=Object.keys(arbol).sort((a,b)=>a==='Sin cultivo cargado'?1:b==='Sin cultivo cargado'?-1:naturalCmp(a,b));
+  cultKeys.forEach(cu=>{
+    const n1=arbol[cu],k1='c:'+cu;
+    _vv._grupos[k1]=n1.ids;
+    h+=`<tr class="vg1" onclick="vculColap('${hEsc(k1).replace(/'/g,"\\'")}')"><td>${_vv.colap.has(k1)?'▸':'▾'} 🌾 ${hEsc(cu)}</td><td>${ha(n1.ha)} ha</td><td>${n1.ids.length}</td><td></td><td></td><td></td><td onclick="event.stopPropagation()"><button class="btn bp bxs" onclick="vculCrear('${hEsc(k1).replace(/'/g,"\\'")}')">➕ Actividad</button></td></tr>`;
+    if(_vv.colap.has(k1))return;
+    Object.keys(n1.cli).sort(naturalCmp).forEach(kn=>{
+      const n2=n1.cli[kn],k2='k:'+cu+'|'+kn;
+      _vv._grupos[k2]=n2.ids;
+      h+=`<tr class="vg2" onclick="vculColap('${hEsc(k2).replace(/'/g,"\\'")}')"><td style="padding-left:20px">${_vv.colap.has(k2)?'▸':'▾'} 👤 ${hEsc(kn)}</td><td>${ha(n2.ha)} ha</td><td>${n2.ids.length}</td><td></td><td></td><td></td><td onclick="event.stopPropagation()"><button class="btn bs bxs" onclick="vculCrear('${hEsc(k2).replace(/'/g,"\\'")}')">➕ Actividad</button></td></tr>`;
+      if(_vv.colap.has(k2))return;
+      n2.lotes.sort((a,b)=>naturalCmp(a.l.nombre,b.l.nombre)).forEach(x=>{
+        const i=info[x.l.id]||{pend:0,venc:0,prox:'',ult:''};
+        h+=`<tr><td style="padding-left:42px"><a href="#" onclick="event.preventDefault();navTo('lote',{loteId:'${x.l.id}',cliId:'${x.l.clienteId}',campoId:'${x.l.campoId}'})" style="color:inherit;font-weight:600;text-decoration:underline;text-decoration-style:dotted">${hEsc(x.l.nombre)}</a> <span class="muted">· ${hEsc(x.cName)}</span></td><td>${x.l.ha?x.l.ha+' ha':'—'}</td><td></td><td>${i.pend?`${i.pend}${i.venc?` <span class="badge bg-red">${i.venc} vencida${i.venc>1?'s':''}</span>`:''}`:'<span class="muted">—</span>'}</td><td>${i.prox?vFmtL(i.prox):'<span class="muted">—</span>'}</td><td>${i.ult?vFmtL(i.ult)+`<div class="muted" style="font-size:10.5px">⏱ ${haceCuantoTexto(diasDesde(i.ult))}</div>`:'<span class="muted">—</span>'}</td><td></td></tr>`;
+      });
+    });
+  });
+  if(!cultKeys.length)h+='<tr><td colspan="7" class="muted" style="padding:20px;text-align:center">No hay lotes con esos filtros.</td></tr>';
+  h+='</tbody></table>';
+  out.innerHTML=h;
+}
+
 // ══ INIT ══
 renderDashboard();
 restaurarBorradorSiExiste();
 generarTareasRecurrentesActivas();
 actualizarCampanitaTareas();
+navTo('vistas-venc'); // la app abre en Vistas › Por vencimiento (próximos 30 días)
 window.addEventListener('beforeunload',()=>{
   if(_fbSyncPending&&_docRef&&_fbReady){localStorage.setItem(SK+'_ts',Date.now());_fbSync();}
 });
