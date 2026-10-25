@@ -349,20 +349,24 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
 .vaviso{background:var(--blue-bg);color:var(--blue);border-radius:var(--r);padding:7px 11px;font-size:12px;margin-bottom:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
 .vaviso a{cursor:pointer;text-decoration:underline;font-weight:600;}
 .vbulk{background:var(--accent-bg);color:var(--accent2);border-radius:var(--r);padding:7px 11px;font-size:12px;margin-bottom:10px;display:none;gap:10px;align-items:center;}
-.vtbl{border-collapse:collapse;width:100%;font-size:12px;min-width:880px;}
+.vtbl{border-collapse:collapse;width:100%;font-size:12px;table-layout:fixed;}
 .vtbl th{position:sticky;top:0;background:var(--bg2);text-align:left;padding:7px 8px;border-bottom:2px solid var(--border);font-size:11px;vertical-align:bottom;z-index:2;}
 .vtbl th small{display:block;font-weight:400;color:var(--text3);font-size:10px;}
 .vtbl td{padding:5px 8px;border-bottom:1px solid var(--border);vertical-align:top;}
-.vtbl tr.vg1 td{background:var(--bg2);font-weight:600;cursor:pointer;}
-.vtbl tr.vg2 td{background:rgba(120,120,120,.07);font-weight:500;cursor:pointer;font-size:11.5px;}
-.vtbl td.vn{text-align:center;color:var(--text3);font-weight:600;}
+.vtbl tr.vg1 td{background:hsla(var(--hk,0),45%,50%,.22);font-weight:600;cursor:pointer;border-top:2px solid hsl(var(--hk,0),45%,45%);}
+.vtbl tr.vg1 td:first-child{border-left:6px solid hsl(var(--hk,0),50%,42%);}
+.vtbl tr.vg2 td{background:hsla(var(--hk,0),40%,50%,.09);font-weight:500;cursor:pointer;font-size:11.5px;}
+.vtbl tr.vg2 td:first-child{border-left:6px solid hsla(var(--hk,0),50%,45%,.55);}
+.vtbl tr.vl td:first-child{border-left:6px solid hsla(var(--hk,0),50%,45%,.25);}
+.vtbl td.vn{text-align:left;color:var(--text3);font-weight:600;}
 .vtbl td.vn.hot{color:var(--red);}
-.vtbl td.vn.ok{color:var(--accent2);}
+.vtbl tr.vsp td{border:none;padding:5px 0;background:none;}
+.vtbl td{overflow:hidden;word-wrap:break-word;}
+.vleg{display:flex;gap:10px;flex-wrap:wrap;font-size:11px;margin-bottom:8px;align-items:center;}
+.vleg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px;}
 .vchip{display:block;border-radius:6px;padding:3px 6px;margin-bottom:3px;font-size:11px;line-height:1.3;cursor:pointer;background:var(--accent-bg);border-left:3px solid var(--accent);}
 .vchip:hover{filter:brightness(.95);}
-.vchip.c-venc{background:var(--red-bg);border-left-color:var(--red);}
-.vchip.c-sem{background:var(--amber-bg);border-left-color:var(--amber);}
-.vchip.c-prox{background:var(--blue-bg);border-left-color:var(--blue);}
+.vchip.c-venc .vd{color:var(--red);font-weight:700;opacity:1;}
 .vchip.vfut{opacity:.65;}
 .vchip .vd{font-family:'DM Mono',monospace;font-size:10px;opacity:.75;margin-right:3px;}
 .vmas{font-size:10.5px;color:var(--accent);cursor:pointer;text-decoration:underline;}
@@ -1403,7 +1407,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
       <!-- ACTIVIDADES DERIVADAS (una o varias) -->
       <div class="card mb12">
         <div class="ch"><span class="ct">📌 Actividades</span>
-          <button class="btn bs bsm" onclick="addRActBlock()">+ Agregar otra actividad</button>
+          <span><button class="btn bs bsm" onclick="abrirAdjuntarActividad()">🔗 Adjuntar existente</button> <button class="btn bs bsm" onclick="addRActBlock()">+ Agregar otra actividad</button></span>
         </div>
         <div class="cb" id="r-act-blocks">
           <div class="muted" style="font-size:11px">¿Qué sigue para este lote? Podés agregar más de una — por ejemplo una Aplicación en 3 días y un Relevamiento de seguimiento en 20.</div>
@@ -1552,6 +1556,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
         </div>
         <!-- Si esta actividad viene de un relevamiento, el link + la opción de desadjuntar -->
         <div id="act-origen-info" class="ph" style="display:none;font-size:11px;background:var(--bg2);border-radius:var(--r);padding:7px 10px;margin-bottom:10px"></div>
+        <div id="act-adjuntar-row" class="ph" style="display:none;margin-bottom:10px"></div>
         <div class="fg" style="grid-template-columns:1fr 1fr">
           <div class="field"><label>Fecha inicio <span class="muted">(opcional)</span></label><input type="date" id="act-fecha" class="fi"></div>
           <div class="field"><label>Fecha límite <span class="muted">(opcional)</span></label><input type="date" id="act-fecha-fin" class="fi"></div>
@@ -1939,7 +1944,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
             <option value="13">13 · Dispersión oleosa (OD)</option>
             <option value="14">14 · Microemulsión (ME)</option>
             <option value="15">15 · Granulado soluble / Glifosato (SG)</option>
-            <option value="16">16 · Líquido soluble (SL)</option>
+            <option value="16">16 · Concentrado soluble / Líquido soluble (SL) — Paraquat, 2,4-D sal, Dicamba...</option>
             </optgroup>
             <optgroup label="── Van ÚLTIMOS ──">
             <option value="17">17 · Antideriva / Antievaporante (Maxi Drop)</option>
@@ -2043,6 +2048,15 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
       <button class="btn bs bsm" style="margin-top:8px" onclick="hitoTipoAgregar()">+ Agregar tipo de hito</button>
     </div>
     <div class="mf"><button class="btn bp" onclick="closeModal('modal-hito-tipos')">Listo</button></div>
+  </div>
+</div>
+
+<!-- ══ MODAL ADJUNTAR (relevamiento ↔ actividad) ══ -->
+<div class="mo" id="modal-adjuntar">
+  <div class="modal" style="max-width:560px">
+    <div class="mh"><span class="mt" id="adj-title">Adjuntar</span><button class="mx" onclick="closeModal('modal-adjuntar')">✕</button></div>
+    <div class="mb" id="adj-body" style="max-height:65vh;overflow:auto"></div>
+    <div class="mf"><button class="btn bs" onclick="closeModal('modal-adjuntar')">Cerrar</button></div>
   </div>
 </div>
 
@@ -4340,6 +4354,113 @@ function cancelModalActividad(){
     navTo('ot',{ids:window._otCurrentIds||[]});
   }
 }
+// Cartel de origen de una actividad: relevamiento al que está adjunta (con
+// Desadjuntar), plantilla recurrente que la generó, aviso de "general", y el
+// botón para adjuntar / cambiar el relevamiento.
+function actPintarOrigen(a){
+  const oi=document.getElementById('act-origen-info');if(!oi)return;
+  const partes=[];
+  if(a.relevId){
+    const origen=DB.relevamientos.find(x=>x.id===a.relevId);
+    partes.push(origen
+      ?`🔗 Adjunta al relevamiento <a href="#" onclick="event.preventDefault();closeModal('modal-actividad');openModalRelev('${origen.id}')" style="color:var(--accent);font-weight:500">${hEsc(vTxt([origen.corto,origen.fecha?('del '+vFmtL(origen.fecha)):'(programado)',vDetalle((origen.malezas||[]).map(m=>m.nombre).filter(Boolean),[],origen.obs)].filter(Boolean).join(' · '),70))}</a>${origen.borrado?' <span class="badge bg-red">en Papelera</span>':''}
+         <button class="btn bs bxs" style="margin-left:8px" onclick="desprenderActDelRelev()" title="La actividad sigue existiendo, pero deja de estar ligada a ese relevamiento">🔓 Desadjuntar</button>`
+      :`🔗 Adjunta a un relevamiento que ya no existe <button class="btn bs bxs" style="margin-left:8px" onclick="desprenderActDelRelev()">🔓 Limpiar vínculo</button>`);
+  }
+  if(a.tareaRecurrenteId){
+    const plantilla=(DB.tareasRecurrentes||[]).find(x=>x.id===a.tareaRecurrenteId);
+    partes.push(plantilla
+      ?`🔁 Generada por la actividad recurrente <a href="#" onclick="event.preventDefault();closeModal('modal-actividad');navTo('tareas-recurrentes');openModalTareaRecurrente('${plantilla.id}')" style="color:var(--accent);font-weight:500">${hEsc(plantilla.nombre)}</a>`
+      :`🔁 Generada por una actividad recurrente ya eliminada`);
+  }
+  if(!a.loteId)partes.push('📌 Actividad general — no está ligada a ningún lote en particular.');
+  oi.style.display=partes.length?'block':'none';
+  oi.innerHTML=partes.map((p,i)=>`<div${i?' style="margin-top:6px"':''}>${p}</div>`).join('');
+  const row=document.getElementById('act-adjuntar-row');
+  if(row){
+    if(a.loteId&&a.tipo!=='Relevamiento'){row.style.display='block';row.innerHTML=`<button class="btn bs bsm" onclick="abrirAdjuntarRelev()">🔗 ${a.relevId?'Cambiar relevamiento adjunto':'Adjuntar un relevamiento'}</button>`;}
+    else row.style.display='none';
+  }
+}
+// ── Adjuntar relevamiento ↔ actividad ──
+let _adjCtx=null;
+function adjAbrirModal(titulo,html){
+  document.getElementById('adj-title').textContent=titulo;
+  document.getElementById('adj-body').innerHTML=html;
+  openModal('modal-adjuntar');
+}
+function adjFilaHtml(ico,titulo,sub,actual,onclick,extra){
+  return`<div onclick="${onclick}" style="cursor:pointer;border:1px solid var(--border);border-radius:var(--r);padding:7px 10px;margin-bottom:5px;${actual?'background:var(--accent-bg);border-color:var(--accent);':''}">
+    <div style="font-size:12.5px;font-weight:500">${ico} ${hEsc(titulo)}${actual?' <span class="badge bg-green">adjunto ahora</span>':''}${extra||''}</div>
+    <div class="muted" style="font-size:11px">${hEsc(sub)}</div></div>`;
+}
+function abrirAdjuntarRelev(){
+  const a=DB.actividades.find(x=>x.id===_editActId);
+  if(!a||!a.loteId){mostrarSnackbar('Guardá primero la actividad','amber');return;}
+  _adjCtx={modo:'relev',actId:a.id};
+  const lote=DB.lotes.find(l=>l.id===a.loteId);
+  const rels=DB.relevamientos.filter(r=>r.loteId===a.loteId&&!r.borrado&&r.estado!=='Borrador').sort((x,y)=>(y.fecha||y.fechaLimite||y.fechaInicio||'').localeCompare(x.fecha||x.fechaLimite||x.fechaInicio||''));
+  const acts=r=>DB.actividades.filter(x=>x.relevId===r.id&&!x.borrado&&x.id!==a.id);
+  const fila=r=>{
+    const diag=(r.malezas||[]).map(m=>m.nombre).filter(Boolean);
+    const t=(r.corto?r.corto+' · ':'')+(r.fecha?'Realizado el '+vFmtL(r.fecha):'Programado'+(r.fechaLimite?' · límite '+vFmtL(r.fechaLimite):''));
+    const sub=vDetalle(diag,vProdNombres(r.productos),r.obs)||'(sin diagnóstico cargado)';
+    const ya=acts(r);
+    return adjFilaHtml('🔬',t,sub,a.relevId===r.id,`adjuntarRelevAAct('${r.id}')`,ya.length?` <span class="muted" style="font-weight:400">· ya tiene: ${ya.map(x=>(ACT_TIPOS[x.tipo]||{}).icono+' '+x.tipo).join(', ')}</span>`:'');
+  };
+  const libres=rels.filter(r=>!acts(r).length),usados=rels.filter(r=>acts(r).length);
+  let h=`<div class="muted" style="font-size:11px;margin-bottom:8px">Relevamientos de <strong>${hEsc(lote?.nombre||'')}</strong>. Primero los que todavía no tienen ninguna actividad.</div>`;
+  h+=`<button class="btn bp bsm" style="margin-bottom:10px" onclick="crearRelevParaAct()">➕ Crear un relevamiento nuevo y adjuntarlo</button>`;
+  h+=`<div style="font-size:11px;font-weight:600;margin:6px 0">Sin actividad (${libres.length})</div>${libres.map(fila).join('')||'<div class="muted" style="font-size:11px">No hay.</div>'}`;
+  h+=`<div style="font-size:11px;font-weight:600;margin:10px 0 6px">Ya con actividad (${usados.length})</div>${usados.map(fila).join('')||'<div class="muted" style="font-size:11px">No hay.</div>'}`;
+  adjAbrirModal('Adjuntar relevamiento a esta actividad',h);
+}
+function adjuntarRelevAAct(rid){
+  const a=DB.actividades.find(x=>x.id===(_adjCtx&&_adjCtx.actId));if(!a)return;
+  a.relevId=rid;save();
+  closeModal('modal-adjuntar');
+  actPintarOrigen(a);
+  if(document.getElementById('act-m-body'))renderActividadesMaster();
+  mostrarSnackbar('✅ Relevamiento adjuntado');
+}
+function crearRelevParaAct(){
+  const a=DB.actividades.find(x=>x.id===(_adjCtx&&_adjCtx.actId));if(!a)return;
+  closeModal('modal-adjuntar');
+  document.getElementById('modal-actividad').classList.remove('open');
+  openModalRelev(null);
+  window._volverAAct=a.id;window._relevLigarActId=a.id;
+  setTimeout(()=>{
+    const cf=document.getElementById('r-cli-filtro');if(cf&&a.clienteId)cf.value=a.clienteId;
+    if(a.loteId)rLoteComboSelect(a.loteId);
+  },60);
+}
+// Desde el relevamiento: adjuntarle una actividad que ya existe
+function abrirAdjuntarActividad(){
+  if(!_editRelevId){mostrarSnackbar('Guardá primero el relevamiento para poder adjuntarle actividades','amber');return;}
+  const r=DB.relevamientos.find(x=>x.id===_editRelevId);if(!r)return;
+  _adjCtx={modo:'act',relevId:r.id};
+  const acts=DB.actividades.filter(a=>a.loteId===r.loteId&&!a.borrado&&a.tipo!=='Relevamiento').sort((x,y)=>(y.fecha||y.fechaFin||y.fechaRealizacion||'').localeCompare(x.fecha||x.fechaFin||x.fechaRealizacion||''));
+  const fila=a=>{
+    const ico=(ACT_TIPOS[a.tipo]||{}).icono||'📝';
+    const est=estadoDe(a)==='Realizada'?'Realizada el '+vFmtL(a.fechaRealizacion):'Pendiente'+(a.fechaFin?' · límite '+vFmtL(a.fechaFin):'');
+    const det=vProdNombres(a.productos).slice(0,2).join(', ')||vTxt(a.obs,40);
+    const otro=a.relevId&&a.relevId!==r.id?DB.relevamientos.find(x=>x.id===a.relevId):null;
+    return adjFilaHtml(ico,(a.corto?a.corto+' · ':'')+a.tipo+' · '+est,det||'(sin detalle)',a.relevId===r.id,`adjuntarActARelev('${a.id}')`,otro?` <span class="muted" style="font-weight:400">· hoy adjunta a ${hEsc(otro.corto||'otro relevamiento')}</span>`:'');
+  };
+  const libres=acts.filter(a=>!a.relevId),usadas=acts.filter(a=>a.relevId);
+  let h=`<div class="muted" style="font-size:11px;margin-bottom:8px">Actividades de <strong>${hEsc(r.loteNombre||'')}</strong>. Primero las que no están adjuntas a ningún relevamiento. Si elegís una que ya está adjunta a otro, se mueve a este.</div>`;
+  h+=`<div style="font-size:11px;font-weight:600;margin:6px 0">Sin relevamiento (${libres.length})</div>${libres.map(fila).join('')||'<div class="muted" style="font-size:11px">No hay.</div>'}`;
+  h+=`<div style="font-size:11px;font-weight:600;margin:10px 0 6px">Ya adjuntas a un relevamiento (${usadas.length})</div>${usadas.map(fila).join('')||'<div class="muted" style="font-size:11px">No hay.</div>'}`;
+  adjAbrirModal('Adjuntar una actividad a este relevamiento',h);
+}
+function adjuntarActARelev(actId){
+  const a=DB.actividades.find(x=>x.id===actId);if(!a||!_adjCtx)return;
+  a.relevId=_adjCtx.relevId;save();
+  closeModal('modal-adjuntar');
+  if(!document.querySelector(`#r-act-blocks [data-act-id="${actId}"]`))addRActBlock(a,a.id);
+  if(document.getElementById('act-m-body'))renderActividadesMaster();
+  mostrarSnackbar('✅ Actividad adjuntada al relevamiento');
+}
 // Desadjuntar desde el lado de la Actividad — mismo mecanismo que ya existe
 // del lado del Relevamiento, ahora también en el sentido contrario.
 function desprenderActDelRelev(){
@@ -4348,13 +4469,14 @@ function desprenderActDelRelev(){
   confirmarAccion('¿Desadjuntar esta actividad del relevamiento? Sigue existiendo con vida propia, solo deja de estar vinculada.',()=>{
     a.relevId=null;
     save();
-    document.getElementById('act-origen-info').style.display='none';
+    actPintarOrigen(a);
     mostrarSnackbar('✅ Actividad desadjuntada — sigue viva, ya no ligada a ese relevamiento');
     if(document.getElementById('act-m-body'))renderActividadesMaster();
   },'Desadjuntar');
 }
 function cancelModalRelev(){
   closeModal('modal-relev');
+  if(window._volverAAct){window._volverAAct=null;window._relevLigarActId=null;openModal('modal-actividad');}
   if(window._otEditReturn){
     window._otEditReturn=false;
     navTo('ot',{ids:window._otCurrentIds||[]});
@@ -6131,6 +6253,7 @@ function renderMejoraDetail(){
     </div>`;
 }
 function openModalRelev(editId=null){
+  window._volverAAct=null;window._relevLigarActId=null;
   _editRelevId=editId;_prodRowN=0;_malRowN=0;
   relevDesactivarMulti();
   document.getElementById('mrelev-title').textContent=editId?'Editar relevamiento':'Nuevo relevamiento';
@@ -6566,7 +6689,8 @@ function saveRelev(){
     creadosMulti++;
   }
   const esNuevo=!_editRelevId;
-  if(_editRelevId){const i=DB.relevamientos.findIndex(r=>r.id===_editRelevId);if(i>=0)DB.relevamientos[i]=obj;else DB.relevamientos.push(obj);}
+  if(esNuevo&&!tid&&window._relevLigarActId){const aa=DB.actividades.find(x=>x.id===window._relevLigarActId);if(aa)aa.relevId=obj.id;}
+  if(_editRelevId){const i=DB.relevamientos.findIndex(r=>r.id===_editRelevId);if(i>=0)DB.relevamientos[i]={...DB.relevamientos[i],...obj};else DB.relevamientos.push(obj);}
   else DB.relevamientos.push(obj);
   // Si este lote tenía un "Relevamiento programado" (Actividad pendiente, sin
   // relevamiento vinculado todavía), se cierra solo con este relevamiento recién cargado.
@@ -6654,6 +6778,13 @@ function saveRelev(){
   if(document.getElementById('cal-body'))renderCalendario();
   if(document.getElementById('lote-detail-content')&&_loteDetailCtx)renderLoteDetail(_loteDetailCtx.loteId,_loteDetailCtx.cliId,_loteDetailCtx.campoId);
   sessionStorage.removeItem(DRAFT_KEY);
+  if(window._volverAAct){
+    const _aid=window._volverAAct;window._volverAAct=null;window._relevLigarActId=null;
+    openModal('modal-actividad');
+    const _aa=DB.actividades.find(x=>x.id===_aid);if(_aa)actPintarOrigen(_aa);
+    mostrarSnackbar('✅ Relevamiento creado y adjuntado a la actividad');
+    return;
+  }
   mostrarSnackbar('✅ Relevamiento guardado correctamente'+mensajeExtra);
   // Si se editó desde la Orden de Trabajo, volver a esa OT ya actualizada
   if(window._otEditReturn){
@@ -8735,6 +8866,7 @@ function openModalActividad(loteId,cliId,campoId,editId=null){
   pintarMejoraSelect('act-mejora-id','');
   onMejoraSelChange('act-mejora-id','act-mejora-info');
   document.getElementById('act-origen-info').style.display='none';
+  const _adjRow0=document.getElementById('act-adjuntar-row');if(_adjRow0)_adjRow0.style.display='none';
   // Tipo de actividad: se reconstruye cada vez a partir del catálogo editable
   // (⚙️ Tipos de Actividad), para que un tipo agregado o quitado se refleje al toque.
   const actTipoSel=document.getElementById('act-tipo');
@@ -8759,24 +8891,7 @@ function openModalActividad(loteId,cliId,campoId,editId=null){
       document.getElementById('act-fecha-real').value=a.fechaRealizacion||'';
       pintarMejoraSelect('act-mejora-id',a.mejoraId||'');
       onMejoraSelChange('act-mejora-id','act-mejora-info');
-      // Si viene de un relevamiento, mostrar el link + la opción de desadjuntar
-      if(a.relevId){
-        const origen=DB.relevamientos.find(x=>x.id===a.relevId);
-        if(origen){
-          document.getElementById('act-origen-info').style.display='block';
-          document.getElementById('act-origen-info').innerHTML=`🔗 Viene del relevamiento <a href="#" onclick="event.preventDefault();closeModal('modal-actividad');openModalRelev('${origen.id}')" style="color:var(--accent);font-weight:500">del ${origen.fecha||'(programado)'}</a>
-            <button class="btn bs bxs" style="margin-left:8px" onclick="desprenderActDelRelev()" title="La actividad sigue existiendo, pero deja de estar ligada a ese relevamiento">🔓 Desadjuntar</button>`;
-        }
-      }
-      // Si salió de una actividad recurrente (por lote o general), link directo a la plantilla.
-      if(a.tareaRecurrenteId){
-        const plantilla=(DB.tareasRecurrentes||[]).find(x=>x.id===a.tareaRecurrenteId);
-        const oi2=document.getElementById('act-origen-info');
-        oi2.style.display='block';
-        oi2.innerHTML=(oi2.innerHTML||'')+(oi2.innerHTML?'<div style="margin-top:6px">':'<div>')+(plantilla
-          ?`🔁 Generada por la actividad recurrente <a href="#" onclick="event.preventDefault();closeModal('modal-actividad');navTo('tareas-recurrentes');openModalTareaRecurrente('${plantilla.id}')" style="color:var(--accent);font-weight:500">${plantilla.nombre}</a>`
-          :`🔁 Generada por una actividad recurrente ya eliminada`)+'</div>';
-      }
+      actPintarOrigen(a);
       onActTipoChange();
       if(!_actLoteCtx){
         _actLoteCtx={loteId:a.loteId||null,cliId:a.clienteId||null,campoId:a.campoId||null};
@@ -8790,9 +8905,6 @@ function openModalActividad(loteId,cliId,campoId,editId=null){
           // Actividad general (generada por una actividad recurrente sin lote, o
           // duplicada de una): no se pide lote, se avisa que es así.
           if(loteWrap)loteWrap.style.display='none';
-          const oi=document.getElementById('act-origen-info');
-          oi.style.display='block';
-          oi.innerHTML=(oi.innerHTML||'')+'<div' +(oi.innerHTML?' style="margin-top:6px"':'')+'>📌 Actividad general — no está ligada a ningún lote en particular.</div>';
         }
       }
       // Rellenar datos extra
@@ -9056,7 +9168,7 @@ function saveActividad(){
     });
   } else if(_editActId){
     const i=DB.actividades.findIndex(a=>a.id===_editActId);
-    if(i>=0)DB.actividades[i]=obj;else DB.actividades.push(obj);
+    if(i>=0)DB.actividades[i]={...DB.actividades[i],...obj};else DB.actividades.push(obj);
   } else {
     DB.actividades.push(obj);
   }
@@ -11627,7 +11739,7 @@ const VISTAS_TABS=[
   {id:'vistas-cultivo',t:'🌾 Por cultivo'}
 ];
 // Estado compartido entre las vistas (los filtros se mantienen al pasar de una a otra)
-const _vv={cols:new Set(['venc','sem','prox','d30']),horizonte:'30',agr:'cli',soloPend:false,q:'',camp:'',colap:new Set(),exp:new Set(),sel:new Set(),estado:'pend',agrEst:'semana',realDias:'30',_grupos:{}};
+const _vv={soloSin:false,cols:new Set(['venc','sem','prox','d30']),horizonte:'30',agr:'cli',soloPend:false,q:'',camp:'',colap:new Set(),exp:new Set(),sel:new Set(),estado:'pend',agrEst:'semana',realDias:'30',_grupos:{}};
 function vistasNavInject(id){
   const pg=document.getElementById('page-'+id);if(!pg)return;
   let nav=pg.querySelector(':scope>.vnav');
@@ -11643,7 +11755,7 @@ function vistasRefrescarSuave(){
 function vistasRender(){vistasRefrescarSuave();}
 function vistasLimpiar(){
   ['vv-cli','vv-campo','vv-cult','vv-tipo'].forEach(f=>_mselGet(f).clear());
-  _vv.q='';_vv.soloPend=false;
+  _vv.q='';_vv.soloPend=false;_vv.soloSin=false;
   const pg=document.querySelector('.page.active')?.id;
   if(pg==='page-vistas-venc')renderVistasVenc();
   else if(pg==='page-vistas-estado')renderVistasEstado();
@@ -11750,13 +11862,16 @@ function vBarra(pg,extraHtml){
   const tipos=['Relevamiento',...Object.keys(ACT_TIPOS)];
   mselRender(`msel-${pg}-tipo`,'vv-tipo','Tipo',tipos.map(t=>({value:t,label:((ACT_TIPOS[t]||{}).icono||'🔬')+' '+hEsc(t)})),cb);
 }
+const V_TIPO_HUE={'Relevamiento':205,'Aplicación':22,'Siembra':125,'Cosecha':48,'Fertilización':285,'Riego':175,'Capacitación':325};
+function vHue(s){if(V_TIPO_HUE[s]!=null)return V_TIPO_HUE[s];let h=7;for(const c of String(s))h=(h*31+c.charCodeAt(0))%360;return h;}
 function vChipHtml(it,R,pref){
   const b=vBucket(it.ref,R);
-  const cls=it.pend?(b==='venc'?'c-venc':b==='sem'?'c-sem':b==='prox'?'c-prox':''):'';
+  const cls=it.pend&&b==='venc'?'c-venc':'';
+  const H=vHue(it.tipo);
   const fut=it.pend&&it.ini&&it.ini>R.hoy?' vfut':'';
   const txt=it.tipo+(it.det?': '+it.det:'');
   const full=txt+(it.codigo?' ['+it.codigo+']':'')+(it.mejora?' · 💡 '+it.mejora:'')+(it.rec?' · 🔁 recurrente':'')+(it.ini?' · desde '+vFmtL(it.ini):'')+(it.lim?' · límite '+vFmtL(it.lim):'');
-  return`<div class="vchip ${cls}${fut}" title="${hEsc(full)}" onclick="event.stopPropagation();vAbrir('${it.kind}','${it.id}')"><span class="vd">${vFmt(it.ref)}</span>${pref?`<strong>${hEsc(pref)}</strong> · `:''}${it.icono} ${hEsc(vTxt(txt,38))}${it.mejora?' 💡':''}${it.rec?' 🔁':''}</div>`;
+  return`<div class="vchip ${cls}${fut}" style="background:hsla(${H},70%,50%,.17);border-left-color:hsl(${H},62%,45%)" title="${hEsc(full)}" onclick="event.stopPropagation();vAbrir('${it.kind}','${it.id}')"><span class="vd">${b==='venc'?'⚠ ':''}${vFmt(it.ref)}</span>${pref?`<strong>${hEsc(pref)}</strong> · `:''}${it.icono} ${hEsc(vTxt(txt,38))}${it.mejora?' 💡':''}${it.rec?' 🔁':''}</div>`;
 }
 // ══ POR VENCIMIENTO ══
 function renderVistasVenc(){
@@ -11765,7 +11880,8 @@ function renderVistasVenc(){
       <option value="cultivo"${_vv.agr==='cultivo'?' selected':''}>Agrupar: Cultivo › Cliente</option>
       <option value="campo"${_vv.agr==='campo'?' selected':''}>Agrupar: Campo</option>
       <option value="ninguno"${_vv.agr==='ninguno'?' selected':''}>Sin agrupar</option></select>
-    <label style="font-size:12px;display:flex;gap:4px;align-items:center"><input type="checkbox" ${_vv.soloPend?'checked':''} onchange="_vv.soloPend=this.checked;vvOut()"> Solo lotes con pendientes</label>`);
+    <label style="font-size:12px;display:flex;gap:4px;align-items:center"><input type="checkbox" ${_vv.soloPend?'checked':''} onchange="_vv.soloPend=this.checked;if(this.checked)_vv.soloSin=false;renderVistasVenc()"> Solo lotes con pendientes</label>
+    <label style="font-size:12px;display:flex;gap:4px;align-items:center" title="Lotes que no tienen ninguna actividad ni relevamiento pendiente"><input type="checkbox" ${_vv.soloSin?'checked':''} onchange="_vv.soloSin=this.checked;if(this.checked)_vv.soloPend=false;renderVistasVenc()"> Solo lotes sin actividad</label>`);
   vvOut();
 }
 function vvToggleHor(){_vv.horizonte=_vv.horizonte==='30'?'todo':'30';vistasRender();}
@@ -11817,6 +11933,7 @@ function vvOut(){
   filas=filas.filter(f=>{
     const visCount=f.items.filter(x=>vis.some(c=>c.k===x.b)).length;
     if(_vv.soloPend&&!visCount)return false;
+    if(_vv.soloSin&&f.items.length)return false;
     if(q&&!f.items.length&&![f.l.nombre,f.cName,f.kName].join(' ').toLowerCase().includes(q))return false;
     return true;
   });
@@ -11841,12 +11958,14 @@ function vvOut(){
       const arr=g.its.filter(y=>y.x.b===c.k).sort((a,b)=>(a.x.it.ref||'').localeCompare(b.x.it.ref||''));
       return`<td onclick="event.stopPropagation()" style="font-weight:400">${arr.map(y=>vChipHtml(y.x.it,R,y.ln)).join('')}</td>`;
     }
-    const v=cnt[c.k]||0;return`<td class="vn${v&&c.k==='venc'?' hot':''}">${v||''}</td>`;}).join('');
+    const v=cnt[c.k]||0;return`<td class="vn${v&&c.k==='venc'?' hot':''}">${v?v+' actividad'+(v>1?'es':''):''}</td>`;}).join('');
   const checkTodos=ids=>ids.length&&ids.every(i=>_vv.sel.has(i));
   let h='';
   const chipsCol=cols.map(c=>`<button class="vtab${_vv.cols.has(c.k)?' on':''}" onclick="vvCol('${c.k}')">${c.t.replace('Vencen ','')}</button>`).join('');
-  h+=`<div class="vaviso" style="gap:6px"><span>👁 Mostrar:</span>${chipsCol}<span style="opacity:.5">|</span><a onclick="vvColsPreset('sem')">Solo esta semana</a><a onclick="vvColsPreset('sem2')">Esta + próxima</a><a onclick="vvColsPreset('30')">30 días</a><a onclick="vvColsPreset('todo')">Ver todo</a>${ocultos?`<span>· <strong>${ocultos}</strong> oculta${ocultos>1?'s':''} por las columnas apagadas</span>`:''}</div>`;
-  h+=`<table class="vtbl"><thead><tr><th style="width:26px"></th><th style="min-width:150px">Lote</th>${vis.map(c=>`<th style="min-width:${c.k==='venc'?190:170}px">${c.t}${c.s?`<small>${c.s}</small>`:''}<small><strong>${totales[c.k]||0}</strong> en total</small></th>`).join('')}</tr></thead><tbody>`;
+  h+=`<div class="vaviso" style="gap:6px"><span>👁 Mostrar:</span>${chipsCol}<span style="opacity:.5">|</span><a onclick="vvColsPreset('todo')">Ver todo</a><a onclick="vvColsPreset('30')">Volver a 30 días</a>${ocultos?`<span>· <strong>${ocultos}</strong> oculta${ocultos>1?'s':''} por las columnas apagadas</span>`:''}</div>`;
+  const tiposPres=[...new Set(items.map(i=>i.tipo))].sort();
+  if(tiposPres.length)h+=`<div class="vleg"><span class="muted">Colores por tipo:</span>${tiposPres.map(t=>`<span><i style="background:hsl(${vHue(t)},62%,45%)"></i>${hEsc(t)}</span>`).join('')}<span class="muted">· ⚠ rojo = vencida · 🔁 recurrente · 💡 mejora</span></div>`;
+  h+=`<table class="vtbl" style="min-width:${240+vis.length*190}px"><colgroup><col style="width:30px"><col style="width:210px">${vis.map(()=>'<col>').join('')}</colgroup><thead><tr><th></th><th>Lote</th>${vis.map(c=>`<th>${c.t}${c.s?`<small>${c.s}</small>`:''}<small><strong>${totales[c.k]||0}</strong> en total</small></th>`).join('')}</tr></thead><tbody>`;
   let last1=null,last2=null;
   const cell=(f,c)=>{
     const arr=f.items.filter(x=>x.b===c.k).sort((a,b)=>(a.it.ref||'').localeCompare(b.it.ref||''));
@@ -11857,19 +11976,21 @@ function vvOut(){
   };
   filas.forEach(f=>{
     const a1=k1(f),a2=k2(f);
+    const HK=vHue('K'+(agr==='cultivo'?f.cult:f.kName));
     const key1='g1:'+a1,key2='g2:'+a1+'|'+a2;
     if(agr!=='ninguno'&&a1!==last1){
       const g=g1[a1];last1=a1;last2=null;
-      h+=`<tr class="vg1" onclick="vvColap('${hEsc(key1).replace(/'/g,"\\'")}')"><td onclick="event.stopPropagation()"><input type="checkbox" ${checkTodos(g.ids)?'checked':''} onchange="vvSelGrupo('${hEsc(key1).replace(/'/g,"\\'")}',this.checked)"></td><td>${_vv.colap.has(key1)?'▸':'▾'} ${hEsc(a1)}<small class="muted" style="display:block;font-weight:400">${g.n} lote${g.n>1?'s':''} · ${Math.round(g.ha*10)/10} ha</small></td>${numCells(g.cnt,g,_vv.colap.has(key1))}</tr>`;
+      if(h.includes('<tbody>')&&h.split('<tbody>')[1].length>0)h+=`<tr class="vsp"><td colspan="${vis.length+2}"></td></tr>`;
+      h+=`<tr class="vg1" style="--hk:${HK}" onclick="vvColap('${hEsc(key1).replace(/'/g,"\\'")}')"><td onclick="event.stopPropagation()"><input type="checkbox" ${checkTodos(g.ids)?'checked':''} onchange="vvSelGrupo('${hEsc(key1).replace(/'/g,"\\'")}',this.checked)"></td><td>${_vv.colap.has(key1)?'▸':'▾'} ${hEsc(a1)}<small class="muted" style="display:block;font-weight:400">${g.n} lote${g.n>1?'s':''} · ${Math.round(g.ha*10)/10} ha</small></td>${numCells(g.cnt,g,_vv.colap.has(key1))}</tr>`;
     }
     if(_vv.colap.has(key1))return;
     if(a2&&a2!==last2){
       const g=g2[a1+'|'+a2];last2=a2;
-      h+=`<tr class="vg2" onclick="vvColap('${hEsc(key2).replace(/'/g,"\\'")}')"><td onclick="event.stopPropagation()"><input type="checkbox" ${checkTodos(g.ids)?'checked':''} onchange="vvSelGrupo('${hEsc(key2).replace(/'/g,"\\'")}',this.checked)"></td><td style="padding-left:18px">${_vv.colap.has(key2)?'▸':'▾'} ${hEsc(a2)}<small class="muted" style="display:block;font-weight:400">${g.n} lote${g.n>1?'s':''} · ${Math.round(g.ha*10)/10} ha</small></td>${numCells(g.cnt,g,_vv.colap.has(key2))}</tr>`;
+      h+=`<tr class="vg2" style="--hk:${HK}" onclick="vvColap('${hEsc(key2).replace(/'/g,"\\'")}')"><td onclick="event.stopPropagation()"><input type="checkbox" ${checkTodos(g.ids)?'checked':''} onchange="vvSelGrupo('${hEsc(key2).replace(/'/g,"\\'")}',this.checked)"></td><td style="padding-left:18px">${_vv.colap.has(key2)?'▸':'▾'} ${hEsc(a2)}<small class="muted" style="display:block;font-weight:400">${g.n} lote${g.n>1?'s':''} · ${Math.round(g.ha*10)/10} ha</small></td>${numCells(g.cnt,g,_vv.colap.has(key2))}</tr>`;
     }
     if(a2&&_vv.colap.has(key2))return;
     const pad=agr==='ninguno'?0:(a2?32:18);
-    h+=`<tr><td><input type="checkbox" ${_vv.sel.has(f.l.id)?'checked':''} onchange="vvSelLote('${f.l.id}',this.checked)"></td><td style="padding-left:${pad+8}px"><a href="#" onclick="event.preventDefault();navTo('lote',{loteId:'${f.l.id}',cliId:'${f.l.clienteId}',campoId:'${f.l.campoId}'})" style="color:inherit;font-weight:600;text-decoration:underline;text-decoration-style:dotted">${hEsc(f.l.nombre)}</a>${f.l.ha?` <span class="muted">${f.l.ha} ha</span>`:''} <button class="btn bs bxs" title="Agregar una actividad en este lote" onclick="vvNuevaEn('${f.l.id}')">➕</button><small class="muted" style="display:block">${agr==='ninguno'?hEsc(f.kName)+' — '+hEsc(f.cName)+' · ':''}${agr==='cli'||agr==='ninguno'||agr==='campo'?hEsc(f.cult==='Sin cultivo cargado'?'sin cultivo':f.cult):''}${agr==='cultivo'?hEsc(f.cName):''}</small></td>${vis.map(c=>cell(f,c)).join('')}</tr>`;
+    h+=`<tr class="vl" style="--hk:${HK}"><td><input type="checkbox" ${_vv.sel.has(f.l.id)?'checked':''} onchange="vvSelLote('${f.l.id}',this.checked)"></td><td style="padding-left:${pad+8}px"><a href="#" onclick="event.preventDefault();navTo('lote',{loteId:'${f.l.id}',cliId:'${f.l.clienteId}',campoId:'${f.l.campoId}'})" style="color:inherit;font-weight:600;text-decoration:underline;text-decoration-style:dotted">${hEsc(f.l.nombre)}</a>${f.l.ha?` <span class="muted">${f.l.ha} ha</span>`:''} <button class="btn bs bxs" title="Agregar una actividad en este lote" onclick="vvNuevaEn('${f.l.id}')">➕</button><small class="muted" style="display:block">${agr==='ninguno'?hEsc(f.kName)+' — '+hEsc(f.cName)+' · ':''}${agr==='cli'||agr==='ninguno'||agr==='campo'?hEsc(f.cult==='Sin cultivo cargado'?'sin cultivo':f.cult):''}${agr==='cultivo'?hEsc(f.cName):''}</small></td>${vis.map(c=>cell(f,c)).join('')}</tr>`;
   });
   if(!filas.length)h+=`<tr><td colspan="${vis.length+2}" class="muted" style="padding:20px;text-align:center">No hay lotes con esos filtros.</td></tr>`;
   if(gen.length&&!_mselGet('vv-cli').size&&!_mselGet('vv-campo').size&&!_mselGet('vv-cult').size){
