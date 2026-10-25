@@ -11627,7 +11627,7 @@ const VISTAS_TABS=[
   {id:'vistas-cultivo',t:'🌾 Por cultivo'}
 ];
 // Estado compartido entre las vistas (los filtros se mantienen al pasar de una a otra)
-const _vv={horizonte:'30',agr:'cli',soloPend:false,q:'',camp:'',colap:new Set(),exp:new Set(),sel:new Set(),estado:'pend',agrEst:'semana',realDias:'30',_grupos:{}};
+const _vv={cols:new Set(['venc','sem','prox','d30']),horizonte:'30',agr:'cli',soloPend:false,q:'',camp:'',colap:new Set(),exp:new Set(),sel:new Set(),estado:'pend',agrEst:'semana',realDias:'30',_grupos:{}};
 function vistasNavInject(id){
   const pg=document.getElementById('page-'+id);if(!pg)return;
   let nav=pg.querySelector(':scope>.vnav');
@@ -11750,13 +11750,13 @@ function vBarra(pg,extraHtml){
   const tipos=['Relevamiento',...Object.keys(ACT_TIPOS)];
   mselRender(`msel-${pg}-tipo`,'vv-tipo','Tipo',tipos.map(t=>({value:t,label:((ACT_TIPOS[t]||{}).icono||'🔬')+' '+hEsc(t)})),cb);
 }
-function vChipHtml(it,R){
+function vChipHtml(it,R,pref){
   const b=vBucket(it.ref,R);
   const cls=it.pend?(b==='venc'?'c-venc':b==='sem'?'c-sem':b==='prox'?'c-prox':''):'';
   const fut=it.pend&&it.ini&&it.ini>R.hoy?' vfut':'';
   const txt=it.tipo+(it.det?': '+it.det:'');
   const full=txt+(it.codigo?' ['+it.codigo+']':'')+(it.mejora?' · 💡 '+it.mejora:'')+(it.rec?' · 🔁 recurrente':'')+(it.ini?' · desde '+vFmtL(it.ini):'')+(it.lim?' · límite '+vFmtL(it.lim):'');
-  return`<div class="vchip ${cls}${fut}" title="${hEsc(full)}" onclick="event.stopPropagation();vAbrir('${it.kind}','${it.id}')"><span class="vd">${vFmt(it.ref)}</span>${it.icono} ${hEsc(vTxt(txt,38))}${it.mejora?' 💡':''}${it.rec?' 🔁':''}</div>`;
+  return`<div class="vchip ${cls}${fut}" title="${hEsc(full)}" onclick="event.stopPropagation();vAbrir('${it.kind}','${it.id}')"><span class="vd">${vFmt(it.ref)}</span>${pref?`<strong>${hEsc(pref)}</strong> · `:''}${it.icono} ${hEsc(vTxt(txt,38))}${it.mejora?' 💡':''}${it.rec?' 🔁':''}</div>`;
 }
 // ══ POR VENCIMIENTO ══
 function renderVistasVenc(){
@@ -11768,7 +11768,13 @@ function renderVistasVenc(){
     <label style="font-size:12px;display:flex;gap:4px;align-items:center"><input type="checkbox" ${_vv.soloPend?'checked':''} onchange="_vv.soloPend=this.checked;vvOut()"> Solo lotes con pendientes</label>`);
   vvOut();
 }
-function vvToggleHor(){_vv.horizonte=_vv.horizonte==='30'?'todo':'30';vvOut();}
+function vvToggleHor(){_vv.horizonte=_vv.horizonte==='30'?'todo':'30';vistasRender();}
+function vvCol(k){if(_vv.cols.has(k))_vv.cols.delete(k);else _vv.cols.add(k);vvOut();}
+function vvColsPreset(p){
+  _vv.cols=new Set(p==='sem'?['venc','sem']:p==='sem2'?['venc','sem','prox']:p==='todo'?['venc','sem','prox','d30','mas','sin']:['venc','sem','prox','d30']);
+  vvOut();
+}
+function vvNuevaEn(id){abrirModalActividadMasiva([id],'',vCampSel());}
 function vvExp(k){if(_vv.exp.has(k))_vv.exp.delete(k);else _vv.exp.add(k);vvOut();}
 function vvColap(k){if(_vv.colap.has(k))_vv.colap.delete(k);else _vv.colap.add(k);vvOut();}
 function vvSelLote(id,ch){if(ch)_vv.sel.add(id);else _vv.sel.delete(id);vvBulk();}
@@ -11793,15 +11799,14 @@ function vvOut(){
     {k:'mas',t:'Más de 30 días'},
     {k:'sin',t:'Sin fecha'}
   ];
-  const ver30=_vv.horizonte==='30';
-  const vis=cols.filter(c=>!ver30||!['mas','sin'].includes(c.k));
+  const vis=cols.filter(c=>_vv.cols.has(c.k));
   const porLote={},gen=[];
   items.forEach(it=>{
     const b=vBucket(it.ref,R);
     if(!it.loteId){gen.push({it,b});return;}
     (porLote[it.loteId]=porLote[it.loteId]||[]).push({it,b});
   });
-  const ocultos=ver30?items.filter(i=>['mas','sin'].includes(vBucket(i.ref,R))).length:0;
+  const ocultos=items.filter(i=>!_vv.cols.has(vBucket(i.ref,R))).length;
   const q=(_vv.q||'').toLowerCase().trim();
   // filas
   let filas=(DB.lotes||[]).filter(l=>vLotePasa(l,ctx)).map(l=>{
@@ -11824,21 +11829,23 @@ function vvOut(){
   const acum=(g,key,f)=>{
     const o=g[key]=g[key]||{n:0,ha:0,cnt:{},ids:[]};
     o.n++;o.ha+=(+f.l.ha||0);o.ids.push(f.l.id);
-    f.items.forEach(x=>{o.cnt[x.b]=(o.cnt[x.b]||0)+1;});
+    f.items.forEach(x=>{o.cnt[x.b]=(o.cnt[x.b]||0)+1;(o.its=o.its||[]).push({x,ln:f.l.nombre});});
   };
   filas.forEach(f=>{if(agr!=='ninguno')acum(g1,k1(f),f);if(k2(f))acum(g2,k1(f)+'|'+k2(f),f);});
   Object.keys(g1).forEach(k=>_vv._grupos['g1:'+k]=g1[k].ids);
   Object.keys(g2).forEach(k=>_vv._grupos['g2:'+k]=g2[k].ids);
   const totales={};
   items.forEach(it=>{const b=vBucket(it.ref,R);totales[b]=(totales[b]||0)+1;});
-  const numCells=cnt=>vis.map(c=>{const v=cnt[c.k]||0;return`<td class="vn${v&&c.k==='venc'?' hot':''}">${v||''}</td>`;}).join('');
+  const numCells=(cnt,g,colapsado)=>vis.map(c=>{
+    if(colapsado&&g&&g.its){
+      const arr=g.its.filter(y=>y.x.b===c.k).sort((a,b)=>(a.x.it.ref||'').localeCompare(b.x.it.ref||''));
+      return`<td onclick="event.stopPropagation()" style="font-weight:400">${arr.map(y=>vChipHtml(y.x.it,R,y.ln)).join('')}</td>`;
+    }
+    const v=cnt[c.k]||0;return`<td class="vn${v&&c.k==='venc'?' hot':''}">${v||''}</td>`;}).join('');
   const checkTodos=ids=>ids.length&&ids.every(i=>_vv.sel.has(i));
   let h='';
-  if(ver30){
-    h+=`<div class="vaviso">👁 Mostrando solo lo que vence hasta los <strong>próximos 30 días</strong> (hasta el ${vFmtL(R.fin30)}) y lo vencido.${ocultos?` Hay <strong>${ocultos}</strong> actividad${ocultos>1?'es':''} más adelante o sin fecha, ocultas.`:''} <a onclick="vvToggleHor()">Ver todo</a></div>`;
-  }else{
-    h+=`<div class="vaviso">👁 Mostrando <strong>todo</strong>, también lo que vence en más de 30 días y lo que no tiene fecha. <a onclick="vvToggleHor()">Volver a próximos 30 días</a></div>`;
-  }
+  const chipsCol=cols.map(c=>`<button class="vtab${_vv.cols.has(c.k)?' on':''}" onclick="vvCol('${c.k}')">${c.t.replace('Vencen ','')}</button>`).join('');
+  h+=`<div class="vaviso" style="gap:6px"><span>👁 Mostrar:</span>${chipsCol}<span style="opacity:.5">|</span><a onclick="vvColsPreset('sem')">Solo esta semana</a><a onclick="vvColsPreset('sem2')">Esta + próxima</a><a onclick="vvColsPreset('30')">30 días</a><a onclick="vvColsPreset('todo')">Ver todo</a>${ocultos?`<span>· <strong>${ocultos}</strong> oculta${ocultos>1?'s':''} por las columnas apagadas</span>`:''}</div>`;
   h+=`<table class="vtbl"><thead><tr><th style="width:26px"></th><th style="min-width:150px">Lote</th>${vis.map(c=>`<th style="min-width:${c.k==='venc'?190:170}px">${c.t}${c.s?`<small>${c.s}</small>`:''}<small><strong>${totales[c.k]||0}</strong> en total</small></th>`).join('')}</tr></thead><tbody>`;
   let last1=null,last2=null;
   const cell=(f,c)=>{
@@ -11853,16 +11860,16 @@ function vvOut(){
     const key1='g1:'+a1,key2='g2:'+a1+'|'+a2;
     if(agr!=='ninguno'&&a1!==last1){
       const g=g1[a1];last1=a1;last2=null;
-      h+=`<tr class="vg1" onclick="vvColap('${hEsc(key1).replace(/'/g,"\\'")}')"><td onclick="event.stopPropagation()"><input type="checkbox" ${checkTodos(g.ids)?'checked':''} onchange="vvSelGrupo('${hEsc(key1).replace(/'/g,"\\'")}',this.checked)"></td><td>${_vv.colap.has(key1)?'▸':'▾'} ${hEsc(a1)}<small class="muted" style="display:block;font-weight:400">${g.n} lote${g.n>1?'s':''} · ${Math.round(g.ha*10)/10} ha</small></td>${numCells(g.cnt)}</tr>`;
+      h+=`<tr class="vg1" onclick="vvColap('${hEsc(key1).replace(/'/g,"\\'")}')"><td onclick="event.stopPropagation()"><input type="checkbox" ${checkTodos(g.ids)?'checked':''} onchange="vvSelGrupo('${hEsc(key1).replace(/'/g,"\\'")}',this.checked)"></td><td>${_vv.colap.has(key1)?'▸':'▾'} ${hEsc(a1)}<small class="muted" style="display:block;font-weight:400">${g.n} lote${g.n>1?'s':''} · ${Math.round(g.ha*10)/10} ha</small></td>${numCells(g.cnt,g,_vv.colap.has(key1))}</tr>`;
     }
     if(_vv.colap.has(key1))return;
     if(a2&&a2!==last2){
       const g=g2[a1+'|'+a2];last2=a2;
-      h+=`<tr class="vg2" onclick="vvColap('${hEsc(key2).replace(/'/g,"\\'")}')"><td onclick="event.stopPropagation()"><input type="checkbox" ${checkTodos(g.ids)?'checked':''} onchange="vvSelGrupo('${hEsc(key2).replace(/'/g,"\\'")}',this.checked)"></td><td style="padding-left:18px">${_vv.colap.has(key2)?'▸':'▾'} ${hEsc(a2)}<small class="muted" style="display:block;font-weight:400">${g.n} lote${g.n>1?'s':''} · ${Math.round(g.ha*10)/10} ha</small></td>${numCells(g.cnt)}</tr>`;
+      h+=`<tr class="vg2" onclick="vvColap('${hEsc(key2).replace(/'/g,"\\'")}')"><td onclick="event.stopPropagation()"><input type="checkbox" ${checkTodos(g.ids)?'checked':''} onchange="vvSelGrupo('${hEsc(key2).replace(/'/g,"\\'")}',this.checked)"></td><td style="padding-left:18px">${_vv.colap.has(key2)?'▸':'▾'} ${hEsc(a2)}<small class="muted" style="display:block;font-weight:400">${g.n} lote${g.n>1?'s':''} · ${Math.round(g.ha*10)/10} ha</small></td>${numCells(g.cnt,g,_vv.colap.has(key2))}</tr>`;
     }
     if(a2&&_vv.colap.has(key2))return;
     const pad=agr==='ninguno'?0:(a2?32:18);
-    h+=`<tr><td><input type="checkbox" ${_vv.sel.has(f.l.id)?'checked':''} onchange="vvSelLote('${f.l.id}',this.checked)"></td><td style="padding-left:${pad+8}px"><a href="#" onclick="event.preventDefault();navTo('lote',{loteId:'${f.l.id}',cliId:'${f.l.clienteId}',campoId:'${f.l.campoId}'})" style="color:inherit;font-weight:600;text-decoration:underline;text-decoration-style:dotted">${hEsc(f.l.nombre)}</a>${f.l.ha?` <span class="muted">${f.l.ha} ha</span>`:''}<small class="muted" style="display:block">${agr==='ninguno'?hEsc(f.kName)+' — '+hEsc(f.cName)+' · ':''}${agr==='cli'||agr==='ninguno'||agr==='campo'?hEsc(f.cult==='Sin cultivo cargado'?'sin cultivo':f.cult):''}${agr==='cultivo'?hEsc(f.cName):''}</small></td>${vis.map(c=>cell(f,c)).join('')}</tr>`;
+    h+=`<tr><td><input type="checkbox" ${_vv.sel.has(f.l.id)?'checked':''} onchange="vvSelLote('${f.l.id}',this.checked)"></td><td style="padding-left:${pad+8}px"><a href="#" onclick="event.preventDefault();navTo('lote',{loteId:'${f.l.id}',cliId:'${f.l.clienteId}',campoId:'${f.l.campoId}'})" style="color:inherit;font-weight:600;text-decoration:underline;text-decoration-style:dotted">${hEsc(f.l.nombre)}</a>${f.l.ha?` <span class="muted">${f.l.ha} ha</span>`:''} <button class="btn bs bxs" title="Agregar una actividad en este lote" onclick="vvNuevaEn('${f.l.id}')">➕</button><small class="muted" style="display:block">${agr==='ninguno'?hEsc(f.kName)+' — '+hEsc(f.cName)+' · ':''}${agr==='cli'||agr==='ninguno'||agr==='campo'?hEsc(f.cult==='Sin cultivo cargado'?'sin cultivo':f.cult):''}${agr==='cultivo'?hEsc(f.cName):''}</small></td>${vis.map(c=>cell(f,c)).join('')}</tr>`;
   });
   if(!filas.length)h+=`<tr><td colspan="${vis.length+2}" class="muted" style="padding:20px;text-align:center">No hay lotes con esos filtros.</td></tr>`;
   if(gen.length&&!_mselGet('vv-cli').size&&!_mselGet('vv-campo').size&&!_mselGet('vv-cult').size){
