@@ -1013,7 +1013,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
         <button class="btn bs bsm" onclick="planLimpiar()">Limpiar</button>
       </div>
       <div id="plan-aviso" class="ph" style="display:none;font-size:12px;background:var(--bg2);border-radius:var(--r);padding:8px 12px;margin-bottom:10px"></div>
-      <div class="ph" style="font-size:11px;color:var(--text3);margin-bottom:8px">🟢 realizada · 🔵 pendiente · 🔴 pendiente y vencida · cada pastilla es una actividad (clic para abrirla) · "+ crear" en un casillero vacío la genera con el lote y la campaña ya cargados</div>
+      <div class="ph" style="font-size:11px;color:var(--text3);margin-bottom:8px">🟢 realizada · 🔵 pendiente · 🔴 pendiente y vencida · ⚠ borde punteado = su ventana de fechas envuelve a la siembra (columna provisoria) · cada pastilla es una actividad (clic para abrirla) · "+ crear" en un casillero vacío la genera con el lote y la campaña ya cargados</div>
       <div class="card"><div class="cb" id="plan-body"></div></div>
     </div>
 
@@ -3038,7 +3038,7 @@ const PLAN_COLS=[
   {k:'otras',t:'Otras',crear:''}
 ];
 // Todo lo del lote en esa campaña, con una fecha de referencia para ubicarlo
-// antes o después de la siembra (realizada > inicio > límite).
+// antes o después de la siembra (realizada > límite > inicio).
 function planItemsDeLote(loteId,camp){
   const items=[];
   (DB.relevamientos||[]).forEach(r=>{
@@ -3049,7 +3049,7 @@ function planItemsDeLote(loteId,camp){
     if(a.loteId!==loteId||a.borrado||a.tipo==='Relevamiento'||a.campaña!==camp)return;
     items.push({esRelev:false,id:a.id,tipo:a.tipo,estado:estadoDe(a),fecha:a.fecha||null,fechaFin:a.fechaFin||null,real:a.fechaRealizacion||null,momento:a.momento||null,mejoraProgramada:!!a.mejoraProgramada});
   });
-  items.forEach(i=>{i.ref=i.real||i.fecha||i.fechaFin||'';});
+  items.forEach(i=>{i.ref=i.real||i.fechaFin||i.fecha||'';}); // si ya se hizo, la real; si no, manda la fecha LÍMITE y recién después la de inicio
   return items;
 }
 // Relevamientos: pre/post según si su fecha es posterior a la siembra (o según
@@ -3095,13 +3095,13 @@ function planPill(it){
   let cls='bg-blue';
   if(it.estado==='Realizada')cls='bg-green';
   else{const u=urgenciaActividad({estado:it.estado,fecha:it.fecha,fechaFin:it.fechaFin});if(u&&u.k==='vencida')cls='bg-red';}
-  const f=it.real||it.fecha||it.fechaFin;
+  const f=it.real||it.fechaFin||it.fecha;
   const txt=f?f.slice(8,10)+'/'+f.slice(5,7):'s/f';
   const ico=it.tipo==='Relevamiento'||it.tipo==='Aplicación'||it.tipo==='Siembra'||it.tipo==='Cosecha'?'':((ACT_TIPOS[it.tipo]||{}).icono||'')+' ';
   const abrir=it.esRelev?`openModalRelev('${it.id}')`:`openModalActividad(null,null,null,'${it.id}')`;
-  const tit=`${it.tipo} — ${it.estado}${it.fecha?' · inicio '+it.fecha:''}${it.fechaFin?' · límite '+it.fechaFin:''}${it.real?' · realizada '+it.real:''}${it.mejoraProgramada?' · 🔧 Mejora programada':''}`;
-  const borde=it.mejoraProgramada?';border:2px solid #ef5350':'';
-  return`<a href="#" onclick="event.preventDefault();${abrir}" title="${tit}"><span class="badge ${cls}" style="font-size:10px;margin:1px${borde}">${ico}${txt}</span></a>`;
+  const tit=`${it.tipo} — ${it.estado}${it.fecha?' · inicio '+it.fecha:''}${it.fechaFin?' · límite '+it.fechaFin:''}${it.real?' · realizada '+it.real:''}${it.mejoraProgramada?' · 🔧 Mejora programada':''}${it.amb?' · ⚠ su ventana de fechas envuelve a la siembra: según cuándo se siembre queda antes o después (hoy se ubica por la fecha límite)':''}`;
+  const borde=it.mejoraProgramada?';border:2px solid #ef5350':(it.amb?';border:2px dashed #e0a000':'');
+  return`<a href="#" onclick="event.preventDefault();${abrir}" title="${tit}"><span class="badge ${cls}" style="font-size:10px;margin:1px${borde}">${it.amb?'⚠ ':''}${ico}${txt}</span></a>`;
 }
 // Igual que planPill, pero para el Calendario: con varias pastillas apiladas
 // una debajo de otra en una celda chica, conviene ver de un vistazo QUÉ tipo
@@ -3112,7 +3112,7 @@ function calPill(it){
   const pendiente=it.estado!=='Realizada';
   if(!pendiente)cls='bg-green';
   else{const u=urgenciaActividad({estado:it.estado,fecha:it.fecha,fechaFin:it.fechaFin});if(u&&u.k==='vencida')cls='bg-red';}
-  const f=it.real||it.fecha||it.fechaFin;
+  const f=it.real||it.fechaFin||it.fecha;
   const txt=f?f.slice(8,10)+'/'+f.slice(5,7):'s/f';
   const letra=ACT_TIPO_LETRA[it.tipo]||(it.tipo||'?').slice(0,1).toUpperCase();
   const abrir=it.esRelev?`openModalRelev('${it.id}')`:(it.tipo==='RelevGeneral'?`abrirRelevGeneral('${it.id}')`:`openModalActividad(null,null,null,'${it.id}')`);
@@ -3143,6 +3143,7 @@ function planCrearMasivo(k){
   if(!ids.length)return;
   abrirModalActividadMasiva(ids,col.crear,_planCamp,planMomentoDeCol(k));
 }
+function planColap(k){if(_vv.colap.has(k))_vv.colap.delete(k);else _vv.colap.add(k);renderPlanificacion();}
 function planLimpiar(){
   ['plan-cli','plan-cult','plan-mejora'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   const f=document.getElementById('plan-falt');if(f)f.checked=false;
@@ -3225,6 +3226,17 @@ function renderPlanificacion(){
     else if(fMejora==='no')items=items.filter(i=>!i.mejoraProgramada);
     const sieRefs=items.filter(i=>i.tipo==='Siembra'&&i.ref).map(i=>i.ref).sort();
     const siembraRef=sieRefs[0]||'';
+    // Marca ⚠ a lo pendiente cuya ventana (inicio→límite) "envuelve" a la siembra:
+    // según cuándo se siembre, quedaría antes o después — la columna es provisoria.
+    const sie0=items.filter(i=>i.tipo==='Siembra'&&i.ref).sort((x,y)=>x.ref.localeCompare(y.ref))[0];
+    if(sie0){
+      const sIni=sie0.real||sie0.fecha||sie0.fechaFin,sFin=sie0.real||sie0.fechaFin||sie0.fecha;
+      items.forEach(it=>{
+        if(it.tipo==='Siembra'||it.tipo==='Cosecha'||it.estado==='Realizada'||it.momento)return;
+        const iIni=it.fecha||it.fechaFin,iFin=it.fechaFin||it.fecha;
+        if(iIni&&iFin&&iIni<=sFin&&iFin>=sIni&&iIni!==iFin)it.amb=true;
+      });
+    }
     const cells={};PLAN_COLS.forEach(x=>cells[x.k]=[]);
     items.forEach(it=>cells[planColumnaDe(it,siembraRef)].push(it));
     Object.values(cells).forEach(a=>a.sort((x,y)=>(x.ref||'9999').localeCompare(y.ref||'9999')));
@@ -3252,11 +3264,35 @@ function renderPlanificacion(){
       const faltan=col.k==='otras'?0:filas.filter(f=>!f.cells[col.k].length).length;
       return`<th style="text-align:left;padding:6px 8px;min-width:118px;vertical-align:top">${col.t}${faltan?`<div><button class="btn bs bxs" style="margin-top:3px;font-size:10px" onclick="planCrearMasivo('${col.k}')" title="Abre el alta con los ${faltan} lotes que tienen este casillero vacío">+ crear en ${faltan}</button></div>`:''}</th>`;
     }).join('');
-  let ultimo='',cuerpo='';
+  // Agrupado igual que Vistas › Por vencimiento: Cliente (color propio) › Campo › Lote,
+  // con lotes y hectáreas en cada nivel y los dos niveles plegables.
+  let ult1='',ult2='',cuerpo='';
+  const ncol=PLAN_COLS.length+2;
+  const grp1={},grp2={};
   filas.forEach(f=>{
-    const g=`${f.cli?.nombre||'—'} › ${f.campo?.nombre||'—'}`;
-    if(g!==ultimo){ultimo=g;cuerpo+=`<tr><td colspan="${PLAN_COLS.length+2}" style="padding:8px 8px 4px;font-weight:600;font-size:12px;color:var(--text2);border-top:1px solid var(--border)">👤 ${f.cli?.nombre||'—'} <span class="muted" style="font-weight:400">›</span> 📍 ${f.campo?.nombre||'—'}</td></tr>`;}
-    cuerpo+=`<tr><td style="padding:5px 8px"><a href="#" onclick="event.preventDefault();navTo('lote',{loteId:'${f.l.id}',cliId:'${f.l.clienteId}',campoId:'${f.l.campoId}'})" style="color:var(--accent);font-weight:500">${f.l.nombre}</a></td>`
+    const a=f.cli?.nombre||'—',b=a+'|'+(f.campo?.nombre||'—');
+    (grp1[a]=grp1[a]||{n:0,ha:0}).n++;grp1[a].ha+=(+f.l.ha||0);
+    (grp2[b]=grp2[b]||{n:0,ha:0}).n++;grp2[b].ha+=(+f.l.ha||0);
+  });
+  const qk=k=>hEsc(k).replace(/'/g,"\\'");
+  const haT=x=>Math.round(x*10)/10;
+  filas.forEach(f=>{
+    const c1=f.cli?.nombre||'—',c2=f.campo?.nombre||'—';
+    const key1='p1:'+c1,key2='p2:'+c1+'|'+c2,HK=vHue('K'+c1);
+    if(c1!==ult1){
+      ult1=c1;ult2='';
+      if(cuerpo)cuerpo+=`<tr class="vsp"><td colspan="${ncol}"></td></tr>`;
+      const g=grp1[c1];
+      cuerpo+=`<tr class="vg1" style="--hk:${HK}" onclick="planColap('${qk(key1)}')"><td colspan="${ncol}">${_vv.colap.has(key1)?'▸':'▾'} 👤 ${hEsc(c1)} <span class="muted" style="font-weight:400;font-size:11px">· ${g.n} lote${g.n>1?'s':''} · ${haT(g.ha)} ha</span></td></tr>`;
+    }
+    if(_vv.colap.has(key1))return;
+    if(c2!==ult2){
+      ult2=c2;
+      const g=grp2[c1+'|'+c2];
+      cuerpo+=`<tr class="vg2" style="--hk:${HK}" onclick="planColap('${qk(key2)}')"><td colspan="${ncol}" style="padding-left:20px">${_vv.colap.has(key2)?'▸':'▾'} 📍 ${hEsc(c2)} <span class="muted" style="font-weight:400;font-size:11px">· ${g.n} lote${g.n>1?'s':''} · ${haT(g.ha)} ha</span></td></tr>`;
+    }
+    if(_vv.colap.has(key2))return;
+    cuerpo+=`<tr class="vl" style="--hk:${HK}"><td style="padding:5px 8px 5px 30px"><a href="#" onclick="event.preventDefault();navTo('lote',{loteId:'${f.l.id}',cliId:'${f.l.clienteId}',campoId:'${f.l.campoId}'})" style="color:var(--accent);font-weight:500">${f.l.nombre}</a>${f.l.ha?` <span class="muted" style="font-size:11px">${f.l.ha} ha</span>`:''}</td>`
       +`<td style="padding:5px 8px">${f.cult?`<span class="badge bg-amber">${f.cult}</span>`:'<span class="muted">—</span>'}</td>`
       +PLAN_COLS.map(col=>celda(f,col)).join('')+`</tr>`;
   });
@@ -3266,7 +3302,7 @@ function renderPlanificacion(){
       const real=filas.reduce((s,f)=>s+f.cells[col.k].filter(i=>i.estado==='Realizada').length,0);
       return`<td style="padding:6px 8px;font-size:11px">${con}/${filas.length} lotes${real?` · ${real} ✅`:''}</td>`;
     }).join('')+`</tr>`;
-  cont.innerHTML=`<div class="tw"><table style="width:100%;border-collapse:collapse"><thead><tr>${th}</tr></thead><tbody>${cuerpo}${tot}</tbody></table></div>`;
+  cont.innerHTML=`<div class="tw"><table class="vtbl" style="width:100%;border-collapse:collapse;table-layout:auto"><thead><tr>${th}</tr></thead><tbody>${cuerpo}${tot}</tbody></table></div>`;
 }
 let _papSort={col:'borrado',dir:-1};
 function papSortBy(col){
@@ -3713,7 +3749,7 @@ function calItemsDeLote(loteId){
     if(a.loteId!==loteId||a.borrado||a.tipo==='Relevamiento')return;
     items.push({esRelev:false,id:a.id,tipo:a.tipo,estado:estadoDe(a),fecha:a.fecha||null,fechaFin:a.fechaFin||null,real:a.fechaRealizacion||null,campaña:a.campaña||'',cultivo:baseCultivo(a.campaña?getCultivoDeLote(a.loteId,a.campaña):''),mejoraProgramada:!!a.mejoraProgramada});
   });
-  items.forEach(i=>{i.ref=i.real||i.fecha||i.fechaFin||'';});
+  items.forEach(i=>{i.ref=i.real||i.fechaFin||i.fecha||'';}); // si ya se hizo, la real; si no, manda la fecha LÍMITE y recién después la de inicio
   return items;
 }
 // loteCampanaSugerida/loteCampanaEnMes: definidas más abajo, junto con el
