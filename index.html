@@ -11834,7 +11834,7 @@ function vItems(){
     let det=vProdNombres(a.productos).slice(0,2).join(', ');
     if(!det&&a.datos&&a.datos.variedad)det=a.datos.variedad;
     if(!det)det=vTxt(a.obs,32);
-    out.push({kind:'A',id:a.id,tipo:a.tipo,icono:(ACT_TIPOS[a.tipo]||{}).icono||'📝',pend,ini:a.fecha||'',lim:a.fechaFin||'',
+    out.push({kind:'A',id:a.id,tipo:a.tipo==='RelevGeneral'?'Relevamiento (por lote)':a.tipo,icono:(ACT_TIPOS[a.tipo]||{}).icono||'📝',pend,ini:a.fecha||'',lim:a.fechaFin||'',
       real:pend?'':(a.fechaRealizacion||a.fecha||''),loteId:a.loteId||'',cliId:a.clienteId||'',campoId:a.campoId||'',camp:a.campaña||'',
       det,codigo:a.corto||'',mejora:mej(a.mejoraId),rec:!!a.tareaRecurrenteId});
   });
@@ -11847,7 +11847,11 @@ function vDetalleFila(f){
   const a=(DB.actividades||[]).find(x=>x.id===f.id);if(!a)return'';
   return vProdNombres(a.productos).slice(0,2).join(', ')||(a.datos&&a.datos.variedad)||vTxt(a.obs,40);
 }
-function vAbrir(kind,id){if(kind==='R')editRelevFromMaster(id);else openModalActividad(null,null,null,id);}
+function vAbrir(kind,id){
+  if(kind==='R'){editRelevFromMaster(id);return;}
+  const a=(DB.actividades||[]).find(x=>x.id===id);
+  if(a&&a.tipo==='RelevGeneral')abrirRelevGeneral(id);else openModalActividad(null,null,null,id);
+}
 function vCampSel(){return _vv.camp||getCampanaActiva();}
 function vCultivosLote(loteId){return cultivosDeLote(loteId,vCampSel());}
 function vCtx(){
@@ -11906,7 +11910,7 @@ function vBarra(pg,extraHtml){
   mselRender(`msel-${pg}-campo`,'vv-campo','Campo',(DB.campos||[]).map(c=>({value:c.id,label:hEsc(c.nombre)+' <span class="muted">('+hEsc((DB.clientes||[]).find(k=>k.id===c.clienteId)?.nombre||'')+')</span>'})).sort((a,b)=>naturalCmp(a.label,b.label)),cb);
   const cults=[...new Set((DB.cultivos||[]).map(baseCultivo).filter(Boolean))].sort();
   mselRender(`msel-${pg}-cult`,'vv-cult','Cultivo',cults.map(c=>({value:c,label:hEsc(c)})),cb);
-  const tipos=['Relevamiento',...Object.keys(ACT_TIPOS)];
+  const tipos=ordenTiposActivos();
   mselRender(`msel-${pg}-tipo`,'vv-tipo','Tipo',tipos.map(t=>({value:t,label:((ACT_TIPOS[t]||{}).icono||'🔬')+' '+hEsc(t)})),cb);
 }
 const V_TIPO_HUE={'Relevamiento':205,'Aplicación':22,'Siembra':125,'Cosecha':48,'Fertilización':285,'Riego':175,'Capacitación':325};
@@ -11993,6 +11997,7 @@ function vvOut(){
     const visCount=f.items.filter(x=>vis.some(c=>c.k===x.b)).length;
     if(inv){if(tienen.has(f.l.id))return false;}
     else{
+    if(ftSet.size&&!visCount)return false; // con un Tipo elegido (contiene), solo los lotes que lo tienen en las columnas activas
     if(_vv.soloPend&&!visCount)return false;
     if(_vv.soloSin&&f.items.length)return false;}
     if(q&&!f.items.length&&![f.l.nombre,f.cName,f.kName].join(' ').toLowerCase().includes(q))return false;
