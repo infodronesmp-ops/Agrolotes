@@ -720,7 +720,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
     <!-- CULTIVOS -->
     <div class="page" id="page-cultivos">
       <div class="rf mb16 ph" style="gap:6px"><button class="btn bp bsm" onclick="openModalCultivo()">+ Nuevo cultivo</button>
-        <button class="btn bs bsm" onclick="openModalCierreCultivo()">📅 Cierre de campaña por cultivo</button></div>
+        <button class="btn bs bsm" onclick="openModalCierreCultivo()">📅 Fechas teóricas por cultivo (siembra y cierre)</button></div>
       <div class="card">
         <div class="ch"><span class="ct">Cultivos</span></div>
         <div class="cb" id="cult-body"></div>
@@ -1102,11 +1102,16 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
     <div class="page" id="page-vistas-venc">
       <div class="vbar filters ph" id="vvenc-bar"></div>
       <div id="vvenc-bulk" class="vbulk ph"></div>
+      <div id="vvenc-rec"></div>
       <div id="vvenc-out" style="overflow:auto"></div>
     </div>
     <div class="page" id="page-vistas-estado">
       <div class="vbar filters ph" id="vest-bar"></div>
       <div id="vest-out" style="overflow:auto"></div>
+    </div>
+    <div class="page" id="page-vistas-tipo">
+      <div class="vbar filters ph" id="vtipo-bar"></div>
+      <div id="vtipo-out" style="overflow:auto"></div>
     </div>
     <div class="page" id="page-vistas-cultivo">
       <div class="vbar filters ph" id="vcul-bar"></div>
@@ -1632,7 +1637,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
 <!-- ══ MODAL CIERRE DE CAMPAÑA POR CULTIVO ══ -->
 <div class="mo" id="modal-cierre-cultivo">
   <div class="modal" style="max-width:640px">
-    <div class="mh"><span class="mt">📅 Cierre de campaña por cultivo</span><button class="mx" onclick="closeModal('modal-cierre-cultivo')">✕</button></div>
+    <div class="mh"><span class="mt">📅 Fechas teóricas por cultivo — siembra y cierre de campaña</span><button class="mx" onclick="closeModal('modal-cierre-cultivo')">✕</button></div>
     <div class="mb">
       <p class="muted" style="font-size:12px;margin-bottom:10px">Define, para cada cultivo, cuándo se considera "terminada" la campaña en un lote que lo tiene — si hay cultivo de 2ª en el lote, manda la fila "Como cultivo de 2ª"; si no hay 2ª, manda "Como cultivo único/1ª". El año (1º/2º) es respecto de la campaña (ej: en "2025/26", 1º = 2025, 2º = 2026). Un lote puntual puede después pisar esto con una fecha real distinta.</p>
       <div id="cierre-cultivo-body"></div>
@@ -2182,6 +2187,7 @@ let DB=(()=>{try{return JSON.parse(localStorage.getItem(SK))||ddb();}catch{retur
   if(!DB.campanaActiva)DB.campanaActiva=(DB.campanas||[]).slice(-1)[0]||'2025/26';
   if(!Array.isArray(DB.subcoadyuvantes))DB.subcoadyuvantes=[];
   if(!Array.isArray(DB.tareasRecurrentes))DB.tareasRecurrentes=[];
+  if(!Array.isArray(DB.recurrentesOmitidas))DB.recurrentesOmitidas=[];
   if(!DB.cierreCultivo||typeof DB.cierreCultivo!=='object')DB.cierreCultivo=cierreCultivoDefault();
   if(!DB.cierreOverride||typeof DB.cierreOverride!=='object')DB.cierreOverride={};
   if(!Array.isArray(DB.cultivos))DB.cultivos=def.cultivos;
@@ -2331,6 +2337,33 @@ function cultivoCumpleTarea(loteId,camp,t){
 }
 // Corre el motor para una campaña puntual: recorre lotes x plantillas activas
 // y crea el relevamiento "Programado" que falte. Devuelve cuántos generó.
+// Una recurrente que llegó a su fecha límite sin hacerse NO queda como pendiente eterna ni
+// como "realizada": se pasa a DB.recurrentesOmitidas (queda el registro) y el ciclo siguiente
+// nace con un aviso de que el anterior no se hizo. Idempotente.
+function procesarRecurrentesVencidas(){
+  if(!Array.isArray(DB.recurrentesOmitidas))DB.recurrentesOmitidas=[];
+  const hoy=hoyLocal();let n=0;
+  const mover=(arr,esRel,fnLim)=>{
+    for(let i=arr.length-1;i>=0;i--){
+      const x=arr[i];
+      if(!x.tareaRecurrenteId||x.borrado)continue;
+      if(esRel?(x.fecha||x.estado==='Borrador'):(x.fechaRealizacion||estadoDe(x)!=='Pendiente'))continue;
+      const lim=fnLim(x);if(!lim||lim>=hoy)continue;
+      DB.recurrentesOmitidas.push({...x,_esRelev:esRel,omitidaEl:hoy});
+      arr.splice(i,1);n++;
+    }
+  };
+  mover(DB.relevamientos,true,r=>r.fechaLimite||r.fechaInicio);
+  mover(DB.actividades,false,a=>a.fechaFin||a.fecha);
+  if(n>0)save();
+  return n;
+}
+function avisoCicloAnterior(tId,loteId){
+  const prev=(DB.recurrentesOmitidas||[]).filter(o=>o.tareaRecurrenteId===tId&&(loteId?o.loteId===loteId:!o._esRelev)).sort((a,b)=>(b.omitidaEl||'').localeCompare(a.omitidaEl||''))[0];
+  if(!prev)return null;
+  const lim=prev._esRelev?prev.fechaLimite:prev.fechaFin;
+  return{campaña:prev.campaña||'',venció:lim||'',txt:`⚠ El ciclo anterior (${prev.campaña||'s/campaña'}${lim?', venció '+vFmt(lim):''}) no se hizo y pasó automáticamente a este.`};
+}
 function generarTareasRecurrentes(camp){
   if(!camp)return 0;
   let generadas=0;
@@ -2341,7 +2374,7 @@ function generarTareasRecurrentes(camp){
       // Ya se evaluó este lote para esta plantilla en esta campaña — no
       // vuelve a generar aunque lo hayas borrado (eso fue una decisión tuya
       // para ESTA campaña; la próxima campaña genera uno nuevo igual).
-      const yaExiste=(DB.relevamientos||[]).some(r=>r.loteId===l.id&&r.campaña===camp&&r.tareaRecurrenteId===t.id);
+      const yaExiste=(DB.relevamientos||[]).concat(DB.recurrentesOmitidas||[]).some(r=>r.loteId===l.id&&r.campaña===camp&&r.tareaRecurrenteId===t.id);
       if(yaExiste)return;
       const cli=DB.clientes.find(c=>c.id===l.clienteId);
       const campo=DB.campos.find(c=>c.id===l.campoId);
@@ -2360,7 +2393,8 @@ function generarTareasRecurrentes(camp){
         clienteNombre:cli?.nombre||'',campoNombre:campo?.nombre||'',
         loteNombre:l.nombre||'',loteHa:l.ha||0,
         malezas:[],productos:[],
-        obs:t.obs||'',
+        obs:[avisoCicloAnterior(t.id,l.id)?.txt,t.obs].filter(Boolean).join('\n'),
+        cicloAnteriorOmitido:avisoCicloAnterior(t.id,l.id),
         mejoraProgramada:!!t.mejora,
         estado:'Relevado',
         tareaRecurrenteId:t.id,
@@ -2408,12 +2442,12 @@ function generarTareasRecurrentesGenerales(){
   let generadas=0;
   const yHoy=parseInt(hoyLocal().slice(0,4),10);
   (DB.tareasRecurrentes||[]).filter(t=>t.activo!==false&&t.alcance==='general').forEach(t=>{
-    const existentes=(DB.actividades||[]).filter(a=>a.tareaRecurrenteId===t.id);
+    const existentes=(DB.actividades||[]).filter(a=>a.tareaRecurrenteId===t.id).concat((DB.recurrentesOmitidas||[]).filter(o=>o.tareaRecurrenteId===t.id&&!o._esRelev));
     let cicloAnio;
     if(!existentes.length){
       cicloAnio=yHoy;
     } else {
-      if(existentes.some(a=>!a.borrado&&!a.fechaRealizacion))return; // sigue viva (pendiente) — no se genera nada nuevo
+      if(existentes.some(a=>!a.borrado&&!a.fechaRealizacion&&!a.omitidaEl))return; // sigue viva (pendiente) — no se genera nada nuevo
       cicloAnio=Math.max(...existentes.map(a=>a.tareaRecurrenteCicloAnio||0))+1;
     }
     const{ini,fin}=ventanaFechasTareaGeneral(t,cicloAnio);
@@ -2422,7 +2456,8 @@ function generarTareasRecurrentesGenerales(){
       tipo:t.tipoActividad||'Otro',
       fecha:ini,fechaFin:fin,
       campaña:getCampanaActiva(),
-      obs:t.obs||'',datos:{},
+      obs:[avisoCicloAnterior(t.id,null)?.txt,t.obs].filter(Boolean).join('\n'),datos:{},
+      cicloAnteriorOmitido:avisoCicloAnterior(t.id,null),
       estado:'Pendiente',fechaRealizacion:null,
       mejoraProgramada:!!t.mejora,
       relevId:null,
@@ -2455,10 +2490,14 @@ function actualizarCampanitaTareas(){
 // solo de la fecha de hoy, nunca de la campaña).
 function generarTareasRecurrentesActivas(){
   const camp=getCampanaActiva();
+  const nOm=procesarRecurrentesVencidas();
   const n1=generarTareasRecurrentes(camp);
-  const n2=generarTareasRecurrentesGenerales();
+  let n2=generarTareasRecurrentesGenerales();
+  // si el ciclo recién generado ya nació vencido, se pasa de nuevo al siguiente (máx. 3 saltos)
+  for(let i=0;i<3&&procesarRecurrentesVencidas()>0;i++)n2+=generarTareasRecurrentesGenerales();
   const n=n1+n2;
   actualizarCampanitaTareas();
+  if(nOm>0)mostrarSnackbar(`🔁 ${nOm} recurrente(s) vencida(s) sin hacer pasaron al ciclo siguiente`,'blue');
   if(n>0){
     mostrarSnackbar(`🔁 Se generaron ${n} actividad(es) recurrente(s)`,'blue');
     refrescarVistasActividad();
@@ -2555,9 +2594,11 @@ function renderTrInstancias(t){
       id:r.id,esRelev:true,txt:`🔬 ${r.loteNombre||'?'} — ${r.fecha?'✅ Realizado '+r.fecha:'🕒 Pendiente'}`
     }));
   }
-  if(!vivas.length){wrap.style.display='none';return;}
+  const omit=(DB.recurrentesOmitidas||[]).filter(o=>o.tareaRecurrenteId===t.id&&(t.alcance==='general'||o.campaña===getCampanaActiva()));
+  const omitHtml=omit.length?`<div style="font-size:11px;color:var(--text3);margin-top:6px"><strong>⏭ No se hicieron (quedan como registro):</strong>${omit.map(o=>`<div>${o._esRelev?'🔬 '+(o.loteNombre||'?'):((ACT_TIPOS[o.tipo]||{}).icono||'📝')+' '+o.tipo} — ${o.campaña||''} · venció ${vFmt(o._esRelev?o.fechaLimite:o.fechaFin)}</div>`).join('')}</div>`:'';
+  if(!vivas.length&&!omit.length){wrap.style.display='none';return;}
   wrap.style.display='block';
-  document.getElementById('tr-instancias').innerHTML=vivas.map(v=>
+  document.getElementById('tr-instancias').innerHTML=omitHtml+vivas.map(v=>
     `<div style="display:flex;align-items:center;gap:6px;font-size:11px;padding:3px 0">
       <a href="#" onclick="event.preventDefault();${v.esRelev?`closeModal('modal-tarea-recurrente');openModalRelev('${v.id}')`:(v.esRelevGeneral?`closeModal('modal-tarea-recurrente');abrirRelevGeneral('${v.id}')`:`closeModal('modal-tarea-recurrente');openModalActividad(null,null,null,'${v.id}')`)}" style="color:var(--accent);flex:1">${v.txt}</a>
       <button class="btn bd bxs" title="Eliminar esta instancia" onclick="${v.esRelev?`trEliminarInstancia('${v.id}',true)`:`trEliminarInstancia('${v.id}',false)`}">✕</button>
@@ -3187,6 +3228,56 @@ function planListaSinCampana(){
     return`<div style="margin-top:3px"><a href="#" onclick="event.preventDefault();${abrir}" style="color:var(--accent)">${it.icono} ${it.tipo}</a> — ${it.lote} (${it.cli}) — ${it.fecha} <span class="muted">· creada ${it.creada||'?'}</span></div>`;
   }).join('')}</div>`;
 }
+// ══ FECHAS TEÓRICAS DE SIEMBRA + ALERTAS ══
+// Día/mes típico de siembra por cultivo (editable en Cultivos › "Fechas teóricas"). Si llega
+// esa fecha y el lote todavía no tiene ninguna Siembra cargada, se avisa. Para la cosecha se
+// usa el cierre de campaña por cultivo que ya existe (fechaCierreCampanaLote).
+function siembraTeoricaDefault(){return{'Trigo':{d:30,m:7},'Cebada':{d:30,m:7},'Vicia':{d:30,m:7},'Girasol':{d:30,m:11},'Maíz':{d:20,m:12,d2:5,m2:1}};}
+function siembraTeoricaCfg(){
+  if(!DB.siembraTeorica||typeof DB.siembraTeorica!=='object')DB.siembraTeorica=siembraTeoricaDefault();
+  return DB.siembraTeorica;
+}
+function siembraTeoricaDe(cultivo,rol,camp){
+  const c=siembraTeoricaCfg()[baseCultivo(cultivo)];if(!c)return null;
+  let d=c.d,m=c.m;
+  if(rol==='2'&&c.d2&&c.m2){d=c.d2;m=c.m2;}
+  if(!d||!m)return null;
+  const[y1,y2]=aniosDeCampana(camp);
+  const anio=m>=7?y1:y2; // la campaña arranca en julio
+  return`${anio}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+}
+function alertasSiembraCosecha(camp){
+  const hoy=hoyLocal(),res={};
+  (DB.lotes||[]).forEach(l=>{
+    const roles=cultivosRolDeLote(l.id,camp);if(!roles.length)return;
+    const acts=(DB.actividades||[]).filter(a=>a.loteId===l.id&&!a.borrado&&a.campaña===camp);
+    const siembras=acts.filter(a=>a.tipo==='Siembra'&&(a.fecha||a.fechaFin||a.fechaRealizacion));
+    const due=roles.map(r=>({cultivo:r.cultivo,rol:r.rol,fecha:siembraTeoricaDe(r.cultivo,r.rol,camp)})).filter(x=>x.fecha&&x.fecha<=hoy).sort((a,b)=>a.fecha.localeCompare(b.fecha));
+    const o={};
+    const faltan=due.slice(siembras.length);
+    if(faltan.length)o.siembra=faltan;
+    const cierre=fechaCierreCampanaLote(l.id,camp);
+    if(cierre&&cierre<hoy&&!acts.some(a=>a.tipo==='Cosecha'&&estadoDe(a)==='Realizada')){
+      const g=cultivoGobernanteDeLote(l.id,camp);
+      o.cosecha={fecha:cierre,cultivo:g?g.cultivo:''};
+    }
+    if(o.siembra||o.cosecha)res[l.id]=o;
+  });
+  return res;
+}
+function planAlertasHtml(al){
+  const ids=Object.keys(al);if(!ids.length)return'';
+  const nom=id=>{const l=(DB.lotes||[]).find(x=>x.id===id),k=(DB.clientes||[]).find(x=>x.id===l?.clienteId);return(l?.nombre||'?')+(k?' ('+k.nombre+')':'');};
+  const sie={},cos={};
+  ids.forEach(id=>{
+    (al[id].siembra||[]).forEach(x=>{const k=x.cultivo+' · teórica '+vFmt(x.fecha);(sie[k]=sie[k]||[]).push(nom(id));});
+    if(al[id].cosecha){const k=(al[id].cosecha.cultivo||'Cultivo')+' · cierre teórico '+vFmt(al[id].cosecha.fecha);(cos[k]=cos[k]||[]).push(nom(id));}
+  });
+  const bloque=(tit,obj)=>Object.keys(obj).length?`<div style="margin-top:4px"><strong>${tit}</strong>${Object.entries(obj).map(([k,v])=>`<div style="margin-left:10px">${hEsc(k)}: ${v.slice(0,12).map(hEsc).join(', ')}${v.length>12?` y ${v.length-12} más`:''}</div>`).join('')}</div>`:'';
+  return`<div class="vaviso" style="background:var(--amber-bg);color:var(--amber);display:block;margin-bottom:10px">⚠️ <strong>Falta cargar</strong> — pasó la fecha teórica y no hay nada cargado. ${bloque('🌱 Siembra sin cargar:',sie)}${bloque('🌾 Cosecha sin cargar (la campaña no cambia hasta que la cargues):',cos)}</div>`;
+}
+function num(v){return v==null||v===''?'':v;}
+const _planNeg={cli:false,cult:false,lote:false,tipo:false,estado:false};
 function renderPlanificacion(){
   const cont=document.getElementById('plan-body');if(!cont)return;
   if(!_planCamp)_planCamp=getCampanaActiva();
@@ -3198,7 +3289,7 @@ function renderPlanificacion(){
   if(selCult){const pv=selCult.value;const cs=[...new Set(DB.lotes.map(cultDe).filter(Boolean))].sort();selCult.innerHTML='<option value="">Todos los cultivos</option>'+cs.map(x=>`<option value="${x}"${x===pv?' selected':''}>${x}</option>`).join('');}
   const fCli=selCli?.value||'',fCult=selCult?.value||'',soloFalt=!!document.getElementById('plan-falt')?.checked;
   let lotesOptPlan=DB.lotes.slice();
-  if(fCli)lotesOptPlan=lotesOptPlan.filter(l=>l.clienteId===fCli);
+  if(fCli&&!_planNeg.cli)lotesOptPlan=lotesOptPlan.filter(l=>l.clienteId===fCli);
   msRender('plan-lote',lotesOptPlan.sort((a,b)=>naturalCmp(a.nombre,b.nombre)).map(l=>{const c=DB.clientes.find(x=>x.id===l.clienteId);return{value:l.id,label:l.nombre+(c?' — '+c.nombre:'')};}),'Lote',()=>renderPlanificacion());
   const fLotes=msValues('plan-lote');
   const TIPO_ORDEN_PLAN=ordenTiposActivos();
@@ -3206,7 +3297,11 @@ function renderPlanificacion(){
   const fTipos=msValues('plan-tipo');
   msRender('plan-estado',[{value:'Pendiente',label:'🕒 Pendiente'},{value:'Realizada',label:'✅ Realizada'}],'Estado',()=>renderPlanificacion());
   const fEstados=msValues('plan-estado');
+  negInject(document.getElementById('plan-cli'),'cli',_planNeg,renderPlanificacion);
+  negInject(document.getElementById('plan-cult'),'cult',_planNeg,renderPlanificacion);
+  ['lote','tipo','estado'].forEach(k=>negInject(document.getElementById('ms-btn-plan-'+k)?.parentElement,k,_planNeg,renderPlanificacion));
   const fMejora=document.getElementById('plan-mejora')?.value||'';
+  const alertasPlan=alertasSiembraCosecha(_planCamp);
 
   // Aviso de lo que quedó sin campaña
   const av=document.getElementById('plan-aviso'),sc=planSinCampana();
@@ -3217,13 +3312,14 @@ function renderPlanificacion(){
 
   const filas=[];
   DB.lotes.forEach(l=>{
-    if(fCli&&l.clienteId!==fCli)return;
-    if(fLotes.length&&!fLotes.includes(l.id))return;
+    if(fCli&&(_planNeg.cli?l.clienteId===fCli:l.clienteId!==fCli))return;
+    if(fLotes.length&&(_planNeg.lote?fLotes.includes(l.id):!fLotes.includes(l.id)))return;
     const cult=cultDe(l);
-    if(fCult&&cult!==fCult)return;
+    if(fCult&&(_planNeg.cult?cult===fCult:cult!==fCult))return;
     let items=planItemsDeLote(l.id,_planCamp);
-    if(fTipos.length)items=items.filter(i=>fTipos.includes(i.tipo));
-    if(fEstados.length)items=items.filter(i=>fEstados.includes(i.estado));
+    // Con "NO contiene" (tipo/estado): solo los lotes que NO tienen eso, con los casilleros vacíos
+    if(fTipos.length){if(_planNeg.tipo){if(items.some(i=>fTipos.includes(i.tipo)))return;items=[];}else items=items.filter(i=>fTipos.includes(i.tipo));}
+    if(fEstados.length){if(_planNeg.estado){if(items.some(i=>fEstados.includes(i.estado)))return;items=[];}else items=items.filter(i=>fEstados.includes(i.estado));}
     if(fMejora==='si')items=items.filter(i=>i.mejoraProgramada);
     else if(fMejora==='no')items=items.filter(i=>!i.mejoraProgramada);
     const sieRefs=items.filter(i=>i.tipo==='Siembra'&&i.ref).map(i=>i.ref).sort();
@@ -3244,7 +3340,7 @@ function renderPlanificacion(){
     Object.values(cells).forEach(a=>a.sort((x,y)=>(x.ref||'9999').localeCompare(y.ref||'9999')));
     const vacios=PLAN_COLS.filter(x=>x.k!=='otras'&&!cells[x.k].length).length;
     if(soloFalt&&!vacios)return;
-    filas.push({l,cli:DB.clientes.find(x=>x.id===l.clienteId),campo:DB.campos.find(x=>x.id===l.campoId),cult,cells});
+    filas.push({l,cli:DB.clientes.find(x=>x.id===l.clienteId),campo:DB.campos.find(x=>x.id===l.campoId),cult,cells,alerta:alertasPlan[l.id]||null});
   });
   filas.sort((a,b)=>(a.cli?.nombre||'').localeCompare(b.cli?.nombre||'')||(a.campo?.nombre||'').localeCompare(b.campo?.nombre||'')||naturalCmp(a.l.nombre,b.l.nombre));
   _planFilasCache=filas;
@@ -3257,7 +3353,12 @@ function renderPlanificacion(){
     // a aparecer en la columna vecina. Se aclara en el título para no confundir.
     const tituloAdd=arr.length?'Agregar otra':'Crear';
     const add=`<a href="#" onclick="event.preventDefault();planCrear('${f.l.id}','${col.crear}','${col.k}')" title="${tituloAdd}" style="font-size:11px;color:var(--accent)">${arr.length?'＋':'+ crear'}</a>`;
-    if(!arr.length)return`<td style="padding:5px 6px;${col.k==='otras'?'':'background:var(--bg2)'}">${add}</td>`;
+    if(!arr.length){
+      let alr='';
+      if(col.k==='siembra'&&f.alerta?.siembra)alr=`<div style="font-size:10px;color:var(--red);font-weight:600" title="Pasó la fecha teórica de siembra y no hay ninguna Siembra cargada">⚠ sin cargar · teórica ${f.alerta.siembra.map(x=>vFmt(x.fecha)).join(', ')}</div>`;
+      if(col.k==='cosecha'&&f.alerta?.cosecha)alr=`<div style="font-size:10px;color:var(--red);font-weight:600" title="Pasó el cierre teórico de campaña y no hay Cosecha realizada">⚠ sin cargar · cierre ${vFmt(f.alerta.cosecha.fecha)}</div>`;
+      return`<td style="padding:5px 6px;${col.k==='otras'?'':'background:var(--bg2)'}">${alr}${add}</td>`;
+    }
     const mas=arr.length>3?` <a href="#" onclick="event.preventDefault();navTo('lote',{loteId:'${f.l.id}',cliId:'${f.l.clienteId}',campoId:'${f.l.campoId}'})" style="font-size:10px" title="Ver todas en la ficha del lote">+${arr.length-3} más</a>`:'';
     return`<td style="padding:5px 6px">${arr.slice(0,3).map(planPill).join('')}${mas} ${add}</td>`;
   };
@@ -3304,7 +3405,7 @@ function renderPlanificacion(){
       const real=filas.reduce((s,f)=>s+f.cells[col.k].filter(i=>i.estado==='Realizada').length,0);
       return`<td style="padding:6px 8px;font-size:11px">${con}/${filas.length} lotes${real?` · ${real} ✅`:''}</td>`;
     }).join('')+`</tr>`;
-  cont.innerHTML=`<div class="tw"><table class="vtbl" style="width:100%;border-collapse:collapse;table-layout:auto"><thead><tr>${th}</tr></thead><tbody>${cuerpo}${tot}</tbody></table></div>`;
+  cont.innerHTML=planAlertasHtml(alertasPlan)+`<div class="tw"><table class="vtbl" style="width:100%;border-collapse:collapse;table-layout:auto"><thead><tr>${th}</tr></thead><tbody>${cuerpo}${tot}</tbody></table></div>`;
 }
 let _papSort={col:'borrado',dir:-1};
 function papSortBy(col){
@@ -3880,6 +3981,18 @@ function calMCrearMasivaSeleccion(){
   if(!_calMSelected.size)return;
   abrirModalActividadMasiva([..._calMSelected]);
 }
+// "contiene / NO contiene" para Calendario y Planificación: botón antes de cada filtro.
+function negInject(anchor,key,state,rerender){
+  if(!anchor||!anchor.parentNode)return;
+  let b=anchor.previousElementSibling;
+  if(!b||!b.classList.contains('vneg')){b=document.createElement('button');b.type='button';anchor.parentNode.insertBefore(b,anchor);}
+  b.className='vneg'+(state[key]?' on':'');
+  b.textContent=state[key]?'NO contiene':'contiene';
+  b.title='Tocá para cambiar entre CONTIENE y NO CONTIENE';
+  b.onclick=()=>{state[key]=!state[key];rerender();};
+}
+const _calNeg={cli:false,campo:false,lote:false,cult:false,tipo:false,estado:false};
+const calOk=(k,set,val)=>!set.length||(_calNeg[k]?!set.includes(val):set.includes(val));
 function renderCalendario(){
   const cont=document.getElementById('cal-body');if(!cont)return;
   const bg=document.getElementById('cal-vista-grilla-btn'),bt=document.getElementById('cal-vista-tabla-btn');
@@ -3890,15 +4003,15 @@ function renderCalendario(){
   const at=document.getElementById('cal-ayuda-tabla');if(at)at.style.display=_calVista==='tabla'?'block':'none';
   msRender('cal-cli',DB.clientes.slice().sort((a,b)=>a.nombre.localeCompare(b.nombre)).map(c=>({value:c.id,label:c.nombre})),'Cliente',()=>renderCalendario());
   const fClis=msValues('cal-cli');
-  const camposOpt=(fClis.length?DB.campos.filter(c=>fClis.includes(c.clienteId)):DB.campos).slice().sort((a,b)=>a.nombre.localeCompare(b.nombre));
+  const camposOpt=(fClis.length&&!_calNeg.cli?DB.campos.filter(c=>fClis.includes(c.clienteId)):DB.campos).slice().sort((a,b)=>a.nombre.localeCompare(b.nombre));
   msRender('cal-campo',camposOpt.map(c=>{const cli=DB.clientes.find(x=>x.id===c.clienteId);return{value:c.id,label:c.nombre+(cli?' — '+cli.nombre:'')};}),'Campo',()=>renderCalendario());
   const fCampos=msValues('cal-campo');
 
   // Lote: las opciones se acotan al cliente/campo ya elegidos arriba, para no
   // mostrar lotes que de todos modos no van a aparecer.
   let lotesOpt=DB.lotes.slice();
-  if(fCampos.length)lotesOpt=lotesOpt.filter(l=>fCampos.includes(l.campoId));
-  else if(fClis.length)lotesOpt=lotesOpt.filter(l=>fClis.includes(l.clienteId));
+  if(fCampos.length&&!_calNeg.campo)lotesOpt=lotesOpt.filter(l=>fCampos.includes(l.campoId));
+  else if(fClis.length&&!_calNeg.cli)lotesOpt=lotesOpt.filter(l=>fClis.includes(l.clienteId));
   msRender('cal-lote',lotesOpt.sort((a,b)=>naturalCmp(a.nombre,b.nombre)).map(l=>{const cli=DB.clientes.find(x=>x.id===l.clienteId);return{value:l.id,label:l.nombre+(cli?' — '+cli.nombre:'')};}),'Lote',()=>renderCalendario());
   const fLotes=msValues('cal-lote');
   const cultSet=new Set();
@@ -3910,8 +4023,10 @@ function renderCalendario(){
   const fTipos=msValues('cal-tipo');
   msRender('cal-estado',[{value:'Pendiente',label:'🕒 Pendiente'},{value:'Realizada',label:'✅ Realizada'}],'Estado',()=>renderCalendario());
   const fEstados=msValues('cal-estado');
+  ['cli','campo','lote','cult','tipo','estado'].forEach(k=>negInject(document.getElementById('ms-btn-cal-'+k)?.parentElement,k,_calNeg,renderCalendario));
   const fMejora=document.getElementById('cal-mejora')?.value||'';
-  const hayFiltroContenido=!!(fLotes.length||fCults.length||fTipos.length||fEstados.length||fMejora);
+  const hayFiltroContenido=!!((fLotes.length&&!_calNeg.lote)||(fCults.length&&!_calNeg.cult)||(fTipos.length&&!_calNeg.tipo)||(fEstados.length&&!_calNeg.estado)||fMejora);
+  const hayNegContenido=!!((fCults.length&&_calNeg.cult)||(fTipos.length&&_calNeg.tipo)||(fEstados.length&&_calNeg.estado));
 
   const meses=calMesesRango();
   const mesesSet=new Set(meses.map(m=>m.ym));
@@ -3940,8 +4055,8 @@ function renderCalendario(){
   itemsGenerales.forEach(it=>{it.ref=it.real||it.fecha||it.fechaFin||'';});
   if(itemsGenerales.length){
     itemsGeneralesF=itemsGenerales.filter(it=>it.ref&&mesesSet.has(it.ref.slice(0,7)));
-    if(fTipos.length)itemsGeneralesF=itemsGeneralesF.filter(it=>fTipos.includes(it.tipo));
-    if(fEstados.length)itemsGeneralesF=itemsGeneralesF.filter(it=>fEstados.includes(it.estado));
+    if(fTipos.length)itemsGeneralesF=itemsGeneralesF.filter(it=>calOk('tipo',fTipos,it.tipo));
+    if(fEstados.length)itemsGeneralesF=itemsGeneralesF.filter(it=>calOk('estado',fEstados,it.estado));
     if(fMejora==='si')itemsGeneralesF=itemsGeneralesF.filter(it=>it.mejoraProgramada);
     else if(fMejora==='no')itemsGeneralesF=itemsGeneralesF.filter(it=>!it.mejoraProgramada);
     const porMesGen={};
@@ -3966,14 +4081,27 @@ function renderCalendario(){
   }
 
   let campos=DB.campos.slice();
-  if(fCampos.length)campos=campos.filter(c=>fCampos.includes(c.id));
-  else if(fClis.length)campos=campos.filter(c=>fClis.includes(c.clienteId));
+  campos=campos.filter(c=>calOk('campo',fCampos,c.id)&&calOk('cli',fClis,c.clienteId));
   campos.sort((a,b)=>{
     const ca=DB.clientes.find(x=>x.id===a.clienteId)?.nombre||'',cb=DB.clientes.find(x=>x.id===b.clienteId)?.nombre||'';
     return ca.localeCompare(cb)||a.nombre.localeCompare(b.nombre);
   });
   if(!campos.length&&!itemsGeneralesF.length){cont.innerHTML=generalBlockHTML||'<div class="empty"><div class="empty-icon">📆</div><div class="empty-t">Sin campos para mostrar</div></div>';return;}
 
+  // Items de un lote ya filtrados. Con "NO contiene" (cultivo/tipo/estado) el lote se
+  // conserva solo si NO tiene nada de eso en el período, y se muestra con las celdas vacías.
+  const calAplicar=lid=>{
+    let items=calItemsDeLote(lid).filter(it=>it.ref&&mesesSet.has(it.ref.slice(0,7)));
+    let keep=true;
+    const mC=it=>fCults.includes(baseCultivo(it.cultivo||'')),mT=it=>fTipos.includes(it.tipo),mE=it=>fEstados.includes(it.estado);
+    if(fCults.length){if(_calNeg.cult){if(items.some(mC))keep=false;}else items=items.filter(mC);}
+    if(fTipos.length){if(_calNeg.tipo){if(items.some(mT))keep=false;}else items=items.filter(mT);}
+    if(fEstados.length){if(_calNeg.estado){if(items.some(mE))keep=false;}else items=items.filter(mE);}
+    if(fMejora==='si')items=items.filter(it=>it.mejoraProgramada);
+    else if(fMejora==='no')items=items.filter(it=>!it.mejoraProgramada);
+    if((fTipos.length&&_calNeg.tipo)||(fEstados.length&&_calNeg.estado))items=[];
+    return{items,keep};
+  };
   // Vista "Tabla": mismo universo de datos, filtrado igual que la grilla,
   // pero aplanado a una fila por item en vez de una celda por mes x lote.
   if(_calVista==='tabla'){
@@ -3985,16 +4113,13 @@ function renderCalendario(){
     campos.forEach(campo=>{
       const cli=DB.clientes.find(x=>x.id===campo.clienteId);
       let lotes=DB.lotes.filter(l=>l.campoId===campo.id);
-      if(fLotes.length)lotes=lotes.filter(l=>fLotes.includes(l.id));
+      lotes=lotes.filter(l=>calOk('lote',fLotes,l.id));
       _calCamposCache[campo.id]=lotes.map(l=>l.id);
       lotes.forEach(l=>{
-        let items=calItemsDeLote(l.id).filter(it=>it.ref&&mesesSet.has(it.ref.slice(0,7)));
-        if(fCults.length)items=items.filter(it=>fCults.includes(baseCultivo(it.cultivo||'')));
-        if(fTipos.length)items=items.filter(it=>fTipos.includes(it.tipo));
-        if(fEstados.length)items=items.filter(it=>fEstados.includes(it.estado));
-        if(fMejora==='si')items=items.filter(it=>it.mejoraProgramada);
-        else if(fMejora==='no')items=items.filter(it=>!it.mejoraProgramada);
-        if(fVacioMes){
+        const ap=calAplicar(l.id);
+        if(!ap.keep)return;
+        let items=ap.items;
+        if(fVacioMes&&!hayNegContenido){
           const vacio=!items.some(it=>it.ref.slice(0,7)===fVacioMes);
           const cumple=fVacioModo==='vacio'?vacio:!vacio;
           if(!cumple)return;
@@ -4018,7 +4143,7 @@ function renderCalendario(){
   cont.innerHTML=generalBlockHTML+campos.map(campo=>{
     const cli=DB.clientes.find(x=>x.id===campo.clienteId);
     let lotes=DB.lotes.filter(l=>l.campoId===campo.id).sort((a,b)=>naturalCmp(a.nombre,b.nombre));
-    if(fLotes.length)lotes=lotes.filter(l=>fLotes.includes(l.id));
+    lotes=lotes.filter(l=>calOk('lote',fLotes,l.id));
     _calCamposCache[campo.id]=lotes.map(l=>l.id);
     if(!lotes.length)return null;
     // Se calculan los items de cada lote primero, y si hay algún filtro de
@@ -4027,26 +4152,23 @@ function renderCalendario(){
     // apareciendo TODOS los lotes del campo (con las celdas vacías) en vez de
     // acotarse a los que realmente cumplen lo filtrado.
     let lotesConItems=lotes.map(l=>{
-      let items=calItemsDeLote(l.id).filter(it=>it.ref&&mesesSet.has(it.ref.slice(0,7)));
-      if(fCults.length)items=items.filter(it=>fCults.includes(baseCultivo(it.cultivo||'')));
-      if(fTipos.length)items=items.filter(it=>fTipos.includes(it.tipo));
-      if(fEstados.length)items=items.filter(it=>fEstados.includes(it.estado));
-      if(fMejora==='si')items=items.filter(it=>it.mejoraProgramada);
-      else if(fMejora==='no')items=items.filter(it=>!it.mejoraProgramada);
+      const ap=calAplicar(l.id);
+      let items=ap.items;
       const porMes={};
       meses.forEach(m=>porMes[m.ym]=[]);
       items.forEach(it=>{porMes[it.ref.slice(0,7)].push(it);});
       // Orden fijo dentro del mes: por fecha y, a igual fecha, por tipo — así
       // no van quedando salteadas según el orden en que se cargaron.
       Object.values(porMes).forEach(arr=>arr.sort((a,b)=>a.ref.localeCompare(b.ref)||a.tipo.localeCompare(b.tipo)));
-      return{l,items,porMes};
+      return{l,items,porMes,keep:ap.keep};
     });
+    lotesConItems=lotesConItems.filter(x=>x.keep);
     if(hayFiltroContenido)lotesConItems=lotesConItems.filter(x=>x.items.length);
     // "Lotes vacíos/no vacíos en <mes>": se evalúa sobre lo que ya quedó
     // filtrado arriba (cultivo/tipo/estado/mejora) — así "vacío en Octubre"
     // combinado con "Girasol" te dice qué lotes de girasol no tienen nada
     // cargado ese mes en particular, no en general.
-    if(fVacioMes){
+    if(fVacioMes&&!hayNegContenido){
       lotesConItems=lotesConItems.filter(x=>{
         const vacio=!(x.porMes[fVacioMes]||[]).length;
         return fVacioModo==='vacio'?vacio:!vacio;
@@ -4078,7 +4200,7 @@ function renderCalendario(){
           <a href="#" onclick="event.preventDefault();navTo('lote',{loteId:'${l.id}',cliId:'${l.clienteId}',campoId:'${l.campoId}'})" style="color:var(--accent);font-weight:500">${l.nombre}</a>
         </td>${celdas}</tr>`;
     }).join('');
-    if((hayFiltroContenido||fVacioMes)&&!lotesConItems.length)return null;
+    if((hayFiltroContenido||fVacioMes||hayNegContenido)&&!lotesConItems.length)return null;
     return`<details open style="margin-bottom:10px;border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;box-shadow:var(--shadow)">
       <summary style="cursor:pointer;padding:10px 14px;font-weight:600;font-size:13px;background:var(--bg2);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
         <a href="#" onclick="event.preventDefault();event.stopPropagation();navTo('campo-detail',{campoId:'${campo.id}'})" style="color:inherit;text-decoration:underline;text-decoration-style:dotted" title="Ver ficha del campo">📍 ${campo.nombre}</a>
@@ -4269,6 +4391,7 @@ function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2
 const PM={
   'vistas-venc':{t:'Vistas · Por vencimiento',s:'Cada lote en una fila — qué venció, qué vence esta semana, la próxima y en los próximos 30 días'},
   'vistas-estado':{t:'Vistas · Por estado',s:'Pendientes y realizadas, agrupadas como prefieras'},
+  'vistas-tipo':{t:'Vistas · Por tipo de actividad',s:'Un lote por fila y un tipo de actividad por columna — elegí qué tipos ver'},
   'vistas-cultivo':{t:'Vistas · Por cultivo',s:'Cultivo → Cliente → Lote, con hectáreas en cada nivel'},
   dashboard:{t:'Reportes',s:'Estadísticas, malezas, productos y estacionalidad'},
   tablero:{t:'Tablero de Lotes',s:'Vista operativa de todos los lotes'},
@@ -4350,6 +4473,7 @@ function navTo(id,params={}){
   if(id==='hitos')           renderHitos();
   if(id==='vistas-venc')     renderVistasVenc();
   if(id==='vistas-estado')   renderVistasEstado();
+  if(id==='vistas-tipo')     renderVistasTipo();
   if(id==='vistas-cultivo')  renderVistasCultivo();
   if(id==='mejoras')         renderMejoras();
   if(id==='mejora-detail')   abrirMejoraDetail(params.mejoraId);
@@ -10635,11 +10759,34 @@ function openModalCierreCultivo(){
         </select></td>
       </tr>`;
     }).join('')
+    +'</tbody></table></div>'
+    +'<h4 style="margin:16px 0 4px;font-size:13px">🌱 Fecha teórica de siembra</h4>'
+    +'<p class="muted" style="font-size:11px;margin-bottom:6px">Día y mes en que normalmente se siembra. Si llega esa fecha y el lote no tiene ninguna Siembra cargada, la Planificación te avisa. Maíz tiene una fecha aparte para cuando es de 2ª.</p>'
+    +'<div class="tw"><table><thead><tr><th>Cultivo</th><th colspan="2">Siembra (1ª / única / cobertura) — día y mes</th><th colspan="2">Como cultivo de 2ª — día y mes</th></tr></thead><tbody>'
+    +siembraCultivosLista().map(c=>{
+      const r=siembraTeoricaCfg()[c]||{};
+      return`<tr><td><strong>${c}</strong></td>
+        <td><input type="number" min="1" max="31" class="fi" data-st="${c}" data-f="d" value="${num(r.d)}" style="width:55px" placeholder="día"></td>
+        <td><input type="number" min="1" max="12" class="fi" data-st="${c}" data-f="m" value="${num(r.m)}" style="width:55px" placeholder="mes"></td>
+        <td><input type="number" min="1" max="31" class="fi" data-st="${c}" data-f="d2" value="${num(r.d2)}" style="width:55px" placeholder="día"></td>
+        <td><input type="number" min="1" max="12" class="fi" data-st="${c}" data-f="m2" value="${num(r.m2)}" style="width:55px" placeholder="mes"></td></tr>`;
+    }).join('')
     +'</tbody></table></div>';
   openModal('modal-cierre-cultivo');
 }
+function siembraCultivosLista(){
+  return[...new Set([...(DB.cultivos||[]).map(baseCultivo),...Object.keys(siembraTeoricaCfg())].filter(c=>c&&c!=='Barbecho'))].sort();
+}
 function guardarCierreCultivo(){
   if(!DB.cierreCultivo)DB.cierreCultivo={};
+  // fechas teóricas de siembra
+  const stCfg=siembraTeoricaCfg();
+  siembraCultivosLista().forEach(c=>{
+    const v=f=>{const el=document.querySelector(`[data-st="${c}"][data-f="${f}"]`);return el?parseInt(el.value,10)||null:null;};
+    const o={d:v('d'),m:v('m'),d2:v('d2'),m2:v('m2')};
+    if(!o.d&&!o.m&&!o.d2&&!o.m2){delete stCfg[c];return;}
+    stCfg[c]=o;
+  });
   DB.cultivos.forEach(c=>{
     const dia=v=>{const el=document.querySelector(`[data-cc="${c}"][data-f="${v}"]`);return el?parseInt(el.value,10)||null:null;};
     const soloDia=dia('soloDia'),soloMes=dia('soloMes'),segDia=dia('segDia'),segMes=dia('segMes');
@@ -10653,7 +10800,7 @@ function guardarCierreCultivo(){
   });
   save();
   closeModal('modal-cierre-cultivo');
-  mostrarSnackbar('📅 Cierres de campaña por cultivo guardados');
+  mostrarSnackbar('📅 Fechas teóricas guardadas');
   renderCampanas();
   if(document.getElementById('cal-body'))renderCalendario();
 }
@@ -11768,26 +11915,29 @@ function crc32(buf){
 // VISTAS — solapa única que reemplaza Tablero / Calendario / Planificación como entrada.
 // No guarda nada propio: todo se calcula en el momento a partir de relevamientos y actividades.
 // ══════════════════════════════════════════════
-const VISTAS_IDS=['vistas-venc','vistas-estado','calendario','planificacion','vistas-cultivo'];
+const VISTAS_IDS=['vistas-venc','vistas-estado','vistas-tipo','calendario','planificacion','vistas-cultivo'];
 const VISTAS_TABS=[
   {id:'vistas-venc',t:'⏰ Por vencimiento'},
   {id:'vistas-estado',t:'✅ Por estado'},
+  {id:'vistas-tipo',t:'🧩 Por tipo de actividad'},
   {id:'calendario',t:'📆 Por mes'},
   {id:'planificacion',t:'🌱 Por momento del cultivo'},
   {id:'vistas-cultivo',t:'🌾 Por cultivo'}
 ];
 // Estado compartido entre las vistas (los filtros se mantienen al pasar de una a otra)
-const _vv={neg:{cli:false,campo:false,cult:false,tipo:false},_visIds:[],soloSin:false,cols:new Set(['venc','sem','prox','d30']),horizonte:'30',agr:'cli',soloPend:false,q:'',camp:'',colap:new Set(),exp:new Set(),sel:new Set(),estado:'pend',agrEst:'semana',realDias:'30',_grupos:{}};
+const _vv={sortV:{venc:{col:'',dir:1},estado:{col:'',dir:1},tipo:{col:'',dir:1}},estadoV:'pend',estadoT:'pend',estRows:'todos',tipoVis:{},neg:{cli:false,campo:false,cult:false,tipo:false},_visIds:[],soloSin:false,cols:new Set(['venc','sem','prox','d30']),horizonte:'30',agr:'cli',soloPend:false,q:'',camp:'',colap:new Set(),exp:new Set(),sel:new Set(),estado:'pend',agrEst:'semana',realDias:'30',_grupos:{}};
 function vistasNavInject(id){
   const pg=document.getElementById('page-'+id);if(!pg)return;
   let nav=pg.querySelector(':scope>.vnav');
   if(!nav){nav=document.createElement('div');nav.className='vnav ph';pg.insertBefore(nav,pg.firstChild);}
-  nav.innerHTML=VISTAS_TABS.map(x=>`<button class="vtab${x.id===id?' on':''}" onclick="navTo('${x.id}')">${x.t}</button>`).join('');
+  let nAl=0;try{nAl=Object.keys(alertasSiembraCosecha(getCampanaActiva())).length;}catch(e){}
+  nav.innerHTML=VISTAS_TABS.map(x=>`<button class="vtab${x.id===id?' on':''}" onclick="navTo('${x.id}')">${x.t}${x.id==='planificacion'&&nAl?` <span class="badge bg-red" title="${nAl} lote(s) con siembra o cosecha sin cargar pasada la fecha teórica">⚠ ${nAl}</span>`:''}</button>`).join('');
 }
 function vistasRefrescarSuave(){
   const pg=document.querySelector('.page.active')?.id;
   if(pg==='page-vistas-venc')vvOut();
   else if(pg==='page-vistas-estado')vestOut();
+  else if(pg==='page-vistas-tipo')vtipoOut();
   else if(pg==='page-vistas-cultivo')vculOut();
 }
 function vistasRender(){vistasRefrescarSuave();}
@@ -11797,6 +11947,7 @@ function vistasLimpiar(){
   const pg=document.querySelector('.page.active')?.id;
   if(pg==='page-vistas-venc')renderVistasVenc();
   else if(pg==='page-vistas-estado')renderVistasEstado();
+  else if(pg==='page-vistas-tipo')renderVistasTipo();
   else if(pg==='page-vistas-cultivo')renderVistasCultivo();
 }
 // ── fechas ──
@@ -11868,7 +12019,7 @@ function vQtxt(it,ctx){
 // Cada filtro puede ser "contiene" (normal) o "NO contiene" (_vv.neg[k]).
 function vOk(k,set,match){return !set.size||(_vv.neg[k]?!match:match);}
 function vNegToggle(k){_vv.neg[k]=!_vv.neg[k];const pg=document.querySelector('.page.active')?.id;
-  if(pg==='page-vistas-venc')renderVistasVenc();else if(pg==='page-vistas-estado')renderVistasEstado();else if(pg==='page-vistas-cultivo')renderVistasCultivo();}
+  if(pg==='page-vistas-venc')renderVistasVenc();else if(pg==='page-vistas-estado')renderVistasEstado();else if(pg==='page-vistas-tipo')renderVistasTipo();else if(pg==='page-vistas-cultivo')renderVistasCultivo();}
 function vNegBtn(k){return`<button type="button" class="vneg${_vv.neg[k]?' on':''}" onclick="vNegToggle('${k}')" title="Tocá para cambiar entre CONTIENE y NO CONTIENE">${_vv.neg[k]?'NO contiene':'contiene'}</button>`;}
 // forcePos: ignora el "no contiene" del Tipo (se usa para saber qué lotes SÍ lo tienen)
 function vFiltrar(items,ctx,forcePos){
@@ -11916,7 +12067,7 @@ function vBarra(pg,extraHtml){
 const V_TIPO_HUE={'Relevamiento':205,'Aplicación':22,'Siembra':125,'Cosecha':48,'Fertilización':285,'Riego':175,'Capacitación':325};
 function vHue(s){if(V_TIPO_HUE[s]!=null)return V_TIPO_HUE[s];let h=7;for(const c of String(s))h=(h*31+c.charCodeAt(0))%360;return h;}
 function vChipHtml(it,R,pref){
-  const b=vBucket(it.ref,R);
+  const b=it.pend?vBucket(it.ref,R):'real';
   const cls=it.pend&&b==='venc'?'c-venc':'';
   const H=vHue(it.tipo);
   const fut=it.pend&&it.ini&&it.ini>R.hoy?' vfut':'';
@@ -11925,15 +12076,37 @@ function vChipHtml(it,R,pref){
   return`<div class="vchip ${cls}${fut}" style="background:hsla(${H},70%,50%,.17);border-left-color:hsl(${H},62%,45%)" title="${hEsc(full)}" onclick="event.stopPropagation();vAbrir('${it.kind}','${it.id}')"><span class="vd">${b==='venc'?'⚠ ':''}${vFmt(it.ref)}</span>${pref?`<strong>${hEsc(pref)}</strong> · `:''}${it.icono} ${hEsc(vTxt(txt,38))}${it.mejora?' 💡':''}${it.rec?' 🔁':''}</div>`;
 }
 // ══ POR VENCIMIENTO ══
+// Cartel de recurrentes: solo las que están en ventana AHORA o abren en los próximos 15 días.
+function vvRecBanner(){
+  const el=document.getElementById('vvenc-rec');if(!el)return;
+  const hoy=hoyLocal(),lim15=vAdd(hoy,15),grp={};let lejos=0;
+  tareasRecurrentesPendientes().forEach(x=>{
+    const ini=x.fechaInicio||x.fecha||'',fin=x.fechaLimite||x.fechaFin||'';
+    const t=(DB.tareasRecurrentes||[]).find(q=>q.id===x.tareaRecurrenteId);
+    if(ini&&ini>lim15){lejos++;return;}
+    const est=(ini&&ini>hoy)?'pronto':'ahora';
+    const k=(t?t.nombre:'Recurrente')+'|'+est;
+    grp[k]=grp[k]||{n:t?t.nombre:'Recurrente',est,c:0,fin:'9999'};
+    grp[k].c++;if(fin&&fin<grp[k].fin)grp[k].fin=fin;
+  });
+  const ks=Object.values(grp).sort((a,b)=>(a.est===b.est?a.fin.localeCompare(b.fin):a.est==='ahora'?-1:1));
+  if(!ks.length){el.innerHTML='';return;}
+  el.innerHTML=`<div class="vaviso" style="display:block;margin-bottom:8px">🔁 <strong>Recurrentes para atender</strong> `+ks.map(g=>`<span class="vchip" style="margin:2px 6px 2px 0;display:inline-block" title="${g.est==='ahora'?'En ventana ahora':'Abre en los próximos 15 días'}">${g.est==='ahora'?'🟢':'⏳'} ${hEsc(g.n)} · ${g.c}${g.fin!=='9999'?' · hasta '+vFmt(g.fin):''}</span>`).join('')+` <a href="#" onclick="event.preventDefault();verTareasRecurrentesPendientes()">ver todas</a>${lejos?` <span style="color:var(--text3);font-size:11px">· ${lejos} más abren más adelante</span>`:''}</div>`;
+}
 function renderVistasVenc(){
   vBarra('vvenc',`<select class="fi" style="width:150px" onchange="_vv.agr=this.value;vvOut()" title="Cómo agrupar las filas">
       <option value="cli"${_vv.agr==='cli'?' selected':''}>Agrupar: Cliente › Campo</option>
       <option value="cultivo"${_vv.agr==='cultivo'?' selected':''}>Agrupar: Cultivo › Cliente</option>
       <option value="campo"${_vv.agr==='campo'?' selected':''}>Agrupar: Campo</option>
       <option value="ninguno"${_vv.agr==='ninguno'?' selected':''}>Sin agrupar</option></select>
+    <select class="fi" style="width:150px" onchange="_vv.estadoV=this.value;renderVistasVenc()" title="Estado de las actividades a mostrar">
+      <option value="pend"${_vv.estadoV==='pend'?' selected':''}>Estado: Pendientes</option>
+      <option value="real"${_vv.estadoV==='real'?' selected':''}>Estado: Realizadas</option>
+      <option value="todas"${_vv.estadoV==='todas'?' selected':''}>Estado: Ambas</option></select>
+    ${_vv.estadoV!=='pend'?`<select class="fi" style="width:140px" onchange="_vv.realDias=this.value;vvOut()" title="Cuánto para atrás mostrar de lo realizado"><option value="30"${_vv.realDias==='30'?' selected':''}>Realizadas: 30 días</option><option value="90"${_vv.realDias==='90'?' selected':''}>Realizadas: 90 días</option><option value="3650"${_vv.realDias==='3650'?' selected':''}>Realizadas: todas</option></select>`:''}
     <label style="font-size:12px;display:flex;gap:4px;align-items:center"><input type="checkbox" ${_vv.soloPend?'checked':''} onchange="_vv.soloPend=this.checked;if(this.checked)_vv.soloSin=false;renderVistasVenc()"> Solo lotes con pendientes</label>
     <label style="font-size:12px;display:flex;gap:4px;align-items:center" title="Lotes que no tienen ninguna actividad ni relevamiento pendiente"><input type="checkbox" ${_vv.soloSin?'checked':''} onchange="_vv.soloSin=this.checked;if(this.checked)_vv.soloPend=false;renderVistasVenc()"> Solo lotes sin actividad</label>`);
-  vvOut();
+  vvRecBanner();vvOut();
 }
 function vvToggleHor(){_vv.horizonte=_vv.horizonte==='30'?'todo':'30';vistasRender();}
 function vvCol(k){if(_vv.cols.has(k))_vv.cols.delete(k);else _vv.cols.add(k);vvOut();}
@@ -11959,35 +12132,27 @@ function vvCrear(){
   const ft=[..._mselGet('vv-tipo')];
   abrirModalActividadMasiva([..._vv.sel],(_vv.neg.tipo&&ft.length===1)?ft[0]:'',vCampSel());
 }
-function vvOut(){
-  const out=document.getElementById('vvenc-out');if(!out)return;
-  const ctx=vCtx(),R=vRangos();
-  const ftSet=_mselGet('vv-tipo');
-  const inv=_vv.neg.tipo&&ftSet.size>0;
-  const items=vFiltrar(vItems().filter(i=>i.pend),ctx,true);
-  const cols=[
-    {k:'venc',t:'🔴 Vencidas'},
-    {k:'sem',t:'Vencen esta semana',s:'hasta el '+vFmt(R.finSem)},
-    {k:'prox',t:'Vencen semana próxima',s:vFmt(vAdd(R.finSem,1))+' al '+vFmt(R.finProx)},
-    {k:'d30',t:'Vencen en 30 días',s:'hasta el '+vFmt(R.fin30)},
-    {k:'mas',t:'Más de 30 días'},
-    {k:'sin',t:'Sin fecha'}
-  ];
-  const vis=cols.filter(c=>_vv.cols.has(c.k));
+// ══ MATRIZ GENÉRICA: filas = lotes (agrupados), columnas = lo que defina cada vista ══
+function vmCmpKey(a,b,sc){
+  if(!sc)return 0;
+  const k=f=>{const ds=f.items.filter(x=>x.b===sc.col).map(x=>x.it.ref).filter(Boolean).sort();return ds.length?(sc.dir>0?ds[0]:ds[ds.length-1]):null;};
+  const ka=k(a),kb=k(b);
+  if(ka===null&&kb===null)return 0;
+  if(ka===null)return 1;
+  if(kb===null)return -1;
+  return sc.dir*ka.localeCompare(kb);
+}
+function vmTabla(cfg){
+  const out=document.getElementById(cfg.outId);if(!out)return;
+  const ctx=cfg.ctx,R=cfg.R,vis=cfg.cols,items=cfg.items,bk=cfg.bk;
   const porLote={},gen=[];
   items.forEach(it=>{
-    const b=vBucket(it.ref,R);
+    const b=bk(it);
     if(!it.loteId){gen.push({it,b});return;}
     (porLote[it.loteId]=porLote[it.loteId]||[]).push({it,b});
   });
-  const ocultos=inv?0:items.filter(i=>!_vv.cols.has(vBucket(i.ref,R))).length;
-  // Modo inverso: lotes que cumplen el resto de los filtros pero NO tienen el/los tipos
-  // elegidos dentro de las columnas activas.
-  const tienen=new Set();
-  if(inv)items.forEach(it=>{if(it.loteId&&_vv.cols.has(vBucket(it.ref,R)))tienen.add(it.loteId);});
-  if(inv)Object.keys(porLote).forEach(k=>delete porLote[k]);
+  if(cfg.inv)Object.keys(porLote).forEach(k=>delete porLote[k]);
   const q=(_vv.q||'').toLowerCase().trim();
-  // filas
   let filas=(DB.lotes||[]).filter(l=>vLotePasa(l,ctx)).map(l=>{
     const c=ctx.C[l.campoId],k=ctx.K[l.clienteId];
     const cs=vCultivosLote(l.id);
@@ -11995,20 +12160,15 @@ function vvOut(){
   });
   filas=filas.filter(f=>{
     const visCount=f.items.filter(x=>vis.some(c=>c.k===x.b)).length;
-    if(inv){if(tienen.has(f.l.id))return false;}
-    else{
-    if(ftSet.size&&!visCount)return false; // con un Tipo elegido (contiene), solo los lotes que lo tienen en las columnas activas
-    if(_vv.soloPend&&!visCount)return false;
-    if(_vv.soloSin&&f.items.length)return false;}
+    if(cfg.rowFilter&&!cfg.rowFilter(f,visCount))return false;
     if(q&&!f.items.length&&![f.l.nombre,f.cName,f.kName].join(' ').toLowerCase().includes(q))return false;
     return true;
   });
-  _vv._visIds=filas.map(f=>f.l.id);
-  const agr=_vv.agr;
+  const agr=_vv.agr,sc=cfg.sort&&cfg.sort.col?cfg.sort:null;
   const k1=f=>agr==='cli'?f.kName:agr==='cultivo'?f.cult:agr==='campo'?(f.kName+' — '+f.cName):'';
   const k2=f=>agr==='cli'?f.cName:agr==='cultivo'?f.kName:'';
-  filas.sort((a,b)=>naturalCmp(k1(a),k1(b))||naturalCmp(k2(a),k2(b))||naturalCmp(a.l.nombre,b.l.nombre));
-  // acumulados por grupo
+  filas.sort((a,b)=>naturalCmp(k1(a),k1(b))||naturalCmp(k2(a),k2(b))||vmCmpKey(a,b,sc)||naturalCmp(a.l.nombre,b.l.nombre));
+  if(cfg.visIds)_vv._visIds=filas.map(f=>f.l.id);
   const g1={},g2={};_vv._grupos={};
   const acum=(g,key,f)=>{
     const o=g[key]=g[key]||{n:0,ha:0,cnt:{},ids:[]};
@@ -12019,32 +12179,29 @@ function vvOut(){
   Object.keys(g1).forEach(k=>_vv._grupos['g1:'+k]=g1[k].ids);
   Object.keys(g2).forEach(k=>_vv._grupos['g2:'+k]=g2[k].ids);
   const totales={};
-  items.forEach(it=>{const b=vBucket(it.ref,R);totales[b]=(totales[b]||0)+1;});
+  items.forEach(it=>{const b=bk(it);totales[b]=(totales[b]||0)+1;});
+  const sortAsc=(a,b)=>(((a.x||a).it.ref)||'').localeCompare(((b.x||b).it.ref)||'');
   const numCells=(cnt,g,colapsado)=>vis.map(c=>{
     if(colapsado&&g&&g.its){
-      const arr=g.its.filter(y=>y.x.b===c.k).sort((a,b)=>(a.x.it.ref||'').localeCompare(b.x.it.ref||''));
+      const arr=g.its.filter(y=>y.x.b===c.k).sort(sortAsc);
       return`<td onclick="event.stopPropagation()" style="font-weight:400">${arr.map(y=>vChipHtml(y.x.it,R,y.ln)).join('')}</td>`;
     }
     const v=cnt[c.k]||0;return`<td class="vn${v&&c.k==='venc'?' hot':''}">${v?v+' actividad'+(v>1?'es':''):''}</td>`;}).join('');
   const checkTodos=ids=>ids.length&&ids.every(i=>_vv.sel.has(i));
-  let h='';
-  const chipsCol=cols.map(c=>`<button class="vtab${_vv.cols.has(c.k)?' on':''}" onclick="vvCol('${c.k}')">${c.t.replace('Vencen ','')}</button>`).join('');
-  h+=`<div class="vaviso" style="gap:6px"><span>👁 Mostrar:</span>${chipsCol}<span style="opacity:.5">|</span><a onclick="vvColsPreset('todo')">Ver todo</a><a onclick="vvColsPreset('30')">Volver a 30 días</a>${ocultos?`<span>· <strong>${ocultos}</strong> oculta${ocultos>1?'s':''} por las columnas apagadas</span>`:''}</div>`;
-  if(inv){
-    const colsTxt=vis.map(c=>c.t.replace('Vencen ','').replace('🔴 ','').toLowerCase()).join(', ')||'ninguna';
-    h+=`<div class="vaviso" style="background:var(--red-bg);color:var(--red)">🚫 Mostrando <strong>${filas.length}</strong> lote${filas.length===1?'':'s'} que cumplen los demás filtros pero <strong>NO contienen ${[...ftSet].join(' / ')}</strong> en: ${colsTxt}. <a onclick="vvSelTodos()">Tildar todos</a> para crearles la actividad de una vez.</div>`;
-  }
+  let h=cfg.header||'';
   const tiposPres=[...new Set(items.map(i=>i.tipo))].sort();
   if(tiposPres.length)h+=`<div class="vleg"><span class="muted">Colores por tipo:</span>${tiposPres.map(t=>`<span><i style="background:hsl(${vHue(t)},62%,45%)"></i>${hEsc(t)}</span>`).join('')}<span class="muted">· ⚠ rojo = vencida · 🔁 recurrente · 💡 mejora</span></div>`;
-  h+=`<table class="vtbl" style="min-width:${240+vis.length*190}px"><colgroup><col style="width:30px"><col style="width:210px">${vis.map(()=>'<col>').join('')}</colgroup><thead><tr><th></th><th>Lote</th>${vis.map(c=>`<th>${c.t}${c.s?`<small>${c.s}</small>`:''}<small><strong>${totales[c.k]||0}</strong> en total</small></th>`).join('')}</tr></thead><tbody>`;
+  const flecha=c=>sc&&sc.col===c.k?(sc.dir>0?' ▲':' ▼'):'';
+  h+=`<table class="vtbl" style="min-width:${240+vis.length*190}px"><colgroup><col style="width:30px"><col style="width:210px">${vis.map(()=>'<col>').join('')}</colgroup><thead><tr><th></th><th>Lote</th>${vis.map(c=>`<th${cfg.sortFn?` style="cursor:pointer" onclick="${cfg.sortFn}('${c.k}')" title="Tocá para ordenar los lotes por la fecha de esta columna"`:''}>${c.t}${flecha(c)}${c.s?`<small>${c.s}</small>`:''}<small><strong>${totales[c.k]||0}</strong> en total</small></th>`).join('')}</tr></thead><tbody>`;
   let last1=null,last2=null;
   const cell=(f,c)=>{
-    const arr=f.items.filter(x=>x.b===c.k).sort((a,b)=>(a.it.ref||'').localeCompare(b.it.ref||''));
+    const arr=f.items.filter(x=>x.b===c.k).sort(sortAsc);
     if(!arr.length)return'<td></td>';
     const key=f.l.id+'|'+c.k,abierto=_vv.exp.has(key),max=3;
     const mostrar=abierto?arr:arr.slice(0,max);
     return`<td>${mostrar.map(x=>vChipHtml(x.it,R)).join('')}${arr.length>max?`<a class="vmas" onclick="vvExp('${key}')">${abierto?'ver menos':'+'+(arr.length-max)+' más'}</a>`:''}</td>`;
   };
+  const qk=k=>hEsc(k).replace(/'/g,"\\'");
   filas.forEach(f=>{
     const a1=k1(f),a2=k2(f);
     const HK=vHue('K'+(agr==='cultivo'?f.cult:f.kName));
@@ -12052,19 +12209,19 @@ function vvOut(){
     if(agr!=='ninguno'&&a1!==last1){
       const g=g1[a1];last1=a1;last2=null;
       if(h.includes('<tbody>')&&h.split('<tbody>')[1].length>0)h+=`<tr class="vsp"><td colspan="${vis.length+2}"></td></tr>`;
-      h+=`<tr class="vg1" style="--hk:${HK}" onclick="vvColap('${hEsc(key1).replace(/'/g,"\\'")}')"><td onclick="event.stopPropagation()"><input type="checkbox" ${checkTodos(g.ids)?'checked':''} onchange="vvSelGrupo('${hEsc(key1).replace(/'/g,"\\'")}',this.checked)"></td><td>${_vv.colap.has(key1)?'▸':'▾'} ${hEsc(a1)}<small class="muted" style="display:block;font-weight:400">${g.n} lote${g.n>1?'s':''} · ${Math.round(g.ha*10)/10} ha</small></td>${numCells(g.cnt,g,_vv.colap.has(key1))}</tr>`;
+      h+=`<tr class="vg1" style="--hk:${HK}" onclick="vvColap('${qk(key1)}')"><td onclick="event.stopPropagation()"><input type="checkbox" ${checkTodos(g.ids)?'checked':''} onchange="vvSelGrupo('${qk(key1)}',this.checked)"></td><td>${_vv.colap.has(key1)?'▸':'▾'} ${hEsc(a1)}<small class="muted" style="display:block;font-weight:400">${g.n} lote${g.n>1?'s':''} · ${Math.round(g.ha*10)/10} ha</small></td>${numCells(g.cnt,g,_vv.colap.has(key1))}</tr>`;
     }
     if(_vv.colap.has(key1))return;
     if(a2&&a2!==last2){
       const g=g2[a1+'|'+a2];last2=a2;
-      h+=`<tr class="vg2" style="--hk:${HK}" onclick="vvColap('${hEsc(key2).replace(/'/g,"\\'")}')"><td onclick="event.stopPropagation()"><input type="checkbox" ${checkTodos(g.ids)?'checked':''} onchange="vvSelGrupo('${hEsc(key2).replace(/'/g,"\\'")}',this.checked)"></td><td style="padding-left:18px">${_vv.colap.has(key2)?'▸':'▾'} ${hEsc(a2)}<small class="muted" style="display:block;font-weight:400">${g.n} lote${g.n>1?'s':''} · ${Math.round(g.ha*10)/10} ha</small></td>${numCells(g.cnt,g,_vv.colap.has(key2))}</tr>`;
+      h+=`<tr class="vg2" style="--hk:${HK}" onclick="vvColap('${qk(key2)}')"><td onclick="event.stopPropagation()"><input type="checkbox" ${checkTodos(g.ids)?'checked':''} onchange="vvSelGrupo('${qk(key2)}',this.checked)"></td><td style="padding-left:18px">${_vv.colap.has(key2)?'▸':'▾'} ${hEsc(a2)}<small class="muted" style="display:block;font-weight:400">${g.n} lote${g.n>1?'s':''} · ${Math.round(g.ha*10)/10} ha</small></td>${numCells(g.cnt,g,_vv.colap.has(key2))}</tr>`;
     }
     if(a2&&_vv.colap.has(key2))return;
     const pad=agr==='ninguno'?0:(a2?32:18);
     h+=`<tr class="vl" style="--hk:${HK}"><td><input type="checkbox" ${_vv.sel.has(f.l.id)?'checked':''} onchange="vvSelLote('${f.l.id}',this.checked)"></td><td style="padding-left:${pad+8}px"><a href="#" onclick="event.preventDefault();navTo('lote',{loteId:'${f.l.id}',cliId:'${f.l.clienteId}',campoId:'${f.l.campoId}'})" style="color:inherit;font-weight:600;text-decoration:underline;text-decoration-style:dotted">${hEsc(f.l.nombre)}</a>${f.l.ha?` <span class="muted">${f.l.ha} ha</span>`:''} <button class="btn bs bxs" title="Agregar una actividad en este lote" onclick="vvNuevaEn('${f.l.id}')">➕</button><small class="muted" style="display:block">${agr==='ninguno'?hEsc(f.kName)+' — '+hEsc(f.cName)+' · ':''}${agr==='cli'||agr==='ninguno'||agr==='campo'?hEsc(f.cult==='Sin cultivo cargado'?'sin cultivo':f.cult):''}${agr==='cultivo'?hEsc(f.cName):''}</small></td>${vis.map(c=>cell(f,c)).join('')}</tr>`;
   });
   if(!filas.length)h+=`<tr><td colspan="${vis.length+2}" class="muted" style="padding:20px;text-align:center">No hay lotes con esos filtros.</td></tr>`;
-  if(!inv&&gen.length&&!_mselGet('vv-cli').size&&!_mselGet('vv-campo').size&&!_mselGet('vv-cult').size){
+  if(cfg.showGen&&gen.length&&!_mselGet('vv-cli').size&&!_mselGet('vv-campo').size&&!_mselGet('vv-cult').size){
     h+=`<tr class="vg1"><td></td><td>📋 Generales (sin lote)</td>${numCells(gen.reduce((o,x)=>{o[x.b]=(o[x.b]||0)+1;return o;},{}))}</tr>`;
     h+=`<tr><td></td><td class="muted" style="padding-left:18px">Tareas que no son de un lote</td>${vis.map(c=>{
       const arr=gen.filter(x=>x.b===c.k);
@@ -12074,82 +12231,131 @@ function vvOut(){
   out.innerHTML=h;
   vvBulk();
 }
-// ══ POR ESTADO (Pendientes / Realizadas) ══
+function vSortToggle(view,col){
+  const s=_vv.sortV[view]=_vv.sortV[view]||{col:'',dir:1};
+  if(s.col===col)s.dir=-s.dir;else{s.col=col;s.dir=1;}
+  vistasRefrescarSuave();
+}
+function vvSort(c){vSortToggle('venc',c);}
+function vestSort(c){vSortToggle('estado',c);}
+function vtipoSort(c){vSortToggle('tipo',c);}
+// ══ POR VENCIMIENTO ══
+function vvOut(){
+  const ctx=vCtx(),R=vRangos();
+  const ftSet=_mselGet('vv-tipo');
+  const inv=_vv.neg.tipo&&ftSet.size>0;
+  const est=_vv.estadoV;
+  let base=vItems().filter(i=>est==='pend'?i.pend:est==='real'?!i.pend:true);
+  if(est!=='pend'){const desde=vAdd(R.hoy,-(+_vv.realDias||30));base=base.filter(i=>i.pend||(i.real&&i.real>=desde));}
+  const items=vFiltrar(base,ctx,true);
+  const bk=it=>it.pend?vBucket(it.ref,R):'real';
+  const cols=[
+    {k:'venc',t:'🔴 Vencidas'},
+    {k:'sem',t:'Vencen esta semana',s:'hasta el '+vFmt(R.finSem)},
+    {k:'prox',t:'Vencen semana próxima',s:vFmt(vAdd(R.finSem,1))+' al '+vFmt(R.finProx)},
+    {k:'d30',t:'Vencen en 30 días',s:'hasta el '+vFmt(R.fin30)},
+    {k:'mas',t:'Más de 30 días'},
+    {k:'sin',t:'Sin fecha'},
+    {k:'real',t:'✅ Realizadas',s:'últimos '+(+_vv.realDias||30)+' días'}
+  ];
+  const vis=cols.filter(c=>c.k==='real'?est!=='pend':(est==='real'?false:_vv.cols.has(c.k)));
+  const pendCols=cols.filter(c=>c.k!=='real');
+  const ocultos=(inv||est==='real')?0:items.filter(i=>i.pend&&!_vv.cols.has(vBucket(i.ref,R))).length;
+  const tienen=new Set();
+  if(inv)items.forEach(it=>{if(it.loteId&&vis.some(c=>c.k===bk(it)))tienen.add(it.loteId);});
+  let h='';
+  if(est!=='real'){
+    const chipsCol=pendCols.map(c=>`<button class="vtab${_vv.cols.has(c.k)?' on':''}" onclick="vvCol('${c.k}')">${c.t.replace('Vencen ','')}</button>`).join('');
+    h+=`<div class="vaviso" style="gap:6px"><span>👁 Mostrar:</span>${chipsCol}<span style="opacity:.5">|</span><a onclick="vvColsPreset('todo')">Ver todo</a><a onclick="vvColsPreset('30')">Volver a 30 días</a>${ocultos?`<span>· <strong>${ocultos}</strong> oculta${ocultos>1?'s':''} por las columnas apagadas</span>`:''}</div>`;
+  }
+  const rowFilter=(f,visCount)=>{
+    if(inv)return!tienen.has(f.l.id);
+    if(ftSet.size&&!visCount)return false;
+    if(_vv.soloPend&&!visCount)return false;
+    if(_vv.soloSin&&f.items.length)return false;
+    return true;
+  };
+  if(inv){
+    // cantidad de lotes se calcula dentro; el aviso se completa con un conteo aproximado previo
+    const colsTxt=vis.map(c=>c.t.replace('Vencen ','').replace('🔴 ','').toLowerCase()).join(', ')||'ninguna';
+    h+=`<div class="vaviso" style="background:var(--red-bg);color:var(--red)">🚫 Lotes que cumplen los demás filtros pero <strong>NO contienen ${[...ftSet].join(' / ')}</strong> en: ${colsTxt}. <a onclick="vvSelTodos()">Tildar todos</a> para crearles la actividad de una vez.</div>`;
+  }
+  vmTabla({outId:'vvenc-out',ctx,R,cols:vis,items,bk,header:h,inv,rowFilter,sort:_vv.sortV.venc,sortFn:'vvSort',showGen:!inv&&est!=='real',visIds:true});
+}
+// ══ POR ESTADO: lotes en filas, Pendientes / Realizadas en columnas ══
 function renderVistasEstado(){
-  vBarra('vest',`<div class="vseg"><button class="${_vv.estado==='pend'?'on':''}" onclick="_vv.estado='pend';renderVistasEstado()">⏳ Pendientes</button><button class="${_vv.estado==='real'?'on':''}" onclick="_vv.estado='real';renderVistasEstado()">✅ Realizadas</button></div>
-    <select class="fi" style="width:150px" onchange="_vv.agrEst=this.value;vestOut()" title="Cómo agrupar">
-      ${[['semana','Agrupar: Semana'],['mes','Agrupar: Mes'],['cliente','Agrupar: Cliente'],['campo','Agrupar: Campo'],['lote','Agrupar: Lote'],['cultivo','Agrupar: Cultivo'],['tipo','Agrupar: Tipo'],['ninguno','Sin agrupar']].map(o=>`<option value="${o[0]}"${_vv.agrEst===o[0]?' selected':''}>${o[1]}</option>`).join('')}</select>
-    ${_vv.estado==='real'?`<select class="fi" style="width:150px" onchange="_vv.realDias=this.value;vestOut()"><option value="30"${_vv.realDias==='30'?' selected':''}>Últimos 30 días</option><option value="90"${_vv.realDias==='90'?' selected':''}>Últimos 90 días</option><option value="todo"${_vv.realDias==='todo'?' selected':''}>Todas</option></select>`:''}`);
+  vBarra('vest',`<select class="fi" style="width:190px" onchange="_vv.estRows=this.value;vestOut()" title="Qué lotes mostrar">
+      <option value="todos"${_vv.estRows==='todos'?' selected':''}>Lotes: todos</option>
+      <option value="con"${_vv.estRows==='con'?' selected':''}>Solo lotes CON pendientes</option>
+      <option value="sin"${_vv.estRows==='sin'?' selected':''}>Solo lotes SIN pendientes</option></select>
+    <select class="fi" style="width:150px" onchange="_vv.agr=this.value;vestOut()" title="Cómo agrupar las filas">
+      <option value="cli"${_vv.agr==='cli'?' selected':''}>Agrupar: Cliente › Campo</option>
+      <option value="cultivo"${_vv.agr==='cultivo'?' selected':''}>Agrupar: Cultivo › Cliente</option>
+      <option value="campo"${_vv.agr==='campo'?' selected':''}>Agrupar: Campo</option>
+      <option value="ninguno"${_vv.agr==='ninguno'?' selected':''}>Sin agrupar</option></select>
+    <select class="fi" style="width:150px" onchange="_vv.realDias=this.value;vestOut()" title="Cuánto para atrás mostrar de lo realizado"><option value="30"${_vv.realDias==='30'?' selected':''}>Realizadas: 30 días</option><option value="90"${_vv.realDias==='90'?' selected':''}>Realizadas: 90 días</option><option value="3650"${_vv.realDias==='3650'?' selected':''}>Realizadas: todas</option></select>`);
   vestOut();
 }
 function vestOut(){
-  const out=document.getElementById('vest-out');if(!out)return;
-  const ctx=vCtx(),R=vRangos(),pend=_vv.estado==='pend';
-  let items=vFiltrar(vItems(),ctx).filter(i=>i.pend===pend);
-  let aviso='';
-  if(pend){
-    if(_vv.horizonte==='30'){
-      const antes=items.length;
-      items=items.filter(i=>i.ref&&i.ref<=R.fin30);
-      const oc=antes-items.length;
-      aviso=`<div class="vaviso">👁 Pendientes hasta los <strong>próximos 30 días</strong> (hasta el ${vFmtL(R.fin30)}), más lo vencido.${oc?` Hay <strong>${oc}</strong> más adelante o sin fecha, ocultas.`:''} <a onclick="vvToggleHor()">Ver todo</a></div>`;
-    }else aviso=`<div class="vaviso">👁 Mostrando <strong>todos</strong> los pendientes. <a onclick="vvToggleHor()">Volver a próximos 30 días</a></div>`;
-  }else if(_vv.realDias!=='todo'){
-    const desde=vAdd(R.hoy,-(+_vv.realDias));
-    items=items.filter(i=>i.real>=desde);
-  }
-  const dir=pend?1:-1;
-  items.sort((a,b)=>dir*((a.ref||'9999').localeCompare(b.ref||'9999')));
-  const gk=_vv.agrEst;
-  const grp=it=>{
-    const l=ctx.L[it.loteId],c=ctx.C[it.campoId||l?.campoId],k=ctx.K[it.cliId||l?.clienteId];
-    switch(gk){
-      case'semana':{
-        if(!it.ref)return['9','Sin fecha'];
-        if(pend&&it.ref<R.hoy)return['0','🔴 Vencidas'];
-        const lu=vLunes(it.ref),dom=vAdd(lu,6);
-        let tag='';if(lu===vLunes(R.hoy))tag=' · esta semana';else if(lu===vAdd(vLunes(R.hoy),7))tag=' · semana próxima';
-        return[lu,'Semana del '+vFmt(lu)+' al '+vFmt(dom)+tag];}
-      case'mes':return it.ref?[it.ref.slice(0,7),V_MESES[+it.ref.slice(5,7)-1]+' '+it.ref.slice(0,4)]:['9','Sin fecha'];
-      case'cliente':return[k?.nombre||'—',k?.nombre||'Sin cliente'];
-      case'campo':return[(k?.nombre||'')+(c?.nombre||''),(k?.nombre||'—')+' — '+(c?.nombre||'—')];
-      case'lote':return[(k?.nombre||'')+(l?.nombre||''),l?(l.nombre+' · '+(k?.nombre||'')):'📋 Generales (sin lote)'];
-      case'cultivo':{const cs=l?vCultivosLote(l.id):[];return[cs[0]||'~',cs[0]||'Sin cultivo cargado'];}
-      case'tipo':return[it.tipo,it.icono+' '+it.tipo];
-      default:return['',''];
-    }
+  const ctx=vCtx(),R=vRangos();
+  const ftSet=_mselGet('vv-tipo');
+  const inv=_vv.neg.tipo&&ftSet.size>0;
+  const desde=vAdd(R.hoy,-(+_vv.realDias||30));
+  const base=vItems().filter(i=>i.pend||(i.real&&i.real>=desde));
+  const items=vFiltrar(base,ctx,true);
+  const bk=it=>it.pend?'pend':'real';
+  const cols=[{k:'pend',t:'⏳ Pendientes',s:'ordenadas por fecha límite'},{k:'real',t:'✅ Realizadas',s:'últimos '+(_vv.realDias==='3650'?'(todas)':(+_vv.realDias||30)+' días')}];
+  const tienen=new Set();
+  if(inv)items.forEach(it=>{if(it.loteId)tienen.add(it.loteId);});
+  const rowFilter=(f,visCount)=>{
+    if(inv)return!tienen.has(f.l.id);
+    if(ftSet.size&&!visCount)return false;
+    const pend=f.items.some(x=>x.b==='pend');
+    if(_vv.estRows==='con'&&!pend)return false;
+    if(_vv.estRows==='sin'&&pend)return false;
+    return true;
   };
-  const grupos={};
-  items.forEach(it=>{const[sk,lb]=grp(it);const g=grupos[sk]=grupos[sk]||{sk,lb,arr:[]};g.arr.push(it);});
-  let keys=Object.keys(grupos);
-  if(gk==='semana'||gk==='mes')keys.sort((a,b)=>(pend?1:-1)*a.localeCompare(b));
-  else keys.sort(naturalCmp);
-  const fila=it=>{
-    const l=ctx.L[it.loteId],c=ctx.C[it.campoId||l?.campoId],k=ctx.K[it.cliId||l?.clienteId];
-    let fecha;
-    if(pend){
-      const d=it.ref?diasDesde(it.ref):null; // positivo = vencida
-      let rel='';
-      if(d!==null){rel=d>0?`<span class="badge bg-red">venció hace ${d} d</span>`:d===0?'<span class="badge bg-amber">vence hoy</span>':`<span class="muted">en ${-d} d</span>`;}
-      fecha=`${it.ref?vFmtL(it.ref):'<span class="muted">sin fecha</span>'}<div>${rel}</div>`;
-    }else{
-      const d=diasDesde(it.real);
-      fecha=`${vFmtL(it.real)}<div class="muted" style="font-size:10.5px">⏱ ${haceCuantoTexto(d)}</div>`;
-    }
-    const txt=it.tipo+(it.det?': '+it.det:'');
-    return`<tr><td style="white-space:nowrap">${fecha}</td><td><a href="#" onclick="event.preventDefault();vAbrir('${it.kind}','${it.id}')" style="color:inherit;text-decoration:underline;text-decoration-style:dotted" title="${hEsc(it.codigo)}">${it.icono} ${hEsc(txt)}</a>${it.mejora?` <span class="mejora-pill">💡 ${hEsc(it.mejora)}</span>`:''}${it.rec?' <span class="badge bg-blue" style="font-size:9px">🔁</span>':''}${it.codigo?` <span class="badge bg-gray mono" style="font-size:9px">${hEsc(it.codigo)}</span>`:''}</td><td>${l?hEsc(l.nombre):'<span class="muted">—</span>'}</td><td>${hEsc(k?.nombre||'—')} <span class="muted">—</span> ${hEsc(c?.nombre||'—')}</td><td>${l?hEsc(vCultivosLote(l.id).join(' / ')||'—'):'—'}</td></tr>`;
+  let h=inv?`<div class="vaviso" style="background:var(--red-bg);color:var(--red)">🚫 Lotes que cumplen los demás filtros pero <strong>NO contienen ${[...ftSet].join(' / ')}</strong>.</div>`:'';
+  vmTabla({outId:'vest-out',ctx,R,cols,items,bk,header:h,inv,rowFilter,sort:_vv.sortV.estado,sortFn:'vestSort',showGen:false});
+}
+// ══ POR TIPO DE ACTIVIDAD: lotes en filas, un tipo de actividad por columna ══
+function renderVistasTipo(){
+  vBarra('vtipo',`<select class="fi" style="width:170px" onchange="_vv.estadoT=this.value;vtipoOut()" title="Qué estado mostrar">
+      <option value="pend"${_vv.estadoT==='pend'?' selected':''}>Solo pendientes</option>
+      <option value="real"${_vv.estadoT==='real'?' selected':''}>Solo realizadas</option>
+      <option value="todas"${_vv.estadoT==='todas'?' selected':''}>Pendientes y realizadas</option></select>
+    <select class="fi" style="width:150px" onchange="_vv.agr=this.value;vtipoOut()" title="Cómo agrupar las filas">
+      <option value="cli"${_vv.agr==='cli'?' selected':''}>Agrupar: Cliente › Campo</option>
+      <option value="cultivo"${_vv.agr==='cultivo'?' selected':''}>Agrupar: Cultivo › Cliente</option>
+      <option value="campo"${_vv.agr==='campo'?' selected':''}>Agrupar: Campo</option>
+      <option value="ninguno"${_vv.agr==='ninguno'?' selected':''}>Sin agrupar</option></select>`);
+  vtipoOut();
+}
+function vtipoToggle(t,hay){const cur=(_vv.tipoVis[t]!==undefined)?_vv.tipoVis[t]:hay;_vv.tipoVis[t]=!cur;vtipoOut();}
+function vtipoOut(){
+  const ctx=vCtx(),R=vRangos(),camp=vCampSel();
+  const ftSet=_mselGet('vv-tipo');
+  const inv=_vv.neg.tipo&&ftSet.size>0;
+  const est=_vv.estadoT;
+  let base=vItems().filter(i=>i.camp===camp&&(est==='pend'?i.pend:est==='real'?!i.pend:true));
+  const items=vFiltrar(base,ctx,true);
+  const bk=it=>it.tipo;
+  const hay={};items.forEach(i=>{hay[i.tipo]=(hay[i.tipo]||0)+1;});
+  const tiposCat=[...ordenTiposActivos(),...Object.keys(hay).filter(t=>!ordenTiposActivos().includes(t))];
+  const visible=t=>_vv.tipoVis[t]!==undefined?_vv.tipoVis[t]:!!hay[t];
+  const cols=tiposCat.filter(visible).map(t=>({k:t,t:`${(ACT_TIPOS[t]||{}).icono||'📝'} ${hEsc(t)}`,s:hay[t]?'':'(sin actividades)'}));
+  const chips=tiposCat.map(t=>{const on=visible(t),H=vHue(t);
+    return`<button type="button" class="vtab${on?' on':''}" style="${on?`background:hsl(${H},55%,40%);border-color:hsl(${H},55%,40%)`:`border-left:4px solid hsl(${H},60%,45%)`}" onclick="vtipoToggle('${t.replace(/'/g,"\\'")}',${!!hay[t]})" title="${on?'Ocultar':'Mostrar'} la columna ${hEsc(t)}">${on?'👁':'🚫'} ${hEsc(t)}${hay[t]?' · '+hay[t]:''}</button>`;}).join('');
+  let h=`<div class="vaviso" style="gap:6px;background:var(--bg2);color:var(--text)"><span>👁 Tipos:</span>${chips}</div>`;
+  h+=`<div class="muted" style="font-size:11px;margin-bottom:8px">Campaña <strong>${camp}</strong> · ${est==='pend'?'pendientes':est==='real'?'realizadas':'pendientes y realizadas'} · tocá el título de una columna para ordenar los lotes por su fecha.</div>`;
+  const tienen=new Set();
+  if(inv)items.forEach(it=>{if(it.loteId)tienen.add(it.loteId);});
+  const rowFilter=(f,visCount)=>{
+    if(inv)return!tienen.has(f.l.id);
+    if(ftSet.size&&!visCount)return false;
+    return true;
   };
-  let h=aviso;
-  h+=`<div class="muted" style="font-size:11px;margin-bottom:6px">${items.length} ${pend?'pendiente':'realizada'}${items.length===1?'':'s'}</div>`;
-  h+=`<table class="vtbl" style="min-width:760px"><thead><tr><th style="width:130px">${pend?'Vence':'Realizada'}</th><th>Qué</th><th>Lote</th><th>Cliente — Campo</th><th>Cultivo</th></tr></thead><tbody>`;
-  keys.forEach(sk=>{
-    const g=grupos[sk];
-    if(gk!=='ninguno')h+=`<tr class="vg1"><td colspan="5" style="cursor:default">${hEsc(g.lb)} <span class="muted" style="font-weight:400">· ${g.arr.length}</span></td></tr>`;
-    h+=g.arr.map(fila).join('');
-  });
-  if(!items.length)h+=`<tr><td colspan="5" class="muted" style="padding:20px;text-align:center">No hay ${pend?'pendientes':'realizadas'} con esos filtros.</td></tr>`;
-  h+='</tbody></table>';
-  out.innerHTML=h;
+  vmTabla({outId:'vtipo-out',ctx,R,cols,items,bk,header:h,inv,rowFilter,sort:_vv.sortV.tipo,sortFn:'vtipoSort',showGen:false});
 }
 // ══ POR CULTIVO (Cultivo → Cliente → Lote) ══
 function renderVistasCultivo(){
