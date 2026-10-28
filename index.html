@@ -1649,6 +1649,41 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
   </div>
 </div>
 
+<!-- ══ MODAL CAMBIO MASIVO DE FECHAS ══ -->
+<div class="mo" id="modal-fechas-masivo">
+  <div class="modal" style="max-width:560px">
+    <div class="mh"><span class="mt">📅 Cambiar fechas en los lotes seleccionados</span><button class="mx" onclick="closeModal('modal-fechas-masivo')">✕</button></div>
+    <div class="mb">
+      <div id="fm-resumen" style="font-size:12px;margin-bottom:10px"></div>
+      <div id="fm-pend">
+        <h4 style="font-size:13px;margin:4px 0">🕒 Pendientes (<span id="fm-npend">0</span>)</h4>
+        <div class="field"><label>Cómo cambiar</label>
+          <select id="fm-modo" class="fi" onchange="fmModo()">
+            <option value="fijar">Poner una fecha fija</option>
+            <option value="correr">Correr los días (adelantar / atrasar)</option>
+          </select></div>
+        <div id="fm-fijar">
+          <div class="field"><label>Nueva fecha límite (vencimiento)</label><input type="date" id="fm-lim" class="fi"></div>
+          <div class="field"><label>Nueva fecha de inicio (opcional)</label><input type="date" id="fm-ini" class="fi"></div>
+        </div>
+        <div id="fm-correr" style="display:none">
+          <div class="field"><label>Días a correr (negativo = adelantar)</label><input type="number" id="fm-dias" class="fi" value="7" style="width:100px"></div>
+          <div class="field" style="font-size:11px;color:var(--text3)">Corre la fecha de inicio y la límite por igual en las que las tengan cargadas.</div>
+        </div>
+      </div>
+      <div id="fm-real" style="margin-top:12px">
+        <h4 style="font-size:13px;margin:4px 0">✅ Realizadas (<span id="fm-nreal">0</span>)</h4>
+        <div class="field"><label>Nueva fecha de realización</label><input type="date" id="fm-freal" class="fi"></div>
+      </div>
+      <p class="muted" style="font-size:11px;margin-top:10px">Solo se cambian las actividades y relevamientos que se ven ahora en pantalla (según los filtros y columnas), de los lotes tildados. Lo que dejes vacío no se toca.</p>
+    </div>
+    <div class="mf">
+      <button class="btn bs" onclick="closeModal('modal-fechas-masivo')">Cancelar</button>
+      <button class="btn bp" onclick="fmAplicar()">Aplicar</button>
+    </div>
+  </div>
+</div>
+
 <!-- ══ MODAL CAMPAÑA ══ -->
 <div class="mo" id="modal-campana">
   <div class="modal" style="max-width:380px">
@@ -12099,6 +12134,11 @@ function renderVistasVenc(){
       <option value="cultivo"${_vv.agr==='cultivo'?' selected':''}>Agrupar: Cultivo › Cliente</option>
       <option value="campo"${_vv.agr==='campo'?' selected':''}>Agrupar: Campo</option>
       <option value="ninguno"${_vv.agr==='ninguno'?' selected':''}>Sin agrupar</option></select>
+    <select class="fi" style="width:190px" onchange="_vv.dias=this.value;if(this.value!=='off')_vv.cols.add('venc');vvOut()" title="Columnas: por período, o un día por columna">
+      <option value="off"${(_vv.dias||'off')==='off'?' selected':''}>Columnas: por período</option>
+      <option value="sem"${_vv.dias==='sem'?' selected':''}>📆 Esta semana, día por día</option>
+      <option value="prox"${_vv.dias==='prox'?' selected':''}>📆 Semana próxima, día por día</option>
+      <option value="ambas"${_vv.dias==='ambas'?' selected':''}>📆 Ambas semanas, día por día</option></select>
     <select class="fi" style="width:150px" onchange="_vv.estadoV=this.value;renderVistasVenc()" title="Estado de las actividades a mostrar">
       <option value="pend"${_vv.estadoV==='pend'?' selected':''}>Estado: Pendientes</option>
       <option value="real"${_vv.estadoV==='real'?' selected':''}>Estado: Realizadas</option>
@@ -12107,6 +12147,14 @@ function renderVistasVenc(){
     <label style="font-size:12px;display:flex;gap:4px;align-items:center"><input type="checkbox" ${_vv.soloPend?'checked':''} onchange="_vv.soloPend=this.checked;if(this.checked)_vv.soloSin=false;renderVistasVenc()"> Solo lotes con pendientes</label>
     <label style="font-size:12px;display:flex;gap:4px;align-items:center" title="Lotes que no tienen ninguna actividad ni relevamiento pendiente"><input type="checkbox" ${_vv.soloSin?'checked':''} onchange="_vv.soloSin=this.checked;if(this.checked)_vv.soloPend=false;renderVistasVenc()"> Solo lotes sin actividad</label>`);
   vvRecBanner();vvOut();
+}
+function vvDiasLista(dm,R){
+  if(dm==='off')return[];
+  const out=[];
+  const rango=(a,b)=>{for(let d=a;d<=b;d=vAdd(d,1))out.push(d);};
+  if(dm==='sem'||dm==='ambas')rango(R.hoy,R.finSem);
+  if(dm==='prox'||dm==='ambas')rango(vAdd(R.finSem,1),R.finProx);
+  return out;
 }
 function vvToggleHor(){_vv.horizonte=_vv.horizonte==='30'?'todo':'30';vistasRender();}
 function vvCol(k){if(_vv.cols.has(k))_vv.cols.delete(k);else _vv.cols.add(k);vvOut();}
@@ -12124,7 +12172,53 @@ function vvBulk(){
   const n=_vv.sel.size;
   if(!n){el.style.display='none';return;}
   el.style.display='flex';
-  el.innerHTML=`<strong>${n} lote${n>1?'s':''} seleccionado${n>1?'s':''}</strong><button class="btn bp bsm" onclick="vvCrear()">➕ Crear ${(_vv.neg.tipo&&_mselGet('vv-tipo').size===1)?[..._mselGet('vv-tipo')][0]:'actividad'} en estos lotes</button><button class="btn bs bsm" onclick="_vv.sel.clear();vvOut()">Deseleccionar</button>`;
+  el.innerHTML=`<strong>${n} lote${n>1?'s':''} seleccionado${n>1?'s':''}</strong><button class="btn bp bsm" onclick="vvCrear()">➕ Crear ${(_vv.neg.tipo&&_mselGet('vv-tipo').size===1)?[..._mselGet('vv-tipo')][0]:'actividad'} en estos lotes</button><button class="btn bs bsm" onclick="vvFechasMasivo()">📅 Cambiar fechas</button><button class="btn bs bsm" onclick="_vv.sel.clear();vvOut()">Deseleccionar</button>`;
+}
+// ── cambio masivo de fechas (vencimiento / inicio / realización) ──
+let _fmItems=[];
+function vvFechasMasivo(){
+  if(!_vv.sel.size)return;
+  const ids=_vv._itemsVis||[];
+  _fmItems=ids.filter(i=>_vv.sel.has(i.loteId));
+  const np=_fmItems.filter(i=>i.pend).length,nr=_fmItems.length-np;
+  if(!_fmItems.length){mostrarSnackbar('No hay nada visible en los lotes tildados','blue');return;}
+  const porTipo={};_fmItems.forEach(i=>porTipo[i.tipo]=(porTipo[i.tipo]||0)+1);
+  document.getElementById('fm-resumen').innerHTML=`<strong>${_vv.sel.size}</strong> lote(s) tildado(s) → <strong>${_fmItems.length}</strong> actividad(es): `+Object.entries(porTipo).map(([t,c])=>`${hEsc(t)} (${c})`).join(', ');
+  document.getElementById('fm-npend').textContent=np;document.getElementById('fm-nreal').textContent=nr;
+  document.getElementById('fm-pend').style.display=np?'block':'none';
+  document.getElementById('fm-real').style.display=nr?'block':'none';
+  ['fm-lim','fm-ini','fm-freal'].forEach(i=>document.getElementById(i).value='');
+  document.getElementById('fm-modo').value='fijar';fmModo();
+  openModal('modal-fechas-masivo');
+}
+function fmModo(){const c=document.getElementById('fm-modo').value==='correr';document.getElementById('fm-fijar').style.display=c?'none':'block';document.getElementById('fm-correr').style.display=c?'block':'none';}
+function fmAplicar(){
+  const modo=document.getElementById('fm-modo').value;
+  const lim=document.getElementById('fm-lim').value,ini=document.getElementById('fm-ini').value,fre=document.getElementById('fm-freal').value;
+  const dias=parseInt(document.getElementById('fm-dias').value,10)||0;
+  const hayPend=_fmItems.some(i=>i.pend),hayReal=_fmItems.some(i=>!i.pend);
+  if(hayPend&&modo==='fijar'&&ini&&lim&&ini>lim){alert('La fecha de inicio no puede ser posterior a la fecha límite');return;}
+  if(!(hayPend&&((modo==='fijar'&&(lim||ini))||(modo==='correr'&&dias)))&&!(hayReal&&fre)){alert('No completaste ninguna fecha para cambiar');return;}
+  let n=0;
+  _fmItems.forEach(it=>{
+    const o=it.kind==='R'?(DB.relevamientos||[]).find(x=>x.id===it.id):(DB.actividades||[]).find(x=>x.id===it.id);
+    if(!o)return;
+    const campos=it.kind==='R'?{ini:'fechaInicio',lim:'fechaLimite',real:'fecha'}:{ini:'fecha',lim:'fechaFin',real:'fechaRealizacion'};
+    if(it.pend){
+      if(modo==='fijar'){
+        if(lim){o[campos.lim]=lim;n++;}
+        if(ini){o[campos.ini]=ini;n++;}
+        if(lim&&!ini&&o[campos.ini]&&o[campos.ini]>lim)o[campos.ini]=lim; // que el inicio no quede después del nuevo límite
+      }else if(dias){
+        if(o[campos.ini])o[campos.ini]=vAdd(o[campos.ini],dias);
+        if(o[campos.lim])o[campos.lim]=vAdd(o[campos.lim],dias);
+        n++;
+      }
+    }else if(fre){o[campos.real]=fre;if(it.kind==='A'&&!o.fecha)o.fecha=fre;n++;}
+  });
+  save();closeModal('modal-fechas-masivo');
+  mostrarSnackbar(`📅 Fechas actualizadas en ${_fmItems.length} actividad(es)`,'blue');
+  _vv.sel.clear();vistasRefrescarSuave();
 }
 function vvSelTodos(){_vv._visIds.forEach(id=>_vv.sel.add(id));vvOut();}
 function vvCrear(){
@@ -12248,8 +12342,11 @@ function vvOut(){
   let base=vItems().filter(i=>est==='pend'?i.pend:est==='real'?!i.pend:true);
   if(est!=='pend'){const desde=vAdd(R.hoy,-(+_vv.realDias||30));base=base.filter(i=>i.pend||(i.real&&i.real>=desde));}
   const items=vFiltrar(base,ctx,true);
-  const bk=it=>it.pend?vBucket(it.ref,R):'real';
-  const cols=[
+  _vv._itemsVis=items;
+  const dm=_vv.dias||'off',dias=vvDiasLista(dm,R);
+  const bk=dm==='off'?(it=>it.pend?vBucket(it.ref,R):'real'):(it=>!it.pend?'real':!it.ref?'sin':it.ref<R.hoy?'venc':dias.includes(it.ref)?'d:'+it.ref:'fuera');
+  const DN=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+  const cols=dm!=='off'?[{k:'venc',t:'🔴 Vencidas'}].concat(dias.map(d=>({k:'d:'+d,t:DN[vDow(d)]+' '+vFmt(d),s:d===R.hoy?'hoy':''}))).concat([{k:'real',t:'✅ Realizadas',s:'últimos '+(+_vv.realDias||30)+' días'}]):[
     {k:'venc',t:'🔴 Vencidas'},
     {k:'sem',t:'Vencen esta semana',s:'hasta el '+vFmt(R.finSem)},
     {k:'prox',t:'Vencen semana próxima',s:vFmt(vAdd(R.finSem,1))+' al '+vFmt(R.finProx)},
@@ -12258,15 +12355,15 @@ function vvOut(){
     {k:'sin',t:'Sin fecha'},
     {k:'real',t:'✅ Realizadas',s:'últimos '+(+_vv.realDias||30)+' días'}
   ];
-  const vis=cols.filter(c=>c.k==='real'?est!=='pend':(est==='real'?false:_vv.cols.has(c.k)));
+  const vis=cols.filter(c=>c.k==='real'?est!=='pend':(est==='real'?false:(dm!=='off'&&c.k!=='venc')||_vv.cols.has(c.k)));
   const pendCols=cols.filter(c=>c.k!=='real');
-  const ocultos=(inv||est==='real')?0:items.filter(i=>i.pend&&!_vv.cols.has(vBucket(i.ref,R))).length;
+  const ocultos=(inv||est==='real')?0:items.filter(i=>i.pend&&!vis.some(c=>c.k===bk(i))).length;
   const tienen=new Set();
   if(inv)items.forEach(it=>{if(it.loteId&&vis.some(c=>c.k===bk(it)))tienen.add(it.loteId);});
   let h='';
   if(est!=='real'){
-    const chipsCol=pendCols.map(c=>`<button class="vtab${_vv.cols.has(c.k)?' on':''}" onclick="vvCol('${c.k}')">${c.t.replace('Vencen ','')}</button>`).join('');
-    h+=`<div class="vaviso" style="gap:6px"><span>👁 Mostrar:</span>${chipsCol}<span style="opacity:.5">|</span><a onclick="vvColsPreset('todo')">Ver todo</a><a onclick="vvColsPreset('30')">Volver a 30 días</a>${ocultos?`<span>· <strong>${ocultos}</strong> oculta${ocultos>1?'s':''} por las columnas apagadas</span>`:''}</div>`;
+    const chipsCol=(dm!=='off'?pendCols.filter(c=>c.k==='venc'):pendCols).map(c=>`<button class="vtab${_vv.cols.has(c.k)?' on':''}" onclick="vvCol('${c.k}')">${c.t.replace('Vencen ','')}</button>`).join('');
+    h+=`<div class="vaviso" style="gap:6px"><span>👁 Mostrar:</span>${chipsCol}<span style="opacity:.5">|</span>${dm!=='off'?`<a onclick="_vv.dias='off';renderVistasVenc()">Volver a columnas por período</a>`:`<a onclick="vvColsPreset('todo')">Ver todo</a><a onclick="vvColsPreset('30')">Volver a 30 días</a>`}${ocultos?`<span>· <strong>${ocultos}</strong> oculta${ocultos>1?'s':''} ${dm!=='off'?'fuera de los días mostrados':'por las columnas apagadas'}</span>`:''}</div>`;
   }
   const rowFilter=(f,visCount)=>{
     if(inv)return!tienen.has(f.l.id);
