@@ -366,6 +366,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
 .vleg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px;}
 .vchip{display:block;border-radius:6px;padding:3px 6px;margin-bottom:3px;font-size:11px;line-height:1.3;cursor:pointer;background:var(--accent-bg);border-left:3px solid var(--accent);}
 .vchip:hover{filter:brightness(.95);}
+.vdup{float:right;margin-left:4px;opacity:.35;font-size:11px;cursor:pointer}.vchip:hover .vdup{opacity:1}
 .vchip.c-venc .vd{color:var(--red);font-weight:700;opacity:1;}
 .vchip.vfut{opacity:.65;}
 .vchip .vd{font-family:'DM Mono',monospace;font-size:10px;opacity:.75;margin-right:3px;}
@@ -1433,6 +1434,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
     </div>
     <div class="mf">
       <button class="btn bs" onclick="cancelModalRelev()">Cancelar</button>
+      <button class="btn bs" id="relev-btn-dup" style="display:none" onclick="duplicarDesdeModal('R')" title="Crea una copia y la abre para editarla. Se copia la versión guardada.">📄 Duplicar</button>
       <button class="btn bs" onclick="hitoDesdeRelev()" title="Registrar un hito (espigazón, emergencia, primera detección...) en este lote con la fecha de este relevamiento">📌 Registrar hito</button>
       <button class="btn bp" onclick="saveRelev()">Guardar relevamiento</button>
     </div>
@@ -1613,6 +1615,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
     </div>
     <div class="mf">
       <button class="btn bs" onclick="cancelModalActividad()">Cancelar</button>
+      <button class="btn bs" id="act-btn-dup" style="display:none" onclick="duplicarDesdeModal('A')" title="Crea una copia pendiente (sin el relevamiento adjunto) y la abre para editarla. Se copia la versión guardada.">📄 Duplicar</button>
       <button class="btn bp" onclick="saveActividad()">Guardar actividad</button>
     </div>
   </div>
@@ -6454,6 +6457,7 @@ function openModalRelev(editId=null){
   _editRelevId=editId;_prodRowN=0;_malRowN=0;
   relevDesactivarMulti();
   document.getElementById('mrelev-title').textContent=editId?'Editar relevamiento':'Nuevo relevamiento';
+  {const b=document.getElementById('relev-btn-dup');if(b)b.style.display=editId?'':'none';}
   document.getElementById('r-fecha').value=hoyLocal();
   document.getElementById('r-programado').checked=false;
   document.getElementById('r-programado-fields').style.display='none';
@@ -9049,6 +9053,7 @@ function openModalActividad(loteId,cliId,campoId,editId=null){
   _actLoteCtx=loteId?{loteId,cliId,campoId}:null;
   _editActId=editId;
   document.getElementById('mact-title').textContent=editId?'Editar actividad':'Nueva actividad';
+  {const b=document.getElementById('act-btn-dup');if(b)b.style.display=editId?'':'none';}
   document.getElementById('act-fecha').value='';
   document.getElementById('act-fecha-fin').value='';
   document.getElementById('act-obs').value='';
@@ -9398,6 +9403,13 @@ function saveActividad(){
 // Duplicar una actividad suelta (no relevamiento) — copia fechas, tipo y datos
 // extra, en estado Pendiente, sin vincular al mismo relevamiento de origen
 // (si el original tenía uno) para no confundir cuál corresponde a cuál.
+function duplicarDesdeModal(k){
+  if(k==='A'){const id=_editActId;if(!id)return;closeModal('modal-actividad');window._volverARelev=false;duplicarActividad(id);}
+  else{const id=_editRelevId;if(!id)return;closeModal('modal-relev');duplicarRelev(id);}
+}
+function vDuplicar(kind,id){
+  if(kind==='R')duplicarRelev(id);else duplicarActividad(id);
+}
 function duplicarActividad(id){
   const a=DB.actividades.find(x=>x.id===id);if(!a)return;
   const copia={...a,id:uid(),estado:'Pendiente',fechaRealizacion:null,relevId:null,createdAt:Date.now(),corto:nextActCodigo(),datos:{...(a.datos||{})}};
@@ -12109,7 +12121,7 @@ function vChipHtml(it,R,pref){
   const txt=it.tipo+(it.det?': '+it.det:'');
   const full=txt+(it.codigo?' ['+it.codigo+']':'')+(it.mejora?' · 💡 '+it.mejora:'')+(it.rec?' · 🔁 recurrente':'')+(it.ini?' · desde '+vFmtL(it.ini):'')+(it.lim?' · límite '+vFmtL(it.lim):'');
   const ck=window._vChk?`<input type="checkbox" class="vck" title="Tildar esta actividad (para cambiarle la fecha sola)" ${_vv.selIt.has(it.kind+':'+it.id)?'checked':''} onclick="event.stopPropagation();vvSelIt('${it.kind}:${it.id}',this.checked)" style="margin:0 4px 0 0;vertical-align:middle;cursor:pointer">`:'';
-  return`<div class="vchip ${cls}${fut}" style="background:hsla(${H},70%,50%,.17);border-left-color:hsl(${H},62%,45%)" title="${hEsc(full)}" onclick="event.stopPropagation();vAbrir('${it.kind}','${it.id}')">${ck}<span class="vd">${b==='venc'?'⚠ ':''}${vFmt(it.ref)}</span>${pref?`<strong>${hEsc(pref)}</strong> · `:''}${it.icono} ${hEsc(vTxt(txt,38))}${it.mejora?' 💡':''}${it.rec?' 🔁':''}</div>`;
+  return`<div class="vchip ${cls}${fut}" style="background:hsla(${H},70%,50%,.17);border-left-color:hsl(${H},62%,45%)" title="${hEsc(full)}" onclick="event.stopPropagation();vAbrir('${it.kind}','${it.id}')">${ck}<span class="vd">${b==='venc'?'⚠ ':''}${vFmt(it.ref)}</span>${pref?`<strong>${hEsc(pref)}</strong> · `:''}${it.icono} ${hEsc(vTxt(txt,38))}${it.mejora?' 💡':''}${it.rec?' 🔁':''}${window._vChk?`<span class="vdup" title="Duplicar esta ${it.kind==='R'?'relevamiento':'actividad'} (la copia se abre para editar)" onclick="event.stopPropagation();vDuplicar('${it.kind}','${it.id}')">📄</span>`:''}</div>`;
 }
 // ══ POR VENCIMIENTO ══
 // Cartel de recurrentes: solo las que están en ventana AHORA o abren en los próximos 15 días.
