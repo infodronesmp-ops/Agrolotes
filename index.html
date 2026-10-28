@@ -12180,6 +12180,26 @@ function vvExp(k){if(_vv.exp.has(k))_vv.exp.delete(k);else _vv.exp.add(k);vvOut(
 function vvColap(k){if(_vv.colap.has(k))_vv.colap.delete(k);else _vv.colap.add(k);vvOut();}
 function vvSelLote(id,ch){if(ch)_vv.sel.add(id);else _vv.sel.delete(id);vvBulk();}
 function vvSelGrupo(key,ch){(_vv._grupos[key]||[]).forEach(id=>{if(ch)_vv.sel.add(id);else _vv.sel.delete(id);});vvOut();}
+function vvEliminarTildadas(){
+  const ks=[..._vv.selIt];if(!ks.length)return;
+  const itsV=(_vv._itemsVis||[]).filter(i=>_vv.selIt.has(i.kind+':'+i.id));
+  const resumen=itsV.slice(0,6).map(i=>'• '+i.tipo+(i.lim?' ('+vFmt(i.lim)+')':'')).join('\n')+(itsV.length>6?'\n… y '+(itsV.length-6)+' más':'');
+  confirmarAccion(`¿Eliminar ${ks.length} tildada(s)? Quedan 30 días en la papelera por si te arrepentís.\n${resumen}`,()=>{
+    let gen=false;
+    ks.forEach(k=>{
+      const[kind,id]=k.split(':');
+      const o=kind==='R'?(DB.relevamientos||[]).find(x=>x.id===id):(DB.actividades||[]).find(x=>x.id===id);
+      if(!o)return;
+      o.borrado=true;o.fechaBorrado=hoyLocal();o.borradoTs=Date.now();
+      if(kind==='A'&&o.tareaRecurrenteId)gen=true;
+    });
+    _vv.selIt.clear();
+    save();
+    if(gen)generarTareasRecurrentesGenerales();
+    mostrarSnackbar(`🗑 ${ks.length} eliminada(s) — están en la papelera`,'blue');
+    refrescarVistasActividad();vistasRefrescarSuave();
+  });
+}
 function vvSelIt(k,ch){if(ch)_vv.selIt.add(k);else _vv.selIt.delete(k);vvBulk();}
 function vvBulk(){
   const el=document.getElementById('vvenc-bulk');if(!el)return;
@@ -12190,6 +12210,7 @@ function vvBulk(){
   el.innerHTML=(m?`<strong>${m} actividad${m>1?'es':''} tildada${m>1?'s':''}</strong> `:'')+(n?`<strong>${n} lote${n>1?'s':''} seleccionado${n>1?'s':''}</strong>`:'')
     +(n?`<button class="btn bp bsm" onclick="vvCrear()">➕ Crear ${tipoC} en estos lotes</button>`:'')
     +`<button class="btn bs bsm" onclick="vvFechasMasivo()" title="${m?'Se aplica solo a las actividades tildadas':'Se aplica a todo lo visible de los lotes tildados'}">📅 Cambiar fechas${m?' de las '+m+' tildadas':''}</button>`
+    +(m?`<button class="btn bd bsm" onclick="vvEliminarTildadas()" title="Las manda a la papelera (30 días)">🗑 Eliminar ${m} tildada${m>1?'s':''}</button>`:'')
     +`<button class="btn bs bsm" onclick="_vv.sel.clear();_vv.selIt.clear();vvOut()">Deseleccionar</button>`;
 }
 // ── cambio masivo de fechas (vencimiento / inicio / realización) ──
