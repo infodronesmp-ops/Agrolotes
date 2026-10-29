@@ -1615,6 +1615,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
     </div>
     <div class="mf">
       <button class="btn bs" onclick="cancelModalActividad()">Cancelar</button>
+      <button class="btn bb" id="act-btn-ot" style="display:none" onclick="otDesdeModalAct()" title="Arma la orden de trabajo con esta Aplicación (usa la versión guardada)">📋 Orden de trabajo</button>
       <button class="btn bs" id="act-btn-dup" style="display:none" onclick="duplicarDesdeModal('A')" title="Crea una copia pendiente (sin el relevamiento adjunto) y la abre para editarla. Se copia la versión guardada.">📄 Duplicar</button>
       <button class="btn bp" onclick="saveActividad()">Guardar actividad</button>
     </div>
@@ -9053,7 +9054,7 @@ function openModalActividad(loteId,cliId,campoId,editId=null){
   _actLoteCtx=loteId?{loteId,cliId,campoId}:null;
   _editActId=editId;
   document.getElementById('mact-title').textContent=editId?'Editar actividad':'Nueva actividad';
-  {const b=document.getElementById('act-btn-dup');if(b)b.style.display=editId?'':'none';}
+  {const b=document.getElementById('act-btn-dup');if(b)b.style.display=editId?'':'none';const bo=document.getElementById('act-btn-ot');if(bo)bo.style.display=(editId&&(DB.actividades.find(x=>x.id===editId)||{}).tipo==='Aplicación')?'':'none';}
   document.getElementById('act-fecha').value='';
   document.getElementById('act-fecha-fin').value='';
   document.getElementById('act-obs').value='';
@@ -9406,6 +9407,11 @@ function saveActividad(){
 function duplicarDesdeModal(k){
   if(k==='A'){const id=_editActId;if(!id)return;closeModal('modal-actividad');window._volverARelev=false;duplicarActividad(id);}
   else{const id=_editRelevId;if(!id)return;closeModal('modal-relev');duplicarRelev(id);}
+}
+function otDesdeModalAct(){
+  const id=_editActId;if(!id)return;
+  closeModal('modal-actividad');window._volverARelev=false;
+  navTo('ot',{ids:[id]});
 }
 function vDuplicar(kind,id){
   if(kind==='R')duplicarRelev(id);else duplicarActividad(id);
@@ -10373,10 +10379,11 @@ function renderActItem(item,loteId,cliId,campoId){
        <button class="btn bd bxs" onclick="deleteRelev('${item._relev.id}');renderLoteDetail('${loteId}','${cliId}','${campoId}')" title="Eliminar">✕</button>`
     :(item.estado==='Pendiente'
       ?`<button class="btn bp bxs" onclick="cambiarEstadoActividad('${item.id}','Realizada')" title="Marcar realizada">✅</button>
+        ${item.tipo==='Aplicación'?`<button class="btn bb bxs" onclick="navTo('ot',{ids:['${item.id}']})" title="Orden de trabajo">📋</button>`:''}
         <button class="btn bs bxs" onclick="duplicarActividad('${item.id}')" title="Duplicar">📄</button>
         <button class="btn bs bxs" onclick="openModalActividad('${loteId}','${cliId}','${campoId}','${item.id}')" title="Editar">✏️</button>
         <button class="btn bd bxs" onclick="deleteActividad('${item.id}','${loteId}','${cliId}','${campoId}')" title="Eliminar">✕</button>`
-      :`<button class="btn bs bxs" onclick="duplicarActividad('${item.id}')" title="Duplicar">📄</button>
+      :`${item.tipo==='Aplicación'?`<button class="btn bb bxs" onclick="navTo('ot',{ids:['${item.id}']})" title="Orden de trabajo">📋</button>`:''}<button class="btn bs bxs" onclick="duplicarActividad('${item.id}')" title="Duplicar">📄</button>
         <button class="btn bs bxs" onclick="openModalActividad('${loteId}','${cliId}','${campoId}','${item.id}')" title="Editar">✏️</button>
         <button class="btn bd bxs" onclick="deleteActividad('${item.id}','${loteId}','${cliId}','${campoId}')" title="Eliminar">✕</button>`);
   const mejoraIt=item.mejoraId?(DB.mejoras||[]).find(m=>m.id===item.mejoraId):null;
@@ -12121,7 +12128,7 @@ function vChipHtml(it,R,pref){
   const txt=it.tipo+(it.det?': '+it.det:'');
   const full=txt+(it.codigo?' ['+it.codigo+']':'')+(it.mejora?' · 💡 '+it.mejora:'')+(it.rec?' · 🔁 recurrente':'')+(it.ini?' · desde '+vFmtL(it.ini):'')+(it.lim?' · límite '+vFmtL(it.lim):'');
   const ck=window._vChk?`<input type="checkbox" class="vck" title="Tildar esta actividad (para cambiarle la fecha sola)" ${_vv.selIt.has(it.kind+':'+it.id)?'checked':''} onclick="event.stopPropagation();vvSelIt('${it.kind}:${it.id}',this.checked)" style="margin:0 4px 0 0;vertical-align:middle;cursor:pointer">`:'';
-  return`<div class="vchip ${cls}${fut}" style="background:hsla(${H},70%,50%,.17);border-left-color:hsl(${H},62%,45%)" title="${hEsc(full)}" onclick="event.stopPropagation();vAbrir('${it.kind}','${it.id}')">${ck}<span class="vd">${b==='venc'?'⚠ ':''}${vFmt(it.ref)}</span>${pref?`<strong>${hEsc(pref)}</strong> · `:''}${it.icono} ${hEsc(vTxt(txt,38))}${it.mejora?' 💡':''}${it.rec?' 🔁':''}${window._vChk?`<span class="vdup" title="Duplicar esta ${it.kind==='R'?'relevamiento':'actividad'} (la copia se abre para editar)" onclick="event.stopPropagation();vDuplicar('${it.kind}','${it.id}')">📄</span>`:''}</div>`;
+  return`<div class="vchip ${cls}${fut}" style="background:hsla(${H},70%,50%,.17);border-left-color:hsl(${H},62%,45%)" title="${hEsc(full)}" onclick="event.stopPropagation();vAbrir('${it.kind}','${it.id}')">${ck}<span class="vd">${b==='venc'?'⚠ ':''}${vFmt(it.ref)}</span>${pref?`<strong>${hEsc(pref)}</strong> · `:''}${it.icono} ${hEsc(vTxt(txt,38))}${it.mejora?' 💡':''}${it.rec?' 🔁':''}${window._vChk&&it.kind==='A'&&it.tipo==='Aplicación'?`<span class="vdup" title="Orden de trabajo" onclick="event.stopPropagation();navTo('ot',{ids:['${it.id}']})">📋</span>`:''}${window._vChk?`<span class="vdup" title="Duplicar esta ${it.kind==='R'?'relevamiento':'actividad'} (la copia se abre para editar)" onclick="event.stopPropagation();vDuplicar('${it.kind}','${it.id}')">📄</span>`:''}</div>`;
 }
 // ══ POR VENCIMIENTO ══
 // Cartel de recurrentes: solo las que están en ventana AHORA o abren en los próximos 15 días.
