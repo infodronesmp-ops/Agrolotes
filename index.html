@@ -1434,6 +1434,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
     </div>
     <div class="mf">
       <button class="btn bs" onclick="cancelModalRelev()">Cancelar</button>
+      <button class="btn bd" id="relev-btn-del" style="display:none;margin-right:auto" onclick="eliminarDesdeModal('R')" title="Lo manda a la papelera (30 días)">🗑 Eliminar</button>
       <button class="btn bs" id="relev-btn-dup" style="display:none" onclick="duplicarDesdeModal('R')" title="Crea una copia y la abre para editarla. Se copia la versión guardada.">📄 Duplicar</button>
       <button class="btn bs" onclick="hitoDesdeRelev()" title="Registrar un hito (espigazón, emergencia, primera detección...) en este lote con la fecha de este relevamiento">📌 Registrar hito</button>
       <button class="btn bp" onclick="saveRelev()">Guardar relevamiento</button>
@@ -1615,6 +1616,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
     </div>
     <div class="mf">
       <button class="btn bs" onclick="cancelModalActividad()">Cancelar</button>
+      <button class="btn bd" id="act-btn-del" style="display:none;margin-right:auto" onclick="eliminarDesdeModal('A')" title="La manda a la papelera (30 días)">🗑 Eliminar</button>
       <button class="btn bb" id="act-btn-ot" style="display:none" onclick="otDesdeModalAct()" title="Arma la orden de trabajo con esta Aplicación (usa la versión guardada)">📋 Orden de trabajo</button>
       <button class="btn bs" id="act-btn-dup" style="display:none" onclick="duplicarDesdeModal('A')" title="Crea una copia pendiente (sin el relevamiento adjunto) y la abre para editarla. Se copia la versión guardada.">📄 Duplicar</button>
       <button class="btn bp" onclick="saveActividad()">Guardar actividad</button>
@@ -2223,6 +2225,7 @@ let DB=(()=>{try{return JSON.parse(localStorage.getItem(SK))||ddb();}catch{retur
   const def=ddb();
   if(!Array.isArray(DB.campanas))DB.campanas=def.campanas;
   if(!DB.loteCultivos||typeof DB.loteCultivos!=='object')DB.loteCultivos={};
+  if(!DB.loteSinCultivo||typeof DB.loteSinCultivo!=='object')DB.loteSinCultivo={};
   if(!DB.campanaActiva)DB.campanaActiva=(DB.campanas||[]).slice(-1)[0]||'2025/26';
   if(!Array.isArray(DB.subcoadyuvantes))DB.subcoadyuvantes=[];
   if(!Array.isArray(DB.tareasRecurrentes))DB.tareasRecurrentes=[];
@@ -5037,6 +5040,8 @@ function setCampanaActiva(camp){DB.campanaActiva=camp;save();renderCampanas();mo
 function getCultivoDeLote(loteId,camp){
   const key=loteId+'||'+camp;
   if(DB.loteCultivos?.[key])return DB.loteCultivos[key];
+  // "Sin cultivo" elegido a propósito: no se vuelve a deducir de los relevamientos viejos
+  if(DB.loteSinCultivo?.[key])return '';
   const r=[...DB.relevamientos].filter(rv=>rv.loteId===loteId&&rv.campaña===camp&&rv.cultivo).sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''))[0];
   if(r?.cultivo)return r.cultivo;
   return '';
@@ -5172,7 +5177,11 @@ function setCultivoDeLote(loteId,camp,cultivo,cultivo2){
   if(!DB.loteCultivos)DB.loteCultivos={};
   const key=loteId+'||'+camp;
   const key2=loteId+'||'+camp+'||2';
-  if(cultivo!==undefined){if(cultivo)DB.loteCultivos[key]=cultivo;else delete DB.loteCultivos[key];}
+  if(cultivo!==undefined){
+    if(!DB.loteSinCultivo)DB.loteSinCultivo={};
+    if(cultivo){DB.loteCultivos[key]=cultivo;delete DB.loteSinCultivo[key];}
+    else{delete DB.loteCultivos[key];DB.loteSinCultivo[key]=true;}
+  }
   if(cultivo2!==undefined){if(cultivo2)DB.loteCultivos[key2]=cultivo2;else delete DB.loteCultivos[key2];}
   save();
 }
@@ -6458,7 +6467,7 @@ function openModalRelev(editId=null){
   _editRelevId=editId;_prodRowN=0;_malRowN=0;
   relevDesactivarMulti();
   document.getElementById('mrelev-title').textContent=editId?'Editar relevamiento':'Nuevo relevamiento';
-  {const b=document.getElementById('relev-btn-dup');if(b)b.style.display=editId?'':'none';}
+  {const bd=document.getElementById('relev-btn-del');if(bd)bd.style.display=editId?'':'none';const b=document.getElementById('relev-btn-dup');if(b)b.style.display=editId?'':'none';}
   document.getElementById('r-fecha').value=hoyLocal();
   document.getElementById('r-programado').checked=false;
   document.getElementById('r-programado-fields').style.display='none';
@@ -7030,13 +7039,15 @@ function refrescarVistasActividad(){
   if(document.getElementById('tr-body'))renderTareasRecurrentes();
   actualizarCampanitaTareas();
 }
-function deleteRelev(id){
+function deleteRelev(id,onDone){
   confirmarAccion('¿Eliminar relevamiento? Queda 30 días en la papelera por si te arrepentís.',()=>{
     const r=DB.relevamientos.find(x=>x.id===id);
     if(r){r.borrado=true;r.fechaBorrado=hoyLocal();r.borradoTs=Date.now();}
     _seleccionados.delete(id);
     save();
+    if(onDone)onDone();
     refrescarVistasActividad();
+    if(typeof vistasRefrescarSuave==='function')vistasRefrescarSuave();
   });
 }
 
@@ -9054,7 +9065,7 @@ function openModalActividad(loteId,cliId,campoId,editId=null){
   _actLoteCtx=loteId?{loteId,cliId,campoId}:null;
   _editActId=editId;
   document.getElementById('mact-title').textContent=editId?'Editar actividad':'Nueva actividad';
-  {const b=document.getElementById('act-btn-dup');if(b)b.style.display=editId?'':'none';const bo=document.getElementById('act-btn-ot');if(bo)bo.style.display=(editId&&(DB.actividades.find(x=>x.id===editId)||{}).tipo==='Aplicación')?'':'none';}
+  {const bd=document.getElementById('act-btn-del');if(bd)bd.style.display=editId?'':'none';const b=document.getElementById('act-btn-dup');if(b)b.style.display=editId?'':'none';const bo=document.getElementById('act-btn-ot');if(bo)bo.style.display=(editId&&(DB.actividades.find(x=>x.id===editId)||{}).tipo==='Aplicación')?'':'none';}
   document.getElementById('act-fecha').value='';
   document.getElementById('act-fecha-fin').value='';
   document.getElementById('act-obs').value='';
@@ -9404,6 +9415,10 @@ function saveActividad(){
 // Duplicar una actividad suelta (no relevamiento) — copia fechas, tipo y datos
 // extra, en estado Pendiente, sin vincular al mismo relevamiento de origen
 // (si el original tenía uno) para no confundir cuál corresponde a cuál.
+function eliminarDesdeModal(k){
+  if(k==='A'){const id=_editActId;if(!id)return;deleteActividad(id,'','','',()=>{closeModal('modal-actividad');window._volverARelev=false;});}
+  else{const id=_editRelevId;if(!id)return;deleteRelev(id,()=>closeModal('modal-relev'));}
+}
 function duplicarDesdeModal(k){
   if(k==='A'){const id=_editActId;if(!id)return;closeModal('modal-actividad');window._volverARelev=false;duplicarActividad(id);}
   else{const id=_editRelevId;if(!id)return;closeModal('modal-relev');duplicarRelev(id);}
@@ -9426,7 +9441,7 @@ function duplicarActividad(id){
   if(document.getElementById('lote-detail-content')&&_loteDetailCtx)renderLoteDetail(_loteDetailCtx.loteId,_loteDetailCtx.cliId,_loteDetailCtx.campoId);
   openModalActividad(null,null,null,copia.id);
 }
-function deleteActividad(id,loteId,cliId,campoId){
+function deleteActividad(id,loteId,cliId,campoId,onDone){
   confirmarAccion('¿Eliminar esta actividad? Queda 30 días en la papelera por si te arrepentís.',()=>{
     const a=DB.actividades.find(x=>x.id===id);
     if(a){a.borrado=true;a.fechaBorrado=hoyLocal();a.borradoTs=Date.now();}
@@ -9436,7 +9451,9 @@ function deleteActividad(id,loteId,cliId,campoId){
     // se espera a que llegue la fecha), para que la tengas precargada y la
     // puedas administrar con anticipación, igual que ya pasa con las de lote.
     if(a?.tareaRecurrenteId)generarTareasRecurrentesGenerales();
+    if(onDone)onDone();
     refrescarVistasActividad();
+    if(typeof vistasRefrescarSuave==='function')vistasRefrescarSuave();
   });
 }
 // Cambiar estado rápido (ej. el ✅ de "marcar realizada")
