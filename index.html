@@ -987,7 +987,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
         </select>
       </div>
       <div class="rf" id="cal-m-selbar" style="display:none;gap:8px;align-items:center;background:var(--accent-bg);border:1px solid var(--accent);border-radius:var(--r);padding:6px 10px;margin-bottom:8px">
-        <strong><span id="cal-m-selcount">0</span> lote(s) tildado(s)</strong>
+        <strong><span id="cal-m-selcount">0</span> lote(s) tildado(s)</strong> <span class="muted" style="font-size:11px">(se tilda el lote entero: todas sus filas aparecen marcadas)</span>
         <button class="btn bp bsm" onclick="calMCrearMasivaSeleccion()">+ Nueva actividad para estos lotes</button>
         <button class="btn bs bsm" onclick="calMDeseleccionarTodo()">Destildar todo</button>
       </div>
@@ -4055,6 +4055,12 @@ function calMToggleLoteSel(loteId,checked){
   const bar=document.getElementById('cal-m-selbar');if(bar)bar.style.display=_calMSelected.size?'flex':'none';
   const cnt=document.getElementById('cal-m-selcount');if(cnt)cnt.textContent=_calMSelected.size;
 }
+function calMToggleGrupo(csv,checked){
+  csv.split(',').forEach(id=>{if(!id)return;if(checked)_calMSelected.add(id);else _calMSelected.delete(id);});
+  const bar=document.getElementById('cal-m-selbar');if(bar)bar.style.display=_calMSelected.size?'flex':'none';
+  const cnt=document.getElementById('cal-m-selcount');if(cnt)cnt.textContent=_calMSelected.size;
+  renderCalendario();
+}
 function calMDeseleccionarTodo(){
   _calMSelected.clear();
   const bar=document.getElementById('cal-m-selbar');if(bar)bar.style.display='none';
@@ -4357,9 +4363,11 @@ function renderCalendarioTabla(filas,cont){
     return keys.map(k=>{
       const itemsGrupo=grupos.get(k);
       const label=labelDeGrupo(k,criterio);
+      const lotesG=[...new Set(itemsGrupo.map(f=>f.loteId).filter(Boolean))];
+      const todosG=lotesG.length&&lotesG.every(i=>_calMSelected.has(i));
       return`<details open style="margin-left:${margen}px;${profundidad>0?'border-left:2px solid var(--border);padding-left:8px':''}">
         <summary style="font-size:${tam}px;font-weight:600;color:${profundidad===0?'var(--text2)':'var(--text3)'};margin:${profundidad===0?14:8}px 0 6px;cursor:pointer;list-style:revert">
-          ${label} <span class="muted" style="font-weight:400">(${itemsGrupo.length})</span>
+          ${lotesG.length?`<input type="checkbox" ${todosG?'checked':''} style="margin-right:4px;vertical-align:middle" onclick="event.stopPropagation()" onchange="calMToggleGrupo('${lotesG.join(',')}',this.checked)" title="Tildar/destildar los ${lotesG.length} lote(s) de este grupo">`:''}${label} <span class="muted" style="font-weight:400">(${itemsGrupo.length}${lotesG.length?' · '+lotesG.length+' lote'+(lotesG.length>1?'s':''):''})</span>
         </summary>
         ${renderNivel(itemsGrupo,resto,profundidad+1)}
       </details>`;
@@ -10203,14 +10211,22 @@ function renderActividadesMaster(){
       const todosSel=itemsGrupo.every(f=>_actMSelected.has(f.id));
       return `<details open style="margin-left:${margen}px;${profundidad>0?'border-left:2px solid var(--border);padding-left:8px':''}">
         <summary style="font-size:${tam}px;font-weight:600;color:${profundidad===0?'var(--text2)':'var(--text3)'};margin:${profundidad===0?14:8}px 0 6px;cursor:pointer;list-style:revert">
-          <input type="checkbox" ${todosSel?'checked':''} style="margin-right:4px;vertical-align:middle" onclick="event.stopPropagation()" onchange="actMToggleGrupo('${idsGrupo}',this.checked)" title="Tildar/destildar todos los de este grupo">
-          ${label} <span class="muted" style="font-weight:400">(${itemsGrupo.length})${subtxt}</span>
+          <input type="checkbox" class="act-gchk" data-ids="${itemsGrupo.map(f=>f.id).join(',')}" ${todosSel?'checked':''} style="margin-right:4px;vertical-align:middle" onclick="event.stopPropagation()" onchange="actMToggleGrupo('${idsGrupo}',this.checked)" title="Tildar/destildar SOLO los ${itemsGrupo.length} de este grupo">
+          ${label} <span class="muted" style="font-weight:400">(${itemsGrupo.length})${subtxt}</span><span class="act-gcnt muted" style="font-weight:400;font-size:10px"></span>
         </summary>
         ${renderNivel(itemsGrupo,resto,profundidad+1)}
       </details>`;
     }).join('');
   };
   cont.innerHTML=renderNivel(filas,niveles,0);
+  // Estado a medias (y "N tildadas") en cada encabezado, para ver exactamente qué quedó seleccionado
+  cont.querySelectorAll('input.act-gchk').forEach(inp=>{
+    const ids=(inp.dataset.ids||'').split(',').filter(Boolean);
+    const n=ids.filter(i=>_actMSelected.has(i)).length;
+    inp.indeterminate=n>0&&n<ids.length;
+    const sp=inp.closest('summary')?.querySelector('.act-gcnt');
+    if(sp)sp.textContent=n?` · ${n} tildada${n>1?'s':''}`:'';
+  });
   // La barra de selección se sincroniza acá, una sola vez, para que quede bien
   // sea cual sea el camino que cambió la selección (fila suelta, o el checkbox
   // del encabezado de un grupo entero).
@@ -11927,7 +11943,7 @@ function exportarExcel(){
 
 function escXml(v){
   if(v===null||v===undefined)return'';
-  return String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;');
+  return String(v).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]/g,'').replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g,'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;');
 }
 
 function sheetFromAoA(data){
@@ -11965,25 +11981,37 @@ function buildWorkbook(){
   const hR=[['Campaña','Fecha','Cliente','Campo','Lote','Ha','Cultivo','Estado','Fecha Aplicación',
     'Maleza 1','% 1','Densidad 1','Estadio 1','Maleza 2','% 2','Densidad 2','Estadio 2','Maleza 3','% 3','Densidad 3','Estadio 3',
     'Producto 1','Dosis 1','Unidad 1','%Lote 1','Producto 2','Dosis 2','Unidad 2','%Lote 2',
-    'Producto 3','Dosis 3','Unidad 3','%Lote 3','Producto 4','Dosis 4','Unidad 4','%Lote 4','Observaciones']];
-  DB.relevamientos.filter(r=>r.estado!=='Borrador').forEach(r=>{
+    'Producto 3','Dosis 3','Unidad 3','%Lote 3','Producto 4','Dosis 4','Unidad 4','%Lote 4','Observaciones','Fecha inicio','Fecha límite','Responsable','Código']];
+  DB.relevamientos.filter(r=>r.estado!=='Borrador'&&!r.borrado).forEach(r=>{
     const row=[r.campaña||'',r.fecha||'',r.clienteNombre||'',r.campoNombre||'',r.loteNombre||'',r.loteHa||0,r.cultivo||'',estadoEfectivo(r),fechaAplicacionDe(r)||''];
     for(let i=0;i<3;i++){const m=(r.malezas||[])[i];row.push(m?.nombre||'',m?.pct||'',m?.densidad||'',m?.estadio||'');}
     for(let i=0;i<4;i++){const p=(r.productos||[])[i];const pr=p?DB.productos.find(x=>x.id===p.productoId):null;row.push(pr?.nombre||'',p?.dosis||'',p?.unidad||pr?.unidad||'',p?.factor!==undefined?Math.round(p.factor*100):'100');}
-    row.push(r.obs||'');
+    row.push(r.obs||'',r.fechaInicio||'',r.fechaLimite||'',r.responsable||'',r.corto||'');
     hR.push(row);
   });
   sheets.push({name:'Relevamientos',data:hR});
 
   // ── Actividades ──
-  const hA=[['Tipo','Fecha inicio','Fecha fin','Campaña','Cliente','Campo','Lote','Datos extra','Observaciones']];
-  (DB.actividades||[]).forEach(a=>{
+  const hA=[['Tipo','Fecha inicio','Fecha fin','Campaña','Cliente','Campo','Lote','Datos extra','Observaciones','Estado','Fecha realización','Cultivo del lote','Responsable','Código']];
+  (DB.actividades||[]).filter(a=>!a.borrado).forEach(a=>{
     const lote=DB.lotes.find(l=>l.id===a.loteId);
     const campo=DB.campos.find(c=>c.id===a.campoId);
     const cli=DB.clientes.find(c=>c.id===a.clienteId);
-    hA.push([a.tipo||'',a.fecha||'',a.fechaFin||'',a.campaña||'',cli?.nombre||'',campo?.nombre||'',lote?.nombre||'',Object.entries(a.datos||{}).map(([k,v])=>k+': '+v).join(' | '),a.obs||'']);
+    hA.push([a.tipo||'',a.fecha||'',a.fechaFin||'',a.campaña||'',cli?.nombre||'',campo?.nombre||'',lote?.nombre||'',Object.entries(a.datos||{}).map(([k,v])=>k+': '+v).join(' | '),a.obs||'',estadoDe(a),a.fechaRealizacion||'',(a.loteId&&a.campaña?getCultivoDeLote(a.loteId,a.campaña):'')||'',a.responsable||'',a.corto||'']);
   });
   sheets.push({name:'Actividades',data:hA});
+
+  // ── Cultivos por lote y campaña (1ª, 2ª y cobertura) ──
+  const hC=[['Campaña','Cliente','Campo','Lote','Ha','Cultivo 1ª','Cultivo 2ª','Cobertura']];
+  (DB.campanas||[]).forEach(camp=>{
+    (DB.lotes||[]).forEach(l=>{
+      const c1=getCultivoDeLote(l.id,camp),c2=getCultivo2DeLote(l.id,camp),cc=getCultivoCobDeLote(l.id,camp);
+      if(!c1&&!c2&&!cc)return;
+      const campo=DB.campos.find(c=>c.id===l.campoId),cli=DB.clientes.find(c=>c.id===l.clienteId);
+      hC.push([camp,cli?.nombre||'',campo?.nombre||'',l.nombre||'',l.ha||0,c1||'',c2||'',cc||'']);
+    });
+  });
+  sheets.push({name:'Cultivos_por_lote',data:hC});
 
   // ── Clientes / Campos / Lotes ──
   const hL=[['Cliente','Localidad','Teléfono','Campo','Lote','Ha','Relevamientos','Aplicaciones']];
@@ -12094,7 +12122,7 @@ function buildZipBlob(files){
       0x14,0x00, // version
       0x00,0x00, // flags
       0x00,0x00, // compression: stored
-      0x00,0x00,0x00,0x00, // mod time/date
+      0x00,0x00,0x21,0x00, // mod time 00:00 / date 1-1-1980
       ...le32(crc),
       ...le32(data.length),
       ...le32(data.length),
@@ -12107,13 +12135,13 @@ function buildZipBlob(files){
     const cd=[0x50,0x4B,0x01,0x02,
       0x14,0x00,0x14,0x00,
       0x00,0x00,0x00,0x00,
-      0x00,0x00,0x00,0x00,
+      0x00,0x00,0x21,0x00,
       ...le32(crc),
       ...le32(data.length),
       ...le32(data.length),
       ...le16(nameBytes.length),
-      0x00,0x00,0x00,0x00,0x00,0x00,
-      0x00,0x00,0x00,0x00,
+      0x00,0x00,0x00,0x00,0x00,0x00, // extra, comentario, disco
+      0x00,0x00,0x00,0x00,0x00,0x00, // atributos internos (2) + externos (4)
       ...le32(offset),
       ...nameBytes
     ];
@@ -12832,9 +12860,10 @@ function confirmarImportacionBackup(){
   const {_version,_exportedAt,_app,...dbData}=parsed;
   Object.keys(DB).forEach(k=>delete DB[k]);
   Object.assign(DB,dbData);
-  ['clientes','campos','lotes','relevamientos','productos','malezas','actividades','ots','campanas','cultivos','tareasRecurrentes','mejoras','hitos'].forEach(k=>{
+  ['clientes','campos','lotes','relevamientos','productos','malezas','actividades','ots','campanas','cultivos','tareasRecurrentes','mejoras','hitos','recurrentesOmitidas','responsables'].forEach(k=>{
     if(!Array.isArray(DB[k]))DB[k]=[];
   });
+  ['loteCultivos','loteSinCultivo'].forEach(k=>{if(!DB[k]||typeof DB[k]!=='object')DB[k]={};});
   if(!Array.isArray(DB.hitoTipos)||!DB.hitoTipos.length)DB.hitoTipos=hitoTiposBase();
   if(!DB.cierreCultivo||typeof DB.cierreCultivo!=='object')DB.cierreCultivo=cierreCultivoDefault();
   if(!DB.cierreOverride||typeof DB.cierreOverride!=='object')DB.cierreOverride={};
