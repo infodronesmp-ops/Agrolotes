@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AgroLotes v2</title>
+<title>AgroLotes</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%8C%B1%3C/text%3E%3C/svg%3E">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Sora:wght@300;400;500;600&display=swap');
@@ -389,7 +389,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
 <div class="sidebar-overlay" onclick="toggleSidebar(false)"></div>
 <!-- SIDEBAR -->
 <nav class="sidebar">
-  <div class="brand"><h1>🌱 AgroLotes</h1><small>v2.0 — Relevamientos y OT</small></div>
+  <div class="brand"><h1>🌱 AgroLotes</h1><small>Relevamientos y OT</small></div>
   <div class="nav-sec">
     <span class="nav-lbl">Principal</span>
     <button class="nb active" onclick="navTo('vistas-venc')"><span>👁</span> Vistas</button>
@@ -935,6 +935,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
           <option value="cliente">Grupo 1: Cliente</option>
           <option value="lote">Grupo 1: Lote</option>
           <option value="cultivo">Grupo 1: Cultivo</option>
+          <option value="responsable">Grupo 1: Responsable</option>
         </select>
         <select id="cal-m-agrupar2" class="fi" style="width:140px" onchange="onCalMGrupoChange()">
           <option value="">Grupo 2: ninguno</option>
@@ -946,6 +947,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
           <option value="cliente">Grupo 2: Cliente</option>
           <option value="lote">Grupo 2: Lote</option>
           <option value="cultivo">Grupo 2: Cultivo</option>
+          <option value="responsable">Grupo 2: Responsable</option>
         </select>
         <select id="cal-m-agrupar3" class="fi" style="width:140px" onchange="onCalMGrupoChange()">
           <option value="">Grupo 3: ninguno</option>
@@ -957,6 +959,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
           <option value="cliente">Grupo 3: Cliente</option>
           <option value="lote">Grupo 3: Lote</option>
           <option value="cultivo">Grupo 3: Cultivo</option>
+          <option value="responsable">Grupo 3: Responsable</option>
         </select>
         <select id="cal-m-agrupar4" class="fi" style="width:140px" onchange="onCalMGrupoChange()">
           <option value="">Grupo 4: ninguno</option>
@@ -968,6 +971,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
           <option value="cliente">Grupo 4: Cliente</option>
           <option value="lote">Grupo 4: Lote</option>
           <option value="cultivo">Grupo 4: Cultivo</option>
+          <option value="responsable">Grupo 4: Responsable</option>
         </select>
         <select id="cal-m-agrupar5" class="fi" style="width:140px" onchange="onCalMGrupoChange()">
           <option value="">Grupo 5: ninguno</option>
@@ -979,6 +983,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
           <option value="cliente">Grupo 5: Cliente</option>
           <option value="lote">Grupo 5: Lote</option>
           <option value="cultivo">Grupo 5: Cultivo</option>
+          <option value="responsable">Grupo 5: Responsable</option>
         </select>
       </div>
       <div class="rf" id="cal-m-selbar" style="display:none;gap:8px;align-items:center;background:var(--accent-bg);border:1px solid var(--accent);border-radius:var(--r);padding:6px 10px;margin-bottom:8px">
@@ -1186,9 +1191,14 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
           <div class="ms-drop" id="ms-drop-act-m-estado" style="display:none;position:absolute;top:calc(100% + 2px);left:0;z-index:50;background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:6px;max-height:220px;overflow:auto;min-width:180px;box-shadow:0 4px 12px rgba(0,0,0,.15)"></div>
         </div>
         <div class="ms-combo" style="position:relative">
+          <button type="button" class="fi" id="ms-btn-act-m-resp" onclick="msToggle('act-m-resp')" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:5px 8px;font-family:'Sora',sans-serif;font-size:12px;color:var(--text);cursor:pointer;text-align:left;width:130px">Responsable...</button>
+          <div class="ms-drop" id="ms-drop-act-m-resp" style="display:none;position:absolute;top:calc(100% + 2px);left:0;z-index:50;background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:6px;max-height:220px;overflow:auto;min-width:180px;box-shadow:0 4px 12px rgba(0,0,0,.15)"></div>
+        </div>
+        <div class="ms-combo" style="position:relative">
           <button type="button" class="fi" id="ms-btn-act-m-urgencia" onclick="msToggle('act-m-urgencia')" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:5px 8px;font-family:'Sora',sans-serif;font-size:12px;color:var(--text);cursor:pointer;text-align:left;width:150px">Vencimiento...</button>
           <div class="ms-drop" id="ms-drop-act-m-urgencia" style="display:none;position:absolute;top:calc(100% + 2px);left:0;z-index:50;background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:6px;max-height:220px;overflow:auto;min-width:200px;box-shadow:0 4px 12px rgba(0,0,0,.15)"></div>
         </div>
+        <button type="button" class="btn bs bsm" onclick="openModalResponsables()" title="Ver, corregir o fusionar los nombres de responsables">👥 Responsables</button>
         <select id="act-m-accionable" class="fi" style="width:140px" onchange="renderActividadesMaster()">
           <option value="">Accionable: todas</option>
           <option value="si">🟢 Accionable ya</option>
@@ -1234,6 +1244,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
           <option value="cliente">Grupo 1: Cliente</option>
           <option value="lote">Grupo 1: Lote</option>
           <option value="cultivo">Grupo 1: Cultivo</option>
+          <option value="responsable">Grupo 1: Responsable</option>
         </select>
         <select id="act-m-agrupar2" class="fi" style="width:150px" onchange="onActMGrupoChange(2)">
           <option value="">Grupo 2: ninguno</option>
@@ -1245,6 +1256,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
           <option value="cliente">Grupo 2: Cliente</option>
           <option value="lote">Grupo 2: Lote</option>
           <option value="cultivo">Grupo 2: Cultivo</option>
+          <option value="responsable">Grupo 2: Responsable</option>
         </select>
         <select id="act-m-agrupar3" class="fi" style="width:150px" onchange="onActMGrupoChange(3)">
           <option value="">Grupo 3: ninguno</option>
@@ -1256,6 +1268,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
           <option value="cliente">Grupo 3: Cliente</option>
           <option value="lote">Grupo 3: Lote</option>
           <option value="cultivo">Grupo 3: Cultivo</option>
+          <option value="responsable">Grupo 3: Responsable</option>
         </select>
         <select id="act-m-agrupar4" class="fi" style="width:150px" onchange="onActMGrupoChange(4)">
           <option value="">Grupo 4: ninguno</option>
@@ -1267,6 +1280,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
           <option value="cliente">Grupo 4: Cliente</option>
           <option value="lote">Grupo 4: Lote</option>
           <option value="cultivo">Grupo 4: Cultivo</option>
+          <option value="responsable">Grupo 4: Responsable</option>
         </select>
         <select id="act-m-agrupar5" class="fi" style="width:150px" onchange="onActMGrupoChange(5)">
           <option value="">Grupo 5: ninguno</option>
@@ -1278,6 +1292,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
           <option value="cliente">Grupo 5: Cliente</option>
           <option value="lote">Grupo 5: Lote</option>
           <option value="cultivo">Grupo 5: Cultivo</option>
+          <option value="responsable">Grupo 5: Responsable</option>
         </select>
         <button class="btn bs bsm" onclick="clearFiltrosActM()">Limpiar</button>
         <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text2);cursor:pointer;white-space:nowrap;background:var(--bg2);border-radius:var(--r);padding:5px 8px" title="Invierte Tipo/Estado/Vencimiento: en vez de las actividades que SÍ cumplen, muestra los LOTES que no tienen ninguna que cumpla">
@@ -1306,6 +1321,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
           <label style="display:flex;align-items:center;gap:5px;font-size:11px;cursor:pointer" title="Solo actividades (no relevamientos)">
             <input type="checkbox" id="act-m-bulk-quitar-real" style="width:14px;height:14px"> ↩ Volver a Pendiente
           </label>
+          <label style="display:flex;align-items:center;gap:4px;font-size:11px">👤 Responsable <input type="text" id="act-m-bulk-resp" class="fi" list="resp-datalist" style="width:120px" placeholder="asignar a todos" autocomplete="off" onfocus="respDatalistRefrescar()"></label>
           <button class="btn bp bxs" onclick="actMAplicarMasivo()">Aplicar a los seleccionados</button>
           <span class="muted" style="font-size:10px">Dejá vacío lo que no quieras cambiar. Con fecha de realización queda Realizada. "Volver a Pendiente" quita la fecha de realización (solo actividades, no relevamientos).</span>
         </div>
@@ -1666,6 +1682,16 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
 
 <!-- ══ MODAL CAMBIO MASIVO DE FECHAS ══ -->
 <datalist id="resp-datalist"></datalist>
+<div class="mo" id="modal-responsables">
+  <div class="modal" style="max-width:520px">
+    <div class="mh"><span class="mt">👥 Responsables</span><button class="mx" onclick="closeModal('modal-responsables')">✕</button></div>
+    <div class="mb">
+      <p class="muted" style="font-size:12px;margin-bottom:10px">Corregí el nombre y tocá <strong>Guardar</strong>: se cambia en todas las actividades y relevamientos que lo tengan. Si le ponés el nombre de otro que ya existe, se <strong>fusionan</strong>.</p>
+      <div id="resp-body"></div>
+    </div>
+    <div class="mf"><button class="btn bp" onclick="closeModal('modal-responsables')">Cerrar</button></div>
+  </div>
+</div>
 <div class="mo" id="modal-fechas-masivo">
   <div class="modal" style="max-width:560px">
     <div class="mh"><span class="mt">📅 Cambiar fechas / responsable de lo seleccionado</span><button class="mx" onclick="closeModal('modal-fechas-masivo')">✕</button></div>
@@ -4165,7 +4191,7 @@ function renderCalendario(){
     _calCamposCache={};
     const filas=[];
     itemsGeneralesF.forEach(it=>{
-      filas.push({esRelev:false,id:it.id,tipo:it.tipo,estado:it.estado,fecha:it.fecha,fechaFin:it.fechaFin,real:it.real,cultivo:'',mejoraProgramada:it.mejoraProgramada,loteId:null,loteNombre:'(general)',campoId:null,campoNombre:'—',clienteId:null,clienteNombre:'—',ref:it.ref});
+      filas.push({esRelev:false,id:it.id,tipo:it.tipo,estado:it.estado,fecha:it.fecha,fechaFin:it.fechaFin,real:it.real,cultivo:'',mejoraProgramada:it.mejoraProgramada,loteId:null,loteNombre:'(general)',campoId:null,campoNombre:'—',clienteId:null,clienteNombre:'—',ref:it.ref,responsable:respDeId(it.id,false)});
     });
     campos.forEach(campo=>{
       const cli=DB.clientes.find(x=>x.id===campo.clienteId);
@@ -4184,7 +4210,7 @@ function renderCalendario(){
         items.forEach(it=>{
           filas.push({esRelev:it.esRelev,id:it.id,tipo:it.tipo,estado:it.estado,fecha:it.fecha,fechaFin:it.fechaFin,real:it.real,
             cultivo:baseCultivo(it.cultivo||''),mejoraProgramada:it.mejoraProgramada,
-            loteId:l.id,loteNombre:l.nombre,campoId:campo.id,campoNombre:campo.nombre,clienteId:campo.clienteId,clienteNombre:cli?.nombre||'—',ref:it.ref});
+            loteId:l.id,loteNombre:l.nombre,campoId:campo.id,campoNombre:campo.nombre,clienteId:campo.clienteId,clienteNombre:cli?.nombre||'—',ref:it.ref,responsable:respDeId(it.id,it.esRelev)});
         });
       });
     });
@@ -4278,7 +4304,7 @@ function renderCalendarioTabla(filas,cont){
   if(!filas.length){cont.innerHTML='<div class="empty"><div class="empty-icon">📆</div><div class="empty-t">No hay nada que coincida con esos filtros</div></div>';return;}
 
   const colKey={
-    tipo:f=>f.tipo,lote:f=>f.loteNombre,campo:f=>f.campoNombre,cliente:f=>f.clienteNombre,cultivo:f=>f.cultivo||'',
+    tipo:f=>f.tipo,lote:f=>f.loteNombre,campo:f=>f.campoNombre,cliente:f=>f.clienteNombre,cultivo:f=>f.cultivo||'',responsable:f=>f.responsable||'',
     fecha:f=>f.fecha||'',fechaFin:f=>f.fechaFin||'',real:f=>f.real||'',estado:f=>f.estado,
   };
   const getKey=colKey[_calMSort.col]||(f=>f.ref||'');
@@ -4289,7 +4315,7 @@ function renderCalendarioTabla(filas,cont){
   });
 
   const thS=(label,col)=>{const arrow=_calMSort.col===col?(_calMSort.dir>0?' ▲':' ▼'):'';return`<th onclick="calMSortBy('${col}')" style="cursor:pointer;user-select:none" title="Ordenar">${label}${arrow}</th>`;};
-  const headRow=`<thead><tr><th style="width:26px"></th>${thS('Tipo','tipo')}${thS('Lote','lote')}${thS('Campo','campo')}${thS('Cliente','cliente')}${thS('Cultivo','cultivo')}${thS('Fecha inicio','fecha')}${thS('Fecha límite','fechaFin')}${thS('Realización','real')}${thS('Estado','estado')}</tr></thead>`;
+  const headRow=`<thead><tr><th style="width:26px"></th>${thS('Tipo','tipo')}${thS('Lote','lote')}${thS('Campo','campo')}${thS('Cliente','cliente')}${thS('Responsable','responsable')}${thS('Cultivo','cultivo')}${thS('Fecha inicio','fecha')}${thS('Fecha límite','fechaFin')}${thS('Realización','real')}${thS('Estado','estado')}</tr></thead>`;
 
   const filaHTML=f=>{
     const esGeneral=!f.loteId;
@@ -4303,6 +4329,7 @@ function renderCalendarioTabla(filas,cont){
       <td>${esGeneral?'<span class="badge bg-purple" style="font-size:9px">general</span>':`<a href="#" onclick="event.preventDefault();navTo('lote',{loteId:'${f.loteId}',cliId:'${f.clienteId}',campoId:'${f.campoId}'})" style="color:var(--accent)">${f.loteNombre}</a>`}</td>
       <td>${f.campoNombre}</td>
       <td>${f.clienteNombre}</td>
+      <td>${f.responsable?`<span class="vresp">👤 ${hEsc(f.responsable)}</span>`:'<span class="muted">—</span>'}</td>
       <td>${f.cultivo||'—'}</td>
       <td class="mono">${f.fecha||'—'}</td>
       <td class="mono">${f.fechaFin||'—'}</td>
@@ -9500,6 +9527,49 @@ function respDatalistRefrescar(){
   const dl=document.getElementById('resp-datalist');if(!dl)return;
   dl.innerHTML=respLista().map(n=>`<option value="${hEsc(n)}">`).join('');
 }
+function respDeId(id,esRelev){
+  const o=esRelev?(DB.relevamientos||[]).find(x=>x.id===id):(DB.actividades||[]).find(x=>x.id===id);
+  return o?(o.responsable||''):'';
+}
+function respConteo(n){
+  return(DB.actividades||[]).filter(a=>a.responsable===n&&!a.borrado).length+(DB.relevamientos||[]).filter(r=>r.responsable===n&&!r.borrado).length;
+}
+function openModalResponsables(){respPintar();openModal('modal-responsables');}
+function respPintar(){
+  const b=document.getElementById('resp-body');if(!b)return;
+  const ls=respLista();
+  b.innerHTML=ls.length?ls.map((n,i)=>`<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
+    <input type="text" class="fi" id="resp-n-${i}" value="${hEsc(n)}" style="flex:1">
+    <span class="muted" style="font-size:11px;white-space:nowrap">${respConteo(n)} act.</span>
+    <button class="btn bp bxs" onclick="respRenombrar(${i})">Guardar</button>
+    <button class="btn bd bxs" onclick="respQuitar(${i})" title="Lo saca de todas las actividades">✕</button></div>`).join(''):'<p class="muted">Todavía no cargaste ningún responsable.</p>';
+}
+function respRenombrar(i){
+  const ls=respLista(),viejo=ls[i],nuevoRaw=(document.getElementById('resp-n-'+i)?.value||'').trim();
+  if(!viejo)return;
+  if(!nuevoRaw){mostrarSnackbar('⚠️ El nombre no puede quedar vacío (usá ✕ para quitarlo)','amber');return;}
+  if(nuevoRaw===viejo)return;
+  const existente=ls.find(x=>x!==viejo&&x.toLowerCase()===nuevoRaw.toLowerCase());
+  const nuevo=existente||nuevoRaw;
+  const ap=arr=>(arr||[]).forEach(x=>{if(x.responsable===viejo)x.responsable=nuevo;});
+  ap(DB.actividades);ap(DB.relevamientos);ap(DB.recurrentesOmitidas);
+  DB.responsables=(DB.responsables||[]).filter(x=>x!==viejo);respRegistrar(nuevo);
+  save();respPintar();
+  mostrarSnackbar(existente?`🔀 Fusionado con "${nuevo}"`:`✅ Renombrado a "${nuevo}"`,'blue');
+  if(typeof refrescarVistasActividad==='function')refrescarVistasActividad();
+  if(typeof vistasRefrescarSuave==='function')vistasRefrescarSuave();
+}
+function respQuitar(i){
+  const viejo=respLista()[i];if(!viejo)return;
+  confirmarAccion(`¿Quitar a "${viejo}"? Se lo saca de ${respConteo(viejo)} actividad(es)/relevamiento(s), que quedan "sin responsable".`,()=>{
+    const ap=arr=>(arr||[]).forEach(x=>{if(x.responsable===viejo)x.responsable='';});
+    ap(DB.actividades);ap(DB.relevamientos);ap(DB.recurrentesOmitidas);
+    DB.responsables=(DB.responsables||[]).filter(x=>x!==viejo);
+    save();respPintar();
+    if(typeof refrescarVistasActividad==='function')refrescarVistasActividad();
+    if(typeof vistasRefrescarSuave==='function')vistasRefrescarSuave();
+  });
+}
 function duplicarDesdeModal(k){
   if(k==='A'){const id=_editActId;if(!id)return;closeModal('modal-actividad');window._volverARelev=false;duplicarActividad(id);}
   else{const id=_editRelevId;if(!id)return;closeModal('modal-relev');duplicarRelev(id);}
@@ -9603,7 +9673,7 @@ function clearFiltrosActM(){
   const per=document.getElementById('act-m-periodo');if(per)per.value='';
   const inv=document.getElementById('act-m-invertir');if(inv)inv.checked=false;
   msClear('act-m-cli');msClear('act-m-campo');msClear('act-m-lote');msClear('act-m-cult');msClear('act-m-tipo');
-  msClear('act-m-estado');msClear('act-m-urgencia');
+  msClear('act-m-estado');msClear('act-m-urgencia');msClear('act-m-resp');
   // "Limpiar" también vuelve el agrupamiento al default (Vencimiento solo,
   // sin sub-grupos) — si no, quedaban grupos de una limpieza anterior puestos.
   const g1=document.getElementById('act-m-agrupar');if(g1)g1.value='';
@@ -9691,6 +9761,7 @@ function claveDeGrupo(f,criterio){
   if(criterio==='cliente')return f.clienteNombre;
   if(criterio==='lote')return f.loteNombre+' — '+f.campoNombre;
   if(criterio==='cultivo')return f.cultivo||'(sin cultivo)';
+  if(criterio==='responsable')return f.responsable||'(sin responsable)';
   return f.tipo;
 }
 function labelDeGrupo(k,criterio){
@@ -9701,6 +9772,7 @@ function labelDeGrupo(k,criterio){
   if(criterio==='cliente')return '👤 '+k;
   if(criterio==='lote')return '🟩 '+k;
   if(criterio==='cultivo')return '🌾 '+k;
+  if(criterio==='responsable')return k==='(sin responsable)'?'❔ Sin responsable':'👤 '+k;
   return ((ACT_TIPOS[k]||{}).icono||'')+' '+(k==='RelevGeneral'?'Relevamiento (por lote)':k);
 }
 // Los tres selectores de agrupamiento se compactan solos: si sacás el del
@@ -9758,6 +9830,8 @@ function renderActividadesMaster(){
   const fTipos=msValues('act-m-tipo');
   msRender('act-m-estado',[{value:'Pendiente',label:'🕒 Pendiente'},{value:'Realizada',label:'✅ Realizada'}],'Estado',()=>renderActividadesMaster());
   const fEstados=msValues('act-m-estado');
+  msRender('act-m-resp',[{value:'__sin__',label:'(Sin responsable)'}].concat(respLista().map(n=>({value:n,label:'👤 '+n}))),'Responsable',()=>renderActividadesMaster());
+  const fResp=msValues('act-m-resp');
   msRender('act-m-urgencia',[{value:'vencida',label:'🔴 Vencida'},{value:'hoy',label:'🟠 Vencimiento hoy'},{value:'estasemana',label:'🟡 Vence esta semana'},{value:'proxsemana',label:'🔵 Vence próxima semana'},{value:'luego',label:'🟢 Vence más adelante'},{value:'sinfecha',label:'— Sin vencimiento'}],'Vencimiento',()=>renderActividadesMaster());
   const fUrgs=msValues('act-m-urgencia');
   const fMejora=document.getElementById('act-m-mejora')?.value||'';
@@ -9787,6 +9861,7 @@ function renderActividadesMaster(){
     if(fCults.length)partes.push('Cultivo: '+corto(fCults));
     if(fTipos.length)partes.push('Tipo: '+corto(fTipos));
     if(fEstados.length)partes.push('Estado: '+corto(fEstados));
+    if(fResp.length)partes.push('Responsable: '+corto(fResp,v=>v==='__sin__'?'(sin responsable)':v));
     if(fUrgs.length)partes.push('Vencimiento: '+corto(fUrgs,k=>URGENCIA_LABELS[k]||k));
     if(fAccionable)partes.push('Accionable: '+(fAccionable==='si'?'Sí':'No'));
     if(fMejora)partes.push('Mejora programada: '+(fMejora==='si'?'Sí':'No'));
@@ -9811,7 +9886,7 @@ function renderActividadesMaster(){
       campaña:a.campaña,obs:a.obs,relevId:a.relevId,sort:a.fecha||a.fechaFin||'0000',
       creada:fechaLocalDeTs(a.createdAt),creadaTs:a.createdAt||0,
       mejoraProgramada:!!a.mejoraProgramada,mejoraId:a.mejoraId||null,
-      cortoCodigo:a.corto||'',
+      cortoCodigo:a.corto||'',responsable:a.responsable||'',
       tareaRecurrenteId:a.tareaRecurrenteId||null
     };
   });
@@ -9833,7 +9908,7 @@ function renderActividadesMaster(){
       origenRelevId:(r.origenRelevId&&DB.relevamientos.some(x=>x.id===r.origenRelevId))?r.origenRelevId:null,
       actividadLigada:tieneAplic?{id:tieneAplic.id,tipo:tieneAplic.tipo,estado:estadoDe(tieneAplic),corto:tieneAplic.corto||''}:null,
       mejoraProgramada:!!r.mejoraProgramada,mejoraId:r.mejoraId||null,
-      cortoCodigo:r.corto||''
+      cortoCodigo:r.corto||'',responsable:r.responsable||''
     };
   });
   filas=filas.concat(filasRelev);
@@ -9845,6 +9920,7 @@ function renderActividadesMaster(){
     if(fCults.length&&!fCults.includes(baseCultivo(f.cultivo||'')))return false;
     if(fTipos.length&&!fTipos.includes(f.tipo))return false;
     if(fEstados.length&&!fEstados.includes(f.estado))return false;
+    if(fResp.length&&!fResp.includes(f.responsable||'__sin__'))return false;
     const u=urgenciaActividad({estado:f.estado,fecha:f.fecha,fechaFin:f.fechaFin});
     // El filtro de Vencimiento solo tiene sentido para lo Pendiente (una tarea
     // Realizada ya no puede "vencer") — si no, quedaba pisando en silencio
@@ -9975,7 +10051,7 @@ function renderActividadesMaster(){
   // Orden dentro de cada grupo (o de toda la tabla si no hay agrupamiento)
   const colKey={
     tipo:f=>f.tipo,lote:f=>f.loteNombre,cliente:f=>f.clienteNombre,cultivo:f=>f.cultivo||'',
-    creada:f=>f.creadaTs||0,inicio:f=>f.fecha||'',limite:f=>f.fechaFin||'',realizacion:f=>f.fechaRealizacion||'',
+    responsable:f=>f.responsable||'',creada:f=>f.creadaTs||0,inicio:f=>f.fecha||'',limite:f=>f.fechaFin||'',realizacion:f=>f.fechaRealizacion||'',
     estado:f=>f.estado,urgencia:f=>{const u=urgenciaActividad({estado:f.estado,fecha:f.fecha,fechaFin:f.fechaFin});return u?URGENCIA_ORDEN[u.k]:9;}
   };
   const getKey=colKey[_actMSort.col]||(f=>f.sort);
@@ -10011,7 +10087,7 @@ function renderActividadesMaster(){
   // Si una columna es justo el criterio por el que ya está agrupada la vista,
   // repetir ese dato en cada fila es puro ruido — se oculta esa columna sola.
   const criteriosActivos=new Set([agrupar,agrupar2,agrupar3,agrupar4,agrupar5].filter(Boolean));
-  const ocultarCol={lote:criteriosActivos.has('lote'),cultivo:criteriosActivos.has('cultivo'),estado:criteriosActivos.has('estado'),urgencia:criteriosActivos.has('urgencia')};
+  const ocultarCol={lote:criteriosActivos.has('lote'),cultivo:criteriosActivos.has('cultivo'),estado:criteriosActivos.has('estado'),urgencia:criteriosActivos.has('urgencia'),resp:criteriosActivos.has('responsable')};
   const filaHTML=(f)=>{
     const u=urgenciaActividad({estado:f.estado,fecha:f.fecha,fechaFin:f.fechaFin});
     // El estado ya no se elige — se ve como insignia de solo lectura (se deriva de
@@ -10066,6 +10142,7 @@ function renderActividadesMaster(){
       {k:'tipo',w:115,html:`<td style="font-size:12px">${codigoBadge}${tipoLink}${origenLink}${ligadaBadge}${recurrenteBadge}${mejoraBadgeF}${linkRelevVinculado}${(()=>{const d=vDetalleFila(f);return d?`<div class="muted" style="font-size:10.5px;margin-top:2px" title="${hEsc(d)}">${hEsc(vTxt(d,46))}</div>`:'';})()}</td>`},
       {k:'lote',w:95,html:`<td>${loteLink}</td>`},
       {k:'cliente',w:125,html:`<td style="font-size:12px">${f.campoId?`${f.clienteNombre} <span class="muted">— </span><a href="#" onclick="event.preventDefault();navTo('campo-detail',{campoId:'${f.campoId}'})" style="color:var(--text2);text-decoration:underline;text-decoration-style:dotted" title="Ver ficha del campo">${f.campoNombre}</a>`:'<span class="muted">—</span>'}</td>`},
+      {k:'resp',w:88,html:`<td style="font-size:11px">${f.responsable?`<span class="vresp">👤 ${hEsc(f.responsable)}</span>`:'<span class="muted">—</span>'}</td>`},
       {k:'creada',w:68,html:`<td class="mono muted" style="font-size:10px">${f.creada||'—'}</td>`},
       {k:'cultivo',w:72,html:`<td>${f.cultivo?`<span class="badge bg-amber">${f.cultivo}</span>`:'<span class="muted">—</span>'}</td>`},
       {k:'inicio',w:92,html:`<td><input type="date" class="fi" style="font-size:10px;padding:2px 3px;width:86px" value="${f.fecha||''}" onchange="actMEditarFecha('${f.id}',${f.esRelev},'inicio',this.value)"></td>`},
@@ -10082,6 +10159,7 @@ function renderActividadesMaster(){
     {k:'tipo',w:115,html:thS('Tipo','tipo')},
     {k:'lote',w:95,html:thS('Lote','lote')},
     {k:'cliente',w:125,html:thS('Cliente / Campo','cliente')},
+    {k:'resp',w:88,html:thS('Responsable','responsable')},
     {k:'creada',w:68,html:thS('Creada','creada')},
     {k:'cultivo',w:72,html:thS('Cultivo','cultivo')},
     {k:'inicio',w:92,html:thS('Fecha inicio','inicio')},
@@ -10217,7 +10295,9 @@ function actMAplicarMasivo(){
   const nLim=document.getElementById('act-m-bulk-limite')?.value||'';
   const nReal=document.getElementById('act-m-bulk-realizacion')?.value||'';
   const nQuitar=document.getElementById('act-m-bulk-quitar-real')?.checked||false;
-  if(!nIni&&!nLim&&!nReal&&!nQuitar){mostrarSnackbar('⚠️ Elegí al menos un campo para aplicar','amber');return;}
+  const nResp=respNombreCanon(document.getElementById('act-m-bulk-resp')?.value);
+  if(nResp)respRegistrar(nResp);
+  if(!nIni&&!nLim&&!nReal&&!nQuitar&&!nResp){mostrarSnackbar('⚠️ Elegí al menos un campo para aplicar','amber');return;}
   let cambios=0;
   _actMSelected.forEach((esRelev,id)=>{
     if(esRelev){
@@ -10225,6 +10305,7 @@ function actMAplicarMasivo(){
       if(nIni)r.fechaInicio=nIni;
       if(nLim)r.fechaLimite=nLim;
       if(nReal)r.fecha=nReal;
+      if(nResp)r.responsable=nResp;
       cambios++;
     } else {
       const a=DB.actividades.find(x=>x.id===id);if(!a)return;
@@ -10232,6 +10313,7 @@ function actMAplicarMasivo(){
       if(nLim)a.fechaFin=nLim;
       if(nReal){a.fechaRealizacion=nReal;a.estado='Realizada';}
       else if(nQuitar){a.fechaRealizacion=null;a.estado='Pendiente';}
+      if(nResp)a.responsable=nResp;
       cambios++;
     }
   });
@@ -10239,6 +10321,7 @@ function actMAplicarMasivo(){
   document.getElementById('act-m-bulk-inicio').value='';
   document.getElementById('act-m-bulk-limite').value='';
   document.getElementById('act-m-bulk-realizacion').value='';
+  {const br=document.getElementById('act-m-bulk-resp');if(br)br.value='';}
   document.getElementById('act-m-bulk-quitar-real').checked=false;
   mostrarSnackbar(`✅ ${cambios} actualizada(s)`);
   renderActividadesMaster();
@@ -12208,6 +12291,7 @@ function vBarra(pg,extraHtml){
     <select class="fi" style="width:100px" onchange="_vv.camp=this.value;vistasRender()">${camps.map(c=>`<option value="${c}"${c===sel?' selected':''}>${c}</option>`).join('')}</select>
     ${vNegBtn('cli')}<div class="msel" id="msel-${pg}-cli"></div>${vNegBtn('campo')}<div class="msel" id="msel-${pg}-campo"></div>${vNegBtn('cult')}<div class="msel" id="msel-${pg}-cult"></div>${vNegBtn('tipo')}<div class="msel" id="msel-${pg}-tipo"></div>${vNegBtn('resp')}<div class="msel" id="msel-${pg}-resp"></div>
     ${extraHtml||''}
+    <button class="btn bs bsm" onclick="openModalResponsables()" title="Ver, corregir o fusionar los nombres de responsables">👥</button>
     <button class="btn bs bsm" onclick="vistasLimpiar()">Limpiar</button>`;
   const cb=()=>vistasRender();
   mselRender(`msel-${pg}-cli`,'vv-cli','Cliente',(DB.clientes||[]).map(c=>({value:c.id,label:hEsc(c.nombre)})).sort((a,b)=>naturalCmp(a.label,b.label)),cb);
