@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AgroLotes v2</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%8C%B1%3C/text%3E%3C/svg%3E">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Sora:wght@300;400;500;600&display=swap');
 :root{
@@ -366,6 +367,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
 .vleg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px;}
 .vchip{display:block;border-radius:6px;padding:3px 6px;margin-bottom:3px;font-size:11px;line-height:1.3;cursor:pointer;background:var(--accent-bg);border-left:3px solid var(--accent);}
 .vchip:hover{filter:brightness(.95);}
+.vresp{font-size:10px;opacity:.8;white-space:nowrap;border-radius:8px;background:rgba(0,0,0,.07);padding:0 5px}
 .ctxbar{padding:7px 16px;font-size:13px;border-bottom:1px solid var(--border);border-left:5px solid var(--accent);background:var(--accent-bg);line-height:1.35}.ctxbar b{font-size:14px}.ctxbar .cx{opacity:.7}
 .vdup{float:right;margin-left:4px;opacity:.35;font-size:11px;cursor:pointer}.vchip:hover .vdup{opacity:1}
 .vchip.c-venc .vd{color:var(--red);font-weight:700;opacity:1;}
@@ -387,7 +389,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
 <div class="sidebar-overlay" onclick="toggleSidebar(false)"></div>
 <!-- SIDEBAR -->
 <nav class="sidebar">
-  <div class="brand"><h1>🌾 AgroLotes</h1><small>v2.0 — Relevamientos y OT</small></div>
+  <div class="brand"><h1>🌱 AgroLotes</h1><small>v2.0 — Relevamientos y OT</small></div>
   <div class="nav-sec">
     <span class="nav-lbl">Principal</span>
     <button class="nb active" onclick="navTo('vistas-venc')"><span>👁</span> Vistas</button>
@@ -1424,6 +1426,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
         </div>
         <div id="r-act-eliminadas" style="padding:0 14px 10px"></div>
       </div>
+      <div class="field"><label>👤 Responsable <span class="muted">(opcional)</span></label><input type="text" id="r-resp" class="fi" list="resp-datalist" placeholder="Quién tiene que hacerlo" autocomplete="off" onfocus="respDatalistRefrescar()"></div>
       <div class="field"><label>Observaciones</label><textarea id="r-obs" class="fi" placeholder="Condiciones del lote, estadío de las malezas, notas..."></textarea></div>
       <div class="field" style="margin-top:4px">
         <label>🔧 Mejora programada <span class="muted">(opcional — no es una tarea común, se marca en rojo y se puede filtrar aparte)</span></label>
@@ -1577,6 +1580,9 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
         <div class="field"><label>Campaña</label>
           <select id="act-camp" class="fi"><option value="">Seleccioná...</option></select>
         </div>
+        <div class="field"><label>👤 Responsable <span class="muted">(opcional — quién tiene que hacerla)</span></label>
+          <input type="text" id="act-resp" class="fi" list="resp-datalist" placeholder="Nombre (elegí uno ya usado o escribí uno nuevo)" autocomplete="off" onfocus="respDatalistRefrescar()">
+        </div>
         <!-- Campos extra según tipo -->
         <div id="act-extra"></div>
         <!-- Cuerpo propio de una Aplicación: diagnóstico (foto de solo lectura, si
@@ -1659,9 +1665,10 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
 </div>
 
 <!-- ══ MODAL CAMBIO MASIVO DE FECHAS ══ -->
+<datalist id="resp-datalist"></datalist>
 <div class="mo" id="modal-fechas-masivo">
   <div class="modal" style="max-width:560px">
-    <div class="mh"><span class="mt">📅 Cambiar fechas en los lotes seleccionados</span><button class="mx" onclick="closeModal('modal-fechas-masivo')">✕</button></div>
+    <div class="mh"><span class="mt">📅 Cambiar fechas / responsable de lo seleccionado</span><button class="mx" onclick="closeModal('modal-fechas-masivo')">✕</button></div>
     <div class="mb">
       <div id="fm-resumen" style="font-size:12px;margin-bottom:10px"></div>
       <div id="fm-pend">
@@ -1683,6 +1690,11 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
       <div id="fm-real" style="margin-top:12px">
         <h4 style="font-size:13px;margin:4px 0">✅ Realizadas (<span id="fm-nreal">0</span>)</h4>
         <div class="field"><label>Nueva fecha de realización</label><input type="date" id="fm-freal" class="fi"></div>
+      </div>
+      <div style="margin-top:12px">
+        <h4 style="font-size:13px;margin:4px 0">👤 Responsable</h4>
+        <div class="field"><label>Asignar este responsable a todas</label><input type="text" id="fm-resp" class="fi" list="resp-datalist" placeholder="Dejalo vacío para no cambiarlo" autocomplete="off" onfocus="respDatalistRefrescar()"></div>
+        <label style="font-size:12px;display:flex;gap:5px;align-items:center"><input type="checkbox" id="fm-resp-quitar"> Quitar el responsable de todas</label>
       </div>
       <p class="muted" style="font-size:11px;margin-top:10px">Solo se cambian las actividades y relevamientos que se ven ahora en pantalla (según los filtros y columnas), de los lotes tildados. Lo que dejes vacío no se toca.</p>
     </div>
@@ -1960,7 +1972,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
           </div>
           <div class="field"><label>Unidad de dosis</label>
             <select id="p-unidad" class="fi">
-              <option>L/ha</option><option>kg/ha</option><option>cc/ha</option>
+              <option>L/ha</option><option>kg/ha</option><option>cc/ha</option><option>pack/ha</option>
               <option>g/ha</option><option>kg/100kg semilla</option><option>mL/100kg semilla</option>
             </select>
           </div>
@@ -4917,7 +4929,7 @@ const FO=[
 const UNIDAD_BASE={
   'L/ha':{f:1,base:'L'},'ml/ha':{f:0.001,base:'L'},'cc/ha':{f:0.001,base:'L'},
   'kg/ha':{f:1,base:'kg'},'g/ha':{f:0.001,base:'kg'},'tn/ha':{f:1000,base:'kg'},
-  'u/ha':{f:1,base:'u'},'$/ha':{f:1,base:'$'}
+  'u/ha':{f:1,base:'u'},'$/ha':{f:1,base:'$'},'pack/ha':{f:1,base:'pack'}
 };
 function convUnidad(u){
   return UNIDAD_BASE[u]||{f:1,base:(u||'').replace('/ha','')||'u'};
@@ -6479,6 +6491,7 @@ function openModalRelev(editId=null){
   document.getElementById('r-fecha-lbl').textContent='Fecha de realización *';
   document.getElementById('r-cultivo').value='';
   document.getElementById('r-obs').value='';
+  {const re=document.getElementById('r-resp');if(re)re.value='';}
   pintarMejoraSelect('r-mejora-id','');
   onMejoraSelChange('r-mejora-id','r-mejora-info');
   document.getElementById('r-act-blocks').innerHTML='<div class="muted" style="font-size:11px">¿Qué sigue para este lote? Podés agregar más de una — por ejemplo una Aplicación en 3 días y un Relevamiento de seguimiento en 20.</div>';
@@ -6505,6 +6518,7 @@ function openModalRelev(editId=null){
     const r=DB.relevamientos.find(x=>x.id===editId);if(!r)return;
     document.getElementById('r-cultivo').value=r.cultivo||'';
     document.getElementById('r-obs').value=r.obs||'';
+    {const re=document.getElementById('r-resp');if(re)re.value=r.responsable||'';}
     pintarMejoraSelect('r-mejora-id',r.mejoraId||'');
     onMejoraSelChange('r-mejora-id','r-mejora-info');
     document.getElementById('r-camp').value=r.campaña||'';
@@ -6800,6 +6814,7 @@ function addProdRow(data=null){
       <option value="g/ha"${(data?.unidad||'')==='g/ha'?' selected':''}>g/ha</option>
       <option value="cc/ha"${(data?.unidad||'')==='cc/ha'?' selected':''}>cc/ha</option>
       <option value="tn/ha"${(data?.unidad||'')==='tn/ha'?' selected':''}>tn/ha</option>
+      <option value="pack/ha"${(data?.unidad||'')==='pack/ha'?' selected':''}>pack/ha</option>
       <option value="u/ha"${(data?.unidad||'')==='u/ha'?' selected':''}>u/ha</option>
       <option value="$/ha"${(data?.unidad||'')==='$/ha'?' selected':''}>$/ha</option>
     </select>
@@ -6869,6 +6884,7 @@ function saveRelev(){
     loteNombre:lote?.nombre||'',loteHa:lote?.ha||0,
     malezas,productos,
     obs:document.getElementById('r-obs').value.trim(),
+    responsable:respNombreCanon(document.getElementById('r-resp')?.value),
     mejoraId:document.getElementById('r-mejora-id')?.value||null,
     mejoraProgramada:!!document.getElementById('r-mejora-id')?.value,
     estado:'Relevado',
@@ -8113,7 +8129,7 @@ function buildOTFromIds(ids){
                 <input type="number" id="ot-add-dosis-${blockKey}" class="fi" placeholder="Dosis" step="0.01" style="width:80px;font-size:12px">
                 <select id="ot-add-uni-${blockKey}" class="fi" style="width:80px;font-size:12px">
                   <option value="L/ha">L/ha</option><option value="ml/ha">ml/ha</option><option value="kg/ha">kg/ha</option>
-                  <option value="g/ha">g/ha</option><option value="cc/ha">cc/ha</option><option value="tn/ha">tn/ha</option><option value="u/ha">u/ha</option>
+                  <option value="g/ha">g/ha</option><option value="cc/ha">cc/ha</option><option value="tn/ha">tn/ha</option><option value="u/ha">u/ha</option><option value="pack/ha">pack/ha</option>
                 </select>
                 <button class="btn bp bxs" onclick="confirmarAgregarProductoOT('${blockKey}','${relevIdsAttr}')">Agregar</button>
                 <button class="btn bs bxs" onclick="toggleAgregarProductoOT('${blockKey}')">Cancelar</button>
@@ -9072,6 +9088,7 @@ function openModalActividad(loteId,cliId,campoId,editId=null){
   document.getElementById('act-fecha').value='';
   document.getElementById('act-fecha-fin').value='';
   document.getElementById('act-obs').value='';
+  {const re=document.getElementById('act-resp');if(re)re.value='';}
   document.getElementById('act-extra').innerHTML='';
   document.getElementById('act-apl-body').style.display='none';
   document.getElementById('act-apl-prod-rows').innerHTML='';_prodRowAplN=0;
@@ -9105,6 +9122,7 @@ function openModalActividad(loteId,cliId,campoId,editId=null){
       document.getElementById('act-fecha-fin').value=a.fechaFin||'';
       document.getElementById('act-camp').value=a.campaña||'';
       document.getElementById('act-obs').value=a.obs||'';
+      {const re=document.getElementById('act-resp');if(re)re.value=a.responsable||'';}
       document.getElementById('act-fecha-real').value=a.fechaRealizacion||'';
       pintarMejoraSelect('act-mejora-id',a.mejoraId||'');
       onMejoraSelChange('act-mejora-id','act-mejora-info');
@@ -9240,6 +9258,7 @@ function addProdRowApl(data=null){
       <option value="g/ha"${(data?.unidad||'')==='g/ha'?' selected':''}>g/ha</option>
       <option value="cc/ha"${(data?.unidad||'')==='cc/ha'?' selected':''}>cc/ha</option>
       <option value="tn/ha"${(data?.unidad||'')==='tn/ha'?' selected':''}>tn/ha</option>
+      <option value="pack/ha"${(data?.unidad||'')==='pack/ha'?' selected':''}>pack/ha</option>
       <option value="u/ha"${(data?.unidad||'')==='u/ha'?' selected':''}>u/ha</option>
       <option value="$/ha"${(data?.unidad||'')==='$/ha'?' selected':''}>$/ha</option>
     </select>
@@ -9322,6 +9341,7 @@ function saveActividad(){
     fechaFin:fechaFin||null,
     campaña:document.getElementById('act-camp').value||getCampanaActiva(),
     obs:document.getElementById('act-obs').value.trim(),
+    responsable:respNombreCanon(document.getElementById('act-resp')?.value),
     datos,
     estado,
     fechaRealizacion,
@@ -9367,6 +9387,7 @@ function saveActividad(){
     obj.historial=historial;
     window._aplResyncDiag=null;
   }
+  respRegistrar(obj.responsable);
   const esMultiAct=!_editActId&&Array.isArray(_actMultiLotes)&&_actMultiLotes.length>1;
   let creadasMulti=0;
   if(window._actNuevoMomento&&!_editActId)obj.momento=window._actNuevoMomento;
@@ -9457,6 +9478,28 @@ function ctxBarsActualizar(){
   }catch(e){}
 }
 setInterval(ctxBarsActualizar,350);
+// ── Responsable de cada actividad / relevamiento ──
+// Texto libre con autocompletado: se sugieren los nombres ya usados (DB.responsables + los que
+// aparecen en actividades y relevamientos). No hace falta administrar una lista aparte.
+function respLista(){
+  const set=new Set((DB.responsables||[]).filter(Boolean));
+  (DB.actividades||[]).forEach(a=>{if(a.responsable&&!a.borrado)set.add(a.responsable);});
+  (DB.relevamientos||[]).forEach(r=>{if(r.responsable&&!r.borrado)set.add(r.responsable);});
+  return[...set].sort((a,b)=>naturalCmp(a,b));
+}
+function respRegistrar(n){
+  n=(n||'').trim();if(!n)return;
+  if(!Array.isArray(DB.responsables))DB.responsables=[];
+  if(!DB.responsables.some(x=>x.toLowerCase()===n.toLowerCase()))DB.responsables.push(n);
+}
+function respNombreCanon(n){
+  n=(n||'').trim();if(!n)return'';
+  return respLista().find(x=>x.toLowerCase()===n.toLowerCase())||n; // evita "juan" y "Juan" como dos personas
+}
+function respDatalistRefrescar(){
+  const dl=document.getElementById('resp-datalist');if(!dl)return;
+  dl.innerHTML=respLista().map(n=>`<option value="${hEsc(n)}">`).join('');
+}
 function duplicarDesdeModal(k){
   if(k==='A'){const id=_editActId;if(!id)return;closeModal('modal-actividad');window._volverARelev=false;duplicarActividad(id);}
   else{const id=_editRelevId;if(!id)return;closeModal('modal-relev');duplicarRelev(id);}
@@ -12034,7 +12077,7 @@ const VISTAS_TABS=[
   {id:'vistas-cultivo',t:'🌾 Por cultivo'}
 ];
 // Estado compartido entre las vistas (los filtros se mantienen al pasar de una a otra)
-const _vv={selIt:new Set(),sortV:{venc:{col:'',dir:1},estado:{col:'',dir:1},tipo:{col:'',dir:1}},estadoV:'pend',estadoT:'pend',estRows:'todos',tipoVis:{},neg:{cli:false,campo:false,cult:false,tipo:false},_visIds:[],soloSin:false,cols:new Set(['venc','sem','prox','d30']),horizonte:'30',agr:'cli',soloPend:false,q:'',camp:'',colap:new Set(),exp:new Set(),sel:new Set(),estado:'pend',agrEst:'semana',realDias:'30',_grupos:{}};
+const _vv={selIt:new Set(),sortV:{venc:{col:'',dir:1},estado:{col:'',dir:1},tipo:{col:'',dir:1}},estadoV:'pend',estadoT:'pend',estRows:'todos',tipoVis:{},neg:{cli:false,campo:false,cult:false,tipo:false,resp:false},_visIds:[],soloSin:false,cols:new Set(['venc','sem','prox','d30']),horizonte:'30',agr:'cli',soloPend:false,q:'',camp:'',colap:new Set(),exp:new Set(),sel:new Set(),estado:'pend',agrEst:'semana',realDias:'30',_grupos:{}};
 function vistasNavInject(id){
   const pg=document.getElementById('page-'+id);if(!pg)return;
   let nav=pg.querySelector(':scope>.vnav');
@@ -12051,8 +12094,8 @@ function vistasRefrescarSuave(){
 }
 function vistasRender(){vistasRefrescarSuave();}
 function vistasLimpiar(){
-  ['vv-cli','vv-campo','vv-cult','vv-tipo'].forEach(f=>_mselGet(f).clear());
-  _vv.q='';_vv.soloPend=false;_vv.soloSin=false;_vv.neg={cli:false,campo:false,cult:false,tipo:false};
+  ['vv-cli','vv-campo','vv-cult','vv-tipo','vv-resp'].forEach(f=>_mselGet(f).clear());
+  _vv.q='';_vv.soloPend=false;_vv.soloSin=false;_vv.neg={cli:false,campo:false,cult:false,tipo:false,resp:false};
   const pg=document.querySelector('.page.active')?.id;
   if(pg==='page-vistas-venc')renderVistasVenc();
   else if(pg==='page-vistas-estado')renderVistasEstado();
@@ -12086,7 +12129,7 @@ function vItems(){
     const diag=(r.malezas||[]).map(m=>m.nombre).filter(Boolean);
     out.push({kind:'R',id:r.id,tipo:'Relevamiento',icono:'🔬',pend:!r.fecha,ini:r.fechaInicio||'',lim:r.fechaLimite||'',real:r.fecha||'',
       loteId:r.loteId||'',cliId:r.clienteId||'',campoId:r.campoId||'',camp:r.campaña||'',
-      det:vDetalle(diag,vProdNombres(r.productos),r.obs),codigo:r.corto||'',mejora:mej(r.mejoraId),rec:!!r.tareaRecurrenteId});
+      det:vDetalle(diag,vProdNombres(r.productos),r.obs),codigo:r.corto||'',mejora:mej(r.mejoraId),rec:!!r.tareaRecurrenteId,resp:r.responsable||''});
   });
   (DB.actividades||[]).forEach(a=>{
     if(a.borrado||a.tipo==='Relevamiento')return;
@@ -12096,7 +12139,7 @@ function vItems(){
     if(!det)det=vTxt(a.obs,32);
     out.push({kind:'A',id:a.id,tipo:a.tipo==='RelevGeneral'?'Relevamiento (por lote)':a.tipo,icono:(ACT_TIPOS[a.tipo]||{}).icono||'📝',pend,ini:a.fecha||'',lim:a.fechaFin||'',
       real:pend?'':(a.fechaRealizacion||a.fecha||''),loteId:a.loteId||'',cliId:a.clienteId||'',campoId:a.campoId||'',camp:a.campaña||'',
-      det,codigo:a.corto||'',mejora:mej(a.mejoraId),rec:!!a.tareaRecurrenteId});
+      det,codigo:a.corto||'',mejora:mej(a.mejoraId),rec:!!a.tareaRecurrenteId,resp:a.responsable||''});
   });
   out.forEach(i=>{i.ref=i.pend?(i.lim||i.ini||''):i.real;});
   return out;
@@ -12122,7 +12165,7 @@ function vCtx(){
 function vLoteTxt(it,ctx){const l=ctx.L[it.loteId];return l?l.nombre:'';}
 function vQtxt(it,ctx){
   const l=ctx.L[it.loteId],c=ctx.C[it.campoId||l?.campoId],k=ctx.K[it.cliId||l?.clienteId];
-  return[it.tipo,it.det,it.codigo,it.mejora,l?.nombre,c?.nombre,k?.nombre].join(' ').toLowerCase();
+  return[it.tipo,it.det,it.codigo,it.mejora,it.resp,l?.nombre,c?.nombre,k?.nombre].join(' ').toLowerCase();
 }
 // Filtros compartidos
 // Cada filtro puede ser "contiene" (normal) o "NO contiene" (_vv.neg[k]).
@@ -12132,7 +12175,7 @@ function vNegToggle(k){_vv.neg[k]=!_vv.neg[k];const pg=document.querySelector('.
 function vNegBtn(k){return`<button type="button" class="vneg${_vv.neg[k]?' on':''}" onclick="vNegToggle('${k}')" title="Tocá para cambiar entre CONTIENE y NO CONTIENE">${_vv.neg[k]?'NO contiene':'contiene'}</button>`;}
 // forcePos: ignora el "no contiene" del Tipo (se usa para saber qué lotes SÍ lo tienen)
 function vFiltrar(items,ctx,forcePos){
-  const fc=_mselGet('vv-cli'),fp=_mselGet('vv-campo'),fk=_mselGet('vv-cult'),ft=_mselGet('vv-tipo');
+  const fc=_mselGet('vv-cli'),fp=_mselGet('vv-campo'),fk=_mselGet('vv-cult'),ft=_mselGet('vv-tipo'),fr=_mselGet('vv-resp');
   const q=(_vv.q||'').toLowerCase().trim();
   return items.filter(it=>{
     const l=ctx.L[it.loteId];
@@ -12144,6 +12187,7 @@ function vFiltrar(items,ctx,forcePos){
       else if(!vOk('cult',fk,vCultivosLote(l.id).some(c=>fk.has(c))))return false;
     }
     if(ft.size){const m=ft.has(it.tipo);if(forcePos?!m:(_vv.neg.tipo?m:!m))return false;}
+    if(!vOk('resp',fr,fr.has(it.resp||'__sin__')))return false;
     if(q&&!vQtxt(it,ctx).includes(q))return false;
     return true;
   });
@@ -12162,7 +12206,7 @@ function vBarra(pg,extraHtml){
   el.innerHTML=`<input type="text" class="fi" placeholder="Buscar lote, cliente, producto..." value="${hEsc(_vv.q)}" oninput="_vv.q=this.value;vistasRender()">
     <span class="muted" style="font-size:11px">Campaña</span>
     <select class="fi" style="width:100px" onchange="_vv.camp=this.value;vistasRender()">${camps.map(c=>`<option value="${c}"${c===sel?' selected':''}>${c}</option>`).join('')}</select>
-    ${vNegBtn('cli')}<div class="msel" id="msel-${pg}-cli"></div>${vNegBtn('campo')}<div class="msel" id="msel-${pg}-campo"></div>${vNegBtn('cult')}<div class="msel" id="msel-${pg}-cult"></div>${vNegBtn('tipo')}<div class="msel" id="msel-${pg}-tipo"></div>
+    ${vNegBtn('cli')}<div class="msel" id="msel-${pg}-cli"></div>${vNegBtn('campo')}<div class="msel" id="msel-${pg}-campo"></div>${vNegBtn('cult')}<div class="msel" id="msel-${pg}-cult"></div>${vNegBtn('tipo')}<div class="msel" id="msel-${pg}-tipo"></div>${vNegBtn('resp')}<div class="msel" id="msel-${pg}-resp"></div>
     ${extraHtml||''}
     <button class="btn bs bsm" onclick="vistasLimpiar()">Limpiar</button>`;
   const cb=()=>vistasRender();
@@ -12171,6 +12215,7 @@ function vBarra(pg,extraHtml){
   const cults=[...new Set((DB.cultivos||[]).map(baseCultivo).filter(Boolean))].sort();
   mselRender(`msel-${pg}-cult`,'vv-cult','Cultivo',cults.map(c=>({value:c,label:hEsc(c)})),cb);
   const tipos=ordenTiposActivos();
+  mselRender(`msel-${pg}-resp`,'vv-resp','Responsable',[{value:'__sin__',label:'(Sin responsable)'}].concat(respLista().map(n=>({value:n,label:'👤 '+hEsc(n)}))),cb);
   mselRender(`msel-${pg}-tipo`,'vv-tipo','Tipo',tipos.map(t=>({value:t,label:((ACT_TIPOS[t]||{}).icono||'🔬')+' '+hEsc(t)})),cb);
 }
 const V_TIPO_HUE={'Relevamiento':205,'Aplicación':22,'Siembra':125,'Cosecha':48,'Fertilización':285,'Riego':175,'Capacitación':325};
@@ -12181,9 +12226,9 @@ function vChipHtml(it,R,pref){
   const H=vHue(it.tipo);
   const fut=it.pend&&it.ini&&it.ini>R.hoy?' vfut':'';
   const txt=it.tipo+(it.det?': '+it.det:'');
-  const full=txt+(it.codigo?' ['+it.codigo+']':'')+(it.mejora?' · 💡 '+it.mejora:'')+(it.rec?' · 🔁 recurrente':'')+(it.ini?' · desde '+vFmtL(it.ini):'')+(it.lim?' · límite '+vFmtL(it.lim):'');
+  const full=txt+(it.codigo?' ['+it.codigo+']':'')+(it.mejora?' · 💡 '+it.mejora:'')+(it.rec?' · 🔁 recurrente':'')+(it.resp?' · 👤 '+it.resp:'')+(it.ini?' · desde '+vFmtL(it.ini):'')+(it.lim?' · límite '+vFmtL(it.lim):'');
   const ck=window._vChk?`<input type="checkbox" class="vck" title="Tildar esta actividad (para cambiarle la fecha sola)" ${_vv.selIt.has(it.kind+':'+it.id)?'checked':''} onclick="event.stopPropagation();vvSelIt('${it.kind}:${it.id}',this.checked)" style="margin:0 4px 0 0;vertical-align:middle;cursor:pointer">`:'';
-  return`<div class="vchip ${cls}${fut}" style="background:hsla(${H},70%,50%,.17);border-left-color:hsl(${H},62%,45%)" title="${hEsc(full)}" onclick="event.stopPropagation();vAbrir('${it.kind}','${it.id}')">${ck}<span class="vd">${b==='venc'?'⚠ ':''}${vFmt(it.ref)}</span>${pref?`<strong>${hEsc(pref)}</strong> · `:''}${it.icono} ${hEsc(vTxt(txt,38))}${it.mejora?' 💡':''}${it.rec?' 🔁':''}${window._vChk&&it.kind==='A'&&it.tipo==='Aplicación'?`<span class="vdup" title="Orden de trabajo" onclick="event.stopPropagation();navTo('ot',{ids:['${it.id}']})">📋</span>`:''}${window._vChk?`<span class="vdup" title="Duplicar esta ${it.kind==='R'?'relevamiento':'actividad'} (la copia se abre para editar)" onclick="event.stopPropagation();vDuplicar('${it.kind}','${it.id}')">📄</span>`:''}</div>`;
+  return`<div class="vchip ${cls}${fut}" style="background:hsla(${H},70%,50%,.17);border-left-color:hsl(${H},62%,45%)" title="${hEsc(full)}" onclick="event.stopPropagation();vAbrir('${it.kind}','${it.id}')">${ck}<span class="vd">${b==='venc'?'⚠ ':''}${vFmt(it.ref)}</span>${pref?`<strong>${hEsc(pref)}</strong> · `:''}${it.icono} ${hEsc(vTxt(txt,38))}${it.mejora?' 💡':''}${it.rec?' 🔁':''}${it.resp?` <span class="vresp">👤 ${hEsc(vTxt(it.resp,14))}</span>`:''}${window._vChk&&it.kind==='A'&&it.tipo==='Aplicación'?`<span class="vdup" title="Orden de trabajo" onclick="event.stopPropagation();navTo('ot',{ids:['${it.id}']})">📋</span>`:''}${window._vChk?`<span class="vdup" title="Duplicar esta ${it.kind==='R'?'relevamiento':'actividad'} (la copia se abre para editar)" onclick="event.stopPropagation();vDuplicar('${it.kind}','${it.id}')">📄</span>`:''}</div>`;
 }
 // ══ POR VENCIMIENTO ══
 // Cartel de recurrentes: solo las que están en ventana AHORA o abren en los próximos 15 días.
@@ -12208,6 +12253,7 @@ function renderVistasVenc(){
       <option value="cli"${_vv.agr==='cli'?' selected':''}>Agrupar: Cliente › Campo</option>
       <option value="cultivo"${_vv.agr==='cultivo'?' selected':''}>Agrupar: Cultivo › Cliente</option>
       <option value="campo"${_vv.agr==='campo'?' selected':''}>Agrupar: Campo</option>
+      <option value="resp"${_vv.agr==='resp'?' selected':''}>Agrupar: Responsable › Cliente</option>
       <option value="ninguno"${_vv.agr==='ninguno'?' selected':''}>Sin agrupar</option></select>
     <select class="fi" style="width:190px" onchange="_vv.dias=this.value;if(this.value!=='off')_vv.cols.add('venc');vvOut()" title="Columnas: por período, o un día por columna">
       <option value="off"${(_vv.dias||'off')==='off'?' selected':''}>Columnas: por período</option>
@@ -12271,7 +12317,7 @@ function vvBulk(){
   const tipoC=(_vv.neg.tipo&&_mselGet('vv-tipo').size===1)?[..._mselGet('vv-tipo')][0]:'actividad';
   el.innerHTML=(m?`<strong>${m} actividad${m>1?'es':''} tildada${m>1?'s':''}</strong> `:'')+(n?`<strong>${n} lote${n>1?'s':''} seleccionado${n>1?'s':''}</strong>`:'')
     +(n?`<button class="btn bp bsm" onclick="vvCrear()">➕ Crear ${tipoC} en estos lotes</button>`:'')
-    +`<button class="btn bs bsm" onclick="vvFechasMasivo()" title="${m?'Se aplica solo a las actividades tildadas':'Se aplica a todo lo visible de los lotes tildados'}">📅 Cambiar fechas${m?' de las '+m+' tildadas':''}</button>`
+    +`<button class="btn bs bsm" onclick="vvFechasMasivo()" title="${m?'Se aplica solo a las actividades tildadas':'Se aplica a todo lo visible de los lotes tildados'}">📅 Cambiar fechas / responsable${m?' de las '+m+' tildadas':''}</button>`
     +(m?`<button class="btn bd bsm" onclick="vvEliminarTildadas()" title="Las manda a la papelera (30 días)">🗑 Eliminar ${m} tildada${m>1?'s':''}</button>`:'')
     +`<button class="btn bs bsm" onclick="_vv.sel.clear();_vv.selIt.clear();vvOut()">Deseleccionar</button>`;
 }
@@ -12289,7 +12335,7 @@ function vvFechasMasivo(){
   document.getElementById('fm-npend').textContent=np;document.getElementById('fm-nreal').textContent=nr;
   document.getElementById('fm-pend').style.display=np?'block':'none';
   document.getElementById('fm-real').style.display=nr?'block':'none';
-  ['fm-lim','fm-ini','fm-freal'].forEach(i=>document.getElementById(i).value='');
+  ['fm-lim','fm-ini','fm-freal','fm-resp'].forEach(i=>document.getElementById(i).value='');document.getElementById('fm-resp-quitar').checked=false;
   document.getElementById('fm-modo').value='fijar';fmModo();
   openModal('modal-fechas-masivo');
 }
@@ -12300,12 +12346,15 @@ function fmAplicar(){
   const dias=parseInt(document.getElementById('fm-dias').value,10)||0;
   const hayPend=_fmItems.some(i=>i.pend),hayReal=_fmItems.some(i=>!i.pend);
   if(hayPend&&modo==='fijar'&&ini&&lim&&ini>lim){alert('La fecha de inicio no puede ser posterior a la fecha límite');return;}
-  if(!(hayPend&&((modo==='fijar'&&(lim||ini))||(modo==='correr'&&dias)))&&!(hayReal&&fre)){alert('No completaste ninguna fecha para cambiar');return;}
+  const respN=respNombreCanon(document.getElementById('fm-resp').value),respQ=document.getElementById('fm-resp-quitar').checked&&!respN;
+  if(!(hayPend&&((modo==='fijar'&&(lim||ini))||(modo==='correr'&&dias)))&&!(hayReal&&fre)&&!respN&&!respQ){alert('No completaste nada para cambiar');return;}
+  if(respN)respRegistrar(respN);
   let n=0;
   _fmItems.forEach(it=>{
     const o=it.kind==='R'?(DB.relevamientos||[]).find(x=>x.id===it.id):(DB.actividades||[]).find(x=>x.id===it.id);
     if(!o)return;
     const campos=it.kind==='R'?{ini:'fechaInicio',lim:'fechaLimite',real:'fecha'}:{ini:'fecha',lim:'fechaFin',real:'fechaRealizacion'};
+    if(respN){o.responsable=respN;n++;}else if(respQ){o.responsable='';n++;}
     if(it.pend){
       if(modo==='fijar'){
         if(lim){o[campos.lim]=lim;n++;}
@@ -12361,9 +12410,15 @@ function vmTabla(cfg){
     return true;
   });
   const agr=_vv.agr,sc=cfg.sort&&cfg.sort.col?cfg.sort:null;
-  const k1=f=>agr==='cli'?f.kName:agr==='cultivo'?f.cult:agr==='campo'?(f.kName+' — '+f.cName):'';
-  const k2=f=>agr==='cli'?f.cName:agr==='cultivo'?f.kName:'';
-  filas.sort((a,b)=>naturalCmp(k1(a),k1(b))||naturalCmp(k2(a),k2(b))||vmCmpKey(a,b,sc)||naturalCmp(a.l.nombre,b.l.nombre));
+  if(agr==='resp'){
+    // un mismo lote puede aparecer bajo varios responsables, cada vez solo con lo suyo
+    const nf=[];
+    filas.forEach(f=>{const m={};f.items.forEach(x=>{const r=x.it.resp||'Sin responsable';(m[r]=m[r]||[]).push(x);});Object.entries(m).forEach(([r,its])=>nf.push({...f,resp:r,items:its}));});
+    filas=nf;
+  }
+  const k1=f=>agr==='cli'?f.kName:agr==='cultivo'?f.cult:agr==='campo'?(f.kName+' — '+f.cName):agr==='resp'?(f.resp==='Sin responsable'?'❔ Sin responsable':'👤 '+f.resp):'';
+  const k2=f=>agr==='cli'?f.cName:agr==='cultivo'?f.kName:agr==='resp'?f.kName:'';
+  filas.sort((a,b)=>(agr==='resp'?((a.resp==='Sin responsable')-(b.resp==='Sin responsable')):0)||naturalCmp(k1(a),k1(b))||naturalCmp(k2(a),k2(b))||vmCmpKey(a,b,sc)||naturalCmp(a.l.nombre,b.l.nombre));
   if(cfg.visIds)_vv._visIds=filas.map(f=>f.l.id);
   const g1={},g2={};_vv._grupos={};
   const acum=(g,key,f)=>{
@@ -12400,7 +12455,7 @@ function vmTabla(cfg){
   const qk=k=>hEsc(k).replace(/'/g,"\\'");
   filas.forEach(f=>{
     const a1=k1(f),a2=k2(f);
-    const HK=vHue('K'+(agr==='cultivo'?f.cult:f.kName));
+    const HK=vHue('K'+(agr==='cultivo'?f.cult:agr==='resp'?f.resp:f.kName));
     const key1='g1:'+a1,key2='g2:'+a1+'|'+a2;
     if(agr!=='ninguno'&&a1!==last1){
       const g=g1[a1];last1=a1;last2=null;
@@ -12493,6 +12548,7 @@ function renderVistasEstado(){
       <option value="cli"${_vv.agr==='cli'?' selected':''}>Agrupar: Cliente › Campo</option>
       <option value="cultivo"${_vv.agr==='cultivo'?' selected':''}>Agrupar: Cultivo › Cliente</option>
       <option value="campo"${_vv.agr==='campo'?' selected':''}>Agrupar: Campo</option>
+      <option value="resp"${_vv.agr==='resp'?' selected':''}>Agrupar: Responsable › Cliente</option>
       <option value="ninguno"${_vv.agr==='ninguno'?' selected':''}>Sin agrupar</option></select>
     <select class="fi" style="width:150px" onchange="_vv.realDias=this.value;vestOut()" title="Cuánto para atrás mostrar de lo realizado"><option value="30"${_vv.realDias==='30'?' selected':''}>Realizadas: 30 días</option><option value="90"${_vv.realDias==='90'?' selected':''}>Realizadas: 90 días</option><option value="3650"${_vv.realDias==='3650'?' selected':''}>Realizadas: todas</option></select>`);
   vestOut();
@@ -12529,6 +12585,7 @@ function renderVistasTipo(){
       <option value="cli"${_vv.agr==='cli'?' selected':''}>Agrupar: Cliente › Campo</option>
       <option value="cultivo"${_vv.agr==='cultivo'?' selected':''}>Agrupar: Cultivo › Cliente</option>
       <option value="campo"${_vv.agr==='campo'?' selected':''}>Agrupar: Campo</option>
+      <option value="resp"${_vv.agr==='resp'?' selected':''}>Agrupar: Responsable › Cliente</option>
       <option value="ninguno"${_vv.agr==='ninguno'?' selected':''}>Sin agrupar</option></select>`);
   vtipoOut();
 }
