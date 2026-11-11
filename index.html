@@ -1763,7 +1763,13 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
         </div>
         <div id="tr-cultivo-rol-wrap">
           <div class="field" style="display:flex;gap:8px">
-            <div style="flex:1"><label>Cultivo</label><select id="tr-cultivo" class="fi"><option value="cualquiera">Cualquiera</option></select></div>
+            <div style="flex:1"><label>Cultivos <span class="muted" style="font-weight:400">(tildá uno o varios; sin tildar = cualquiera)</span></label>
+              <div id="tr-cultivo-box" class="fi" style="height:auto;max-height:190px;overflow:auto;padding:6px 8px"></div>
+              <div style="margin-top:4px;display:flex;gap:6px;flex-wrap:wrap">
+                <button type="button" class="btn bs bxs" onclick="trCultivosMarcar('gruesa')">🌽 Gruesa</button>
+                <button type="button" class="btn bs bxs" onclick="trCultivosMarcar('fina')">🌾 Fina</button>
+                <button type="button" class="btn bs bxs" onclick="trCultivosMarcar('nada')">Ninguno (cualquiera)</button>
+              </div></div>
             <div style="flex:1"><label>Rol en el lote</label>
               <select id="tr-rol" class="fi">
                 <option value="cualquiera">Cualquiera (1ª, 2ª o cobertura)</option>
@@ -2410,11 +2416,22 @@ function ventanaFechasTarea(t,camp){
 // ¿Este lote, en esta campaña, tiene el cultivo+rol que pide la plantilla?
 // rol 'cualquiera' matchea cualquier cultivo cargado en cualquiera de las 3
 // ranuras (1ª, 2ª o cobertura); si se especifica cultivo, tiene que coincidir.
+// Cultivos de una plantilla: lista (t.cultivos) o, en plantillas viejas, el único t.cultivo.
+// Lista vacía = cualquier cultivo.
+function trCultivosDe(t){
+  if(Array.isArray(t?.cultivos))return t.cultivos.filter(Boolean);
+  return(t?.cultivo&&t.cultivo!=='cualquiera')?[t.cultivo]:[];
+}
+function trCultivosLabel(t){const l=trCultivosDe(t);return l.length?l.join(' · '):'Cualquier cultivo';}
+function trCultivoCoincide(t,cultivo){
+  const l=trCultivosDe(t);if(!l.length)return true;
+  const b=baseCultivo(cultivo);return l.some(x=>baseCultivo(x)===b);
+}
 function cultivoCumpleTarea(loteId,camp,t){
   const roles=cultivosRolDeLote(loteId,camp);
   return roles.some(r=>{
     if(t.rol&&t.rol!=='cualquiera'&&r.rol!==t.rol)return false;
-    if(t.cultivo&&t.cultivo!=='cualquiera'&&baseCultivo(r.cultivo)!==baseCultivo(t.cultivo))return false;
+    if(!trCultivoCoincide(t,r.cultivo))return false;
     return true;
   });
 }
@@ -2457,6 +2474,10 @@ function generarTareasRecurrentes(camp){
       // Ya se evaluó este lote para esta plantilla en esta campaña — no
       // vuelve a generar aunque lo hayas borrado (eso fue una decisión tuya
       // para ESTA campaña; la próxima campaña genera uno nuevo igual).
+      // Si la había sacado el propio sistema (porque el lote dejó de cumplir) y ahora vuelve a
+      // cumplir, se la devuelve en vez de crear otra.
+      const _auto=(DB.relevamientos||[]).find(r=>r.loteId===l.id&&r.campaña===camp&&r.tareaRecurrenteId===t.id&&r.borrado&&r.borradoAuto&&!r.fecha);
+      if(_auto){_auto.borrado=false;delete _auto.fechaBorrado;delete _auto.borradoTs;delete _auto.borradoAuto;generadas++;return;}
       const yaExiste=(DB.relevamientos||[]).concat(DB.recurrentesOmitidas||[]).some(r=>r.loteId===l.id&&r.campaña===camp&&r.tareaRecurrenteId===t.id);
       if(yaExiste)return;
       const cli=DB.clientes.find(c=>c.id===l.clienteId);
@@ -2468,7 +2489,7 @@ function generarTareasRecurrentes(camp){
       // tiempo, cuando avances a la campaña siguiente y esa ventana vuelva
       // a caer por delante de hoy.
       if(fin<hoy)return;
-      const rolInfo=cultivosRolDeLote(l.id,camp).find(r=>(!t.rol||t.rol==='cualquiera'||r.rol===t.rol)&&(!t.cultivo||t.cultivo==='cualquiera'||baseCultivo(r.cultivo)===baseCultivo(t.cultivo)));
+      const rolInfo=cultivosRolDeLote(l.id,camp).find(r=>(!t.rol||t.rol==='cualquiera'||r.rol===t.rol)&&trCultivoCoincide(t,r.cultivo));
       DB.relevamientos.push({
         id:uid(),fecha:null,fechaInicio:ini,fechaLimite:fin,campaña:camp,
         cultivo:rolInfo?.cultivo||'',
@@ -2488,7 +2509,22 @@ function generarTareasRecurrentes(camp){
       generadas++;
     });
   });
-  if(generadas>0)save();
+  // Lo inverso: un relevamiento generado por la plantilla que sigue PENDIENTE y sin nada cargado,
+  // en un lote que ya no cumple la condición (cambiaste el cultivo de ese lote en esta campaña),
+  // pasa a la papelera. Se devuelve solo si el lote vuelve a cumplir. Nunca toca lo ya realizado
+  // ni lo que tenga datos cargados.
+  let quitadas=0;
+  (DB.relevamientos||[]).forEach(r=>{
+    if(!r.tareaRecurrenteId||r.campaña!==camp||r.borrado||r.fecha)return;
+    if((r.productos||[]).length||(r.malezas||[]).length)return;
+    const t=(DB.tareasRecurrentes||[]).find(x=>x.id===r.tareaRecurrenteId);
+    if(!t||t.activo===false||t.alcance==='general')return;
+    if(!DB.lotes.some(l=>l.id===r.loteId))return;
+    if(cultivoCumpleTarea(r.loteId,camp,t))return;
+    r.borrado=true;r.borradoAuto=true;r.fechaBorrado=hoy;r.borradoTs=Date.now();quitadas++;
+  });
+  if(quitadas>0)mostrarSnackbar('🔁 Saqué '+quitadas+' actividad(es) recurrente(s) de lotes que ya no cumplen el cultivo (están en la papelera)','blue');
+  if(generadas>0||quitadas>0)save();
   return generadas;
 }
 // ── Tareas recurrentes de alcance GENERAL (sin lote) ──
@@ -2626,10 +2662,32 @@ function onTrAlcanceChange(){
   document.getElementById('tr-general-fields').style.display=general?'block':'none';
   document.getElementById('tr-anio-ventana-wrap').style.display=general?'none':'block';
 }
+// Catálogo completo de cultivos para elegir: los cargados en Cultivos + cualquiera que
+// figure en algún lote o relevamiento (por si quedó algo sin darse de alta), sin repetir.
+function trCatalogoCultivos(extra=[]){
+  const set=new Map();
+  const add=c=>{c=baseCultivo(c);if(c&&!set.has(c.toLowerCase()))set.set(c.toLowerCase(),c);};
+  (DB.cultivos||[]).forEach(add);
+  (DB.campanas||[]).forEach(camp=>DB.lotes.forEach(l=>cultivosRolDeLote(l.id,camp).forEach(r=>add(r.cultivo))));
+  (DB.relevamientos||[]).forEach(r=>add(r.cultivo));
+  extra.forEach(add);
+  return[...set.values()].sort((a,b)=>a.localeCompare(b,'es'));
+}
+function trCultivosRender(sel){
+  const box=document.getElementById('tr-cultivo-box');if(!box)return;
+  const marcados=new Set((sel||[]).map(x=>baseCultivo(x).toLowerCase()));
+  const lista=trCatalogoCultivos(sel||[]);
+  box.innerHTML=lista.map(c=>`<label style="display:flex;align-items:center;gap:6px;font-size:13px;margin:2px 0;cursor:pointer"><input type="checkbox" class="tr-cult-chk" value="${c.replace(/"/g,'&quot;')}"${marcados.has(c.toLowerCase())?' checked':''}> ${c}</label>`).join('')||'<span class="muted">No hay cultivos cargados</span>';
+}
+function trCultivosMarcar(modo){
+  const GRUESA=/ma[ií]z|girasol|soja|sorgo|man[ií]|algod/i,FINA=/trigo|cebada|avena|centeno|triticale|colza|carinata|arveja|vicia|alfalfa/i;
+  document.querySelectorAll('.tr-cult-chk').forEach(ch=>{
+    ch.checked=modo==='nada'?false:(modo==='gruesa'?GRUESA.test(ch.value):FINA.test(ch.value)&&!GRUESA.test(ch.value));
+  });
+}
+function trCultivosSeleccionados(){return[...document.querySelectorAll('.tr-cult-chk:checked')].map(c=>c.value);}
 function openModalTareaRecurrente(id=null){
   _editTareaRecId=id;
-  const sc=document.getElementById('tr-cultivo');
-  if(sc){const pv=sc.value;sc.innerHTML='<option value="cualquiera">Cualquiera</option>';(DB.cultivos||[]).forEach(c=>sc.innerHTML+=`<option value="${c}">${c}</option>`);sc.value=pv||'cualquiera';}
   const st=document.getElementById('tr-tipo-actividad');
   // "Relevamiento" normal (el que crea un registro por lote en el acto) no
   // tiene sentido acá — pero sí una opción especial "RelevGeneral": genera UNA
@@ -2643,7 +2701,7 @@ function openModalTareaRecurrente(id=null){
   document.getElementById('mtr-title').textContent=t?'Editar actividad recurrente':'Nueva actividad recurrente';
   document.getElementById('tr-nombre').value=t?.nombre||'';
   document.getElementById('tr-alcance').value=t?.alcance==='general'?'general':'lote';
-  document.getElementById('tr-cultivo').value=t?.cultivo||'cualquiera';
+  trCultivosRender(trCultivosDe(t));
   document.getElementById('tr-rol').value=t?.rol||'cualquiera';
   if(st&&t?.tipoActividad)st.value=t.tipoActividad;
   document.getElementById('tr-dia-ini').value=t?.diaIni||'';
@@ -2741,7 +2799,7 @@ function renderModalRelevGeneral(){
   const ROL_LBL={'cualquiera':'cualquiera','1':'1ª','2':'2ª','cob':'cobertura'};
   const camp=a.campaña||getCampanaActiva();
   let html=`<div class="field"><label>Plantilla</label>${t?`<a href="#" onclick="event.preventDefault();closeModal('modal-relev-general');navTo('tareas-recurrentes');openModalTareaRecurrente('${t.id}')" style="color:var(--accent);font-weight:500">${t.nombre}</a>`:'<span class="muted">(plantilla eliminada)</span>'}</div>`;
-  html+=`<div class="field"><label>Condición</label><span class="badge bg-amber">${(t?.cultivo||'cualquiera')==='cualquiera'?'Cualquier cultivo':t.cultivo}</span> <span class="badge bg-gray">${ROL_LBL[t?.rol]||'cualquiera'}</span></div>`;
+  html+=`<div class="field"><label>Condición</label><span class="badge bg-amber">${trCultivosLabel(t)}</span> <span class="badge bg-gray">${ROL_LBL[t?.rol]||'cualquiera'}</span></div>`;
   html+=`<div class="field"><label>Ventana de este ciclo</label><span class="mono">${a.fecha||'?'} → ${a.fechaFin||'?'}</span></div>`;
   if(a.obs)html+=`<div class="field"><label>Observación precargada</label>${a.obs}</div>`;
   if(a.fechaRealizacion){
@@ -2776,7 +2834,7 @@ function generarRelevamientosDesdeGeneral(){
     :'No hay ningún lote que cumpla la condición por ahora. ¿Marcar este ciclo como Realizado igual, sin generar relevamientos?';
   confirmarAccion(msg,()=>{
     matches.forEach(({lote:l,cli,campo})=>{
-      const rolInfo=cultivosRolDeLote(l.id,camp).find(r=>(!t.rol||t.rol==='cualquiera'||r.rol===t.rol)&&(!t.cultivo||t.cultivo==='cualquiera'||baseCultivo(r.cultivo)===baseCultivo(t.cultivo)));
+      const rolInfo=cultivosRolDeLote(l.id,camp).find(r=>(!t.rol||t.rol==='cualquiera'||r.rol===t.rol)&&trCultivoCoincide(t,r.cultivo));
       DB.relevamientos.push({
         id:uid(),fecha:null,fechaInicio:a.fecha,fechaLimite:a.fechaFin,campaña:camp,
         cultivo:rolInfo?.cultivo||'',
@@ -2813,7 +2871,8 @@ function saveTareaRecurrente(){
   if(alcance==='general'&&!document.getElementById('tr-tipo-actividad').value){alert('Elegí qué tipo de actividad generar');return;}
   const obj={
     id:_editTareaRecId||uid(),nombre,alcance,
-    cultivo:document.getElementById('tr-cultivo').value,
+    cultivos:trCultivosSeleccionados(),
+    cultivo:(trCultivosSeleccionados()[0]&&trCultivosSeleccionados().length===1)?trCultivosSeleccionados()[0]:'cualquiera',
     rol:document.getElementById('tr-rol').value,
     tipoActividad:document.getElementById('tr-tipo-actividad').value||'',
     diaIni,mesIni,diaFin,mesFin,
@@ -2919,7 +2978,7 @@ function renderTareasRecurrentes(){
   // que de verdad están en uso (nada de listar todo el catálogo si no hace falta).
   const fb=document.getElementById('tr-filtros-bar');
   if(fb){
-    const cultivosUsados=Array.from(new Set(todas.map(t=>t.cultivo).filter(c=>c&&c!=='cualquiera'))).sort();
+    const cultivosUsados=trCatalogoCultivos(todas.flatMap(trCultivosDe));
     const tiposUsados=Array.from(new Set(todas.filter(t=>t.alcance==='general').map(t=>t.tipoActividad).filter(Boolean)));
     const hayFiltros=_trFiltros.alcance||_trFiltros.estado||_trFiltros.cultivo||_trFiltros.tipo;
     fb.innerHTML=`
@@ -2950,7 +3009,7 @@ function renderTareasRecurrentes(){
     if(_trFiltros.alcance==='lote'&&t.alcance==='general')return false;
     if(_trFiltros.estado==='activa'&&t.activo===false)return false;
     if(_trFiltros.estado==='pausada'&&t.activo!==false)return false;
-    if(_trFiltros.cultivo&&t.cultivo!==_trFiltros.cultivo)return false;
+    if(_trFiltros.cultivo&&!trCultivosDe(t).some(c=>baseCultivo(c)===baseCultivo(_trFiltros.cultivo)))return false;
     if(_trFiltros.tipo&&t.tipoActividad!==_trFiltros.tipo)return false;
     return true;
   });
@@ -2988,10 +3047,10 @@ function renderTareasRecurrentes(){
         const tt=ACT_TIPOS[t.tipoActividad]||{};
         const esRelevGen=t.tipoActividad==='RelevGeneral';
         condicionHTML=esRelevGen
-          ?`<span class="badge bg-purple">🔍 Relevamiento (por lote)</span> <span class="badge bg-amber">${t.cultivo==='cualquiera'?'Cualquier cultivo':t.cultivo}</span> <span class="badge bg-gray">${ROL_LBL[t.rol]||'cualquiera'}</span>`
+          ?`<span class="badge bg-purple">🔍 Relevamiento (por lote)</span> <span class="badge bg-amber">${trCultivosLabel(t)}</span> <span class="badge bg-gray">${ROL_LBL[t.rol]||'cualquiera'}</span>`
           :`<span class="badge bg-blue">${tt.icono||'📝'} ${t.tipoActividad||'(sin tipo)'}</span>`;
       } else {
-        condicionHTML=`<span class="badge bg-amber">${t.cultivo==='cualquiera'?'Cualquier cultivo':t.cultivo}</span> <span class="badge bg-gray">${ROL_LBL[t.rol]||'cualquiera'}</span>`;
+        condicionHTML=`<span class="badge bg-amber">${trCultivosLabel(t)}</span> <span class="badge bg-gray">${ROL_LBL[t.rol]||'cualquiera'}</span>`;
       }
       // El conteo de "Generadas" es SIEMPRE el histórico total de la plantilla
       // (relevamientos + actividades, de cualquier campaña, pasado o presente)
