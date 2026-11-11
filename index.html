@@ -1757,8 +1757,8 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
         <div class="field">
           <label>Alcance</label>
           <select id="tr-alcance" class="fi" onchange="onTrAlcanceChange()">
-            <option value="lote">Por lote (según cultivo) — genera un Relevamiento en cada lote que matchea</option>
-            <option value="general">General (sin lote) — genera una sola Actividad, no ligada a ningún lote</option>
+            <option value="lote">Una en cada lote que cumpla (automática) — crea un Relevamiento en cada lote con los cultivos que elijas</option>
+            <option value="general">Una sola tarea para mí (recordatorio) — no pertenece a ningún lote</option>
           </select>
         </div>
         <div id="tr-cultivo-rol-wrap">
@@ -1787,24 +1787,21 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
           </div>
         </div>
         <div class="field">
-          <label>Ventana de fechas (se repite todos los años)</label>
-          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-            <span class="muted" style="font-size:11px">Desde día</span>
-            <input type="number" id="tr-dia-ini" class="fi" min="1" max="31" style="width:55px">
-            <span class="muted" style="font-size:11px">mes</span>
-            <input type="number" id="tr-mes-ini" class="fi" min="1" max="12" style="width:55px">
-            <span class="muted" style="font-size:11px">hasta día</span>
-            <input type="number" id="tr-dia-fin" class="fi" min="1" max="31" style="width:55px">
-            <span class="muted" style="font-size:11px">mes</span>
-            <input type="number" id="tr-mes-fin" class="fi" min="1" max="12" style="width:55px">
+          <label>¿Cuándo? <span class="muted" style="font-weight:400">(se repite todos los años, campaña tras campaña)</span></label>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+            <span style="width:52px;font-size:13px;font-weight:600">Desde</span>
+            <input type="number" id="tr-dia-ini" class="fi" min="1" max="31" placeholder="Día" style="width:78px;flex:none" oninput="trVentanaResumen()">
+            <span class="muted">de</span>
+            <select id="tr-mes-ini" class="fi" style="flex:1;min-width:120px" onchange="trVentanaResumen()"><option value="">Mes…</option><option value="1">Enero</option><option value="2">Febrero</option><option value="3">Marzo</option><option value="4">Abril</option><option value="5">Mayo</option><option value="6">Junio</option><option value="7">Julio</option><option value="8">Agosto</option><option value="9">Septiembre</option><option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option></select>
           </div>
-        </div>
-        <div class="field" id="tr-anio-ventana-wrap">
-          <label>¿En qué año de la campaña cae esta ventana? <span class="muted">(una campaña como "2025/26" cruza dos años calendario — decí a cuál de los dos cae la fecha, para que no se confunda con meses parecidos del otro año)</span></label>
-          <select id="tr-anio-ventana" class="fi">
-            <option value="1">Primer año de la campaña (ej: la siembra gruesa, 2025 en una campaña "2025/26")</option>
-            <option value="2">Segundo año de la campaña (ej: cosecha, maíz de 2ª tardío, 2026 en una campaña "2025/26")</option>
-          </select>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+            <span style="width:52px;font-size:13px;font-weight:600">Hasta</span>
+            <input type="number" id="tr-dia-fin" class="fi" min="1" max="31" placeholder="Día" style="width:78px;flex:none" oninput="trVentanaResumen()">
+            <span class="muted">de</span>
+            <select id="tr-mes-fin" class="fi" style="flex:1;min-width:120px" onchange="trVentanaResumen()"><option value="">Mes…</option><option value="1">Enero</option><option value="2">Febrero</option><option value="3">Marzo</option><option value="4">Abril</option><option value="5">Mayo</option><option value="6">Junio</option><option value="7">Julio</option><option value="8">Agosto</option><option value="9">Septiembre</option><option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option></select>
+          </div>
+          <div id="tr-ventana-resumen" class="muted" style="font-size:12px"></div>
+          <div id="tr-anio-ventana-wrap" style="display:none"><input type="hidden" id="tr-anio-ventana" value="1"></div>
         </div>
         <div class="field"><label>Observación precargada <span class="muted">(se vuelca en la actividad generada, para dar contexto de qué estás buscando — editable después)</span></label>
           <textarea id="tr-obs" class="fi" rows="3" placeholder="Ej: Revisar nacimiento de lecherón. Si hay presencia, evaluar aplicación con dron o siembra aérea."></textarea>
@@ -2610,7 +2607,11 @@ function actualizarCampanitaTareas(){
 function generarTareasRecurrentesActivas(){
   const camp=getCampanaActiva();
   const nOm=procesarRecurrentesVencidas();
-  const n1=generarTareasRecurrentes(camp);
+  let n1=generarTareasRecurrentes(camp);
+  // también la campaña que viene: así, si la ventana de este año ya pasó, queda armada la próxima
+  // (se llena sola con los lotes que ya tengan cultivo cargado para esa campaña).
+  const _m=/^(\d{4})\/(\d{2})$/.exec(camp||'');
+  if(_m){const y=parseInt(_m[1],10)+1;n1+=generarTareasRecurrentes(`${y}/${String((y+1)%100).padStart(2,'0')}`);}
   let n2=generarTareasRecurrentesGenerales();
   // si el ciclo recién generado ya nació vencido, se pasa de nuevo al siguiente (máx. 3 saltos)
   for(let i=0;i<3&&procesarRecurrentesVencidas()>0;i++)n2+=generarTareasRecurrentesGenerales();
@@ -2654,6 +2655,16 @@ let _editTareaRecId=null;
 // (general) según el alcance elegido — y el año de ventana solo tiene sentido
 // ligado a campaña, así que también se oculta para el alcance general (que se
 // maneja 100% por año calendario, sin campaña de por medio).
+const _MESES_TR=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+function trVentanaResumen(){
+  const g=id=>parseInt(document.getElementById(id).value,10);
+  const el=document.getElementById('tr-ventana-resumen');if(!el)return;
+  const di=g('tr-dia-ini'),mi=g('tr-mes-ini'),df=g('tr-dia-fin'),mf=g('tr-mes-fin');
+  el.textContent=(di&&mi&&df&&mf)?`Todos los años, del ${di} de ${_MESES_TR[mi-1]} al ${df} de ${_MESES_TR[mf-1]}.`:'';
+}
+// La campaña va de julio a junio: un mes de julio a diciembre cae en el primer año de la campaña
+// (ej. 2026 en la 2026/27) y de enero a junio en el segundo (2027). Así no hay que preguntarlo.
+function trAnioVentanaDeMes(mes){return(mes>=1&&mes<=6)?2:1;}
 function onTrAlcanceChange(){
   const general=document.getElementById('tr-alcance').value==='general';
   const esRelevGeneral=general&&document.getElementById('tr-tipo-actividad').value==='RelevGeneral';
@@ -2713,6 +2724,7 @@ function openModalTareaRecurrente(id=null){
   document.getElementById('tr-mejora').checked=!!t?.mejora;
   document.getElementById('tr-activo').checked=t?t.activo!==false:true;
   onTrAlcanceChange();
+  trVentanaResumen();
   renderTrInstancias(t);
   openModal('modal-tarea-recurrente');
 }
@@ -2876,7 +2888,7 @@ function saveTareaRecurrente(){
     rol:document.getElementById('tr-rol').value,
     tipoActividad:document.getElementById('tr-tipo-actividad').value||'',
     diaIni,mesIni,diaFin,mesFin,
-    anioVentana:parseInt(document.getElementById('tr-anio-ventana').value,10)===2?2:1,
+    anioVentana:trAnioVentanaDeMes(mesIni),
     obs:document.getElementById('tr-obs').value.trim(),
     mejora:!!document.getElementById('tr-mejora').checked,
     activo:!!document.getElementById('tr-activo').checked,
@@ -2984,8 +2996,8 @@ function renderTareasRecurrentes(){
     fb.innerHTML=`
       <select class="fi" style="width:auto" onchange="trFiltroSet('alcance',this.value)">
         <option value=""${!_trFiltros.alcance?' selected':''}>Alcance: todos</option>
-        <option value="lote"${_trFiltros.alcance==='lote'?' selected':''}>Por lote</option>
-        <option value="general"${_trFiltros.alcance==='general'?' selected':''}>General</option>
+        <option value="lote"${_trFiltros.alcance==='lote'?' selected':''}>En cada lote</option>
+        <option value="general"${_trFiltros.alcance==='general'?' selected':''}>Tarea única (recordatorio)</option>
       </select>
       <select class="fi" style="width:auto" onchange="trFiltroSet('estado',this.value)">
         <option value=""${!_trFiltros.estado?' selected':''}>Estado: todas</option>
@@ -3063,10 +3075,10 @@ function renderTareasRecurrentes(){
       const generadasHTML=`<td><a href="#" onclick="event.preventDefault();navTo('tarea-instancias',{tareaId:'${t.id}'})" style="color:var(--accent)" title="Ver todas las instancias generadas por esta plantilla">${vivasT.length}</a> <span class="muted" style="font-size:10px">(histórico total · ${pendT} pendiente${pendT===1?'':'s'})</span></td>`;
       return'<tr>'
         +`<td><strong>${t.nombre}</strong>${t.mejora?' <span class="mejora-pill" title="Marca la actividad generada como Mejora programada">🔧</span>':''}</td>`
-        +`<td>${general?'<span class="badge bg-purple">General (sin lote)</span>':'<span class="badge bg-gray">Por lote</span>'}</td>`
+        +`<td>${general?'<span class="badge bg-purple">Tarea única (recordatorio)</span>':'<span class="badge bg-gray">En cada lote</span>'}</td>`
         +`<td>${condicionHTML}</td>`
         +`<td class="mono">${p(t.diaIni)}/${p(t.mesIni)}</td>`
-        +`<td class="mono">${p(t.diaFin)}/${p(t.mesFin)}${general?'':` <span class="muted" style="font-size:10px">(${t.anioVentana===2?'2º año':'1º año'})</span>`}</td>`
+        +`<td class="mono">${p(t.diaFin)}/${p(t.mesFin)}</td>`
         +generadasHTML
         +`<td>${t.activo!==false?'<span class="badge bg-green">Activa</span>':'<span class="badge bg-gray">Pausada</span>'}</td>`
         +`<td class="rf ph"><button class="btn bs bxs" onclick="openModalTareaRecurrente('${t.id}')" title="Editar">✏️</button><button class="btn bd bxs" onclick="eliminarTareaRecurrente('${t.id}')" title="Eliminar">✕</button></td>`
