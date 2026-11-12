@@ -10137,7 +10137,7 @@ function renderFranjaGenerales(){
     const esRG=a.tipo==='RelevGeneral';
     items.push({ref,ini:a.fecha,icono:esRG?'🔍':((ACT_TIPOS[a.tipo]||{}).icono||'📌'),
       titulo:t?.nombre||(esRG?'Relevamiento por lote':a.tipo),
-      sub:esRG?'Generar relevamientos en los lotes que cumplen':a.tipo,
+      sub:esRG?'Tarea anual · elegís los lotes y generás los relevamientos':a.tipo+' · tarea anual',
       btn:esRG?'Generar por lote…':'Abrir',
       on:esRG?`abrirRelevGeneral('${a.id}')`:`openModalActividad(null,null,null,'${a.id}')`});
   });
@@ -10311,6 +10311,9 @@ function renderActividadesMaster(){
     if(fAccionable==='no'&&(!u||u.accionable))return false;
     if(fMejora==='si'&&!f.mejoraProgramada)return false;
     if(fMejora==='no'&&f.mejoraProgramada)return false;
+    // Los recordatorios generales pendientes (sin lote) viven en la franja "Pendientes generales" de arriba;
+    // en la tabla solo aparecen si filtrás por Origen, para no mezclarlos con las actividades reales.
+    if(f.general&&f.tareaRecurrenteId&&f.estado!=='Realizada'&&!fOrigen)return false;
     if(fOrigen==='rec'&&!f.tareaRecurrenteId)return false;
     if(fOrigen==='man'&&f.tareaRecurrenteId)return false;
     if(fOrigen&&fOrigen!=='rec'&&fOrigen!=='man'&&f.tareaRecurrenteId!==fOrigen)return false;
