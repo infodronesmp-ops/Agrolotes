@@ -1231,8 +1231,11 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
         </select>
         <select id="act-m-mejora" class="fi" style="width:150px" onchange="renderActividadesMaster()">
           <option value="">🔧 Mejora: todas</option>
-          <option value="si">🔧 Solo mejoras</option>
-          <option value="no">Solo comunes</option>
+          <option value="si">🔧 Solo vinculadas a una mejora</option>
+          <option value="no">Sin mejora</option>
+        </select>
+        <select id="act-m-origen" class="fi" style="width:190px" onchange="renderActividadesMaster()" title="Filtra por si la actividad la generó una tarea recurrente">
+          <option value="">🔁 Origen: todas</option>
         </select>
         <span class="rf" style="gap:3px;align-items:center;background:var(--bg2);border-radius:var(--r);padding:3px 8px">
           <span class="muted" style="font-size:10px">Creación:</span>
@@ -1783,9 +1786,10 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
         <div class="field">
           <label>Alcance</label>
           <select id="tr-alcance" class="fi" onchange="onTrAlcanceChange()">
-            <option value="lote">Una en cada lote que cumpla (automática) — crea un Relevamiento en cada lote con los cultivos que elijas</option>
-            <option value="general">Una sola tarea para mí (recordatorio) — no pertenece a ningún lote</option>
+            <option value="general">Una sola tarea para mí (recordatorio)</option>
+            <option value="lote">Una en cada lote que cumpla (automática)</option>
           </select>
+          <div id="tr-alcance-ayuda" class="muted" style="font-size:11px;margin-top:4px"></div>
         </div>
         <div id="tr-cultivo-rol-wrap">
           <div class="field" style="display:flex;gap:8px">
@@ -2694,6 +2698,10 @@ function trVentanaResumen(){
 function trAnioVentanaDeMes(mes){return(mes>=1&&mes<=6)?2:1;}
 function onTrAlcanceChange(){
   const general=document.getElementById('tr-alcance').value==='general';
+  const ay=document.getElementById('tr-alcance-ayuda');
+  if(ay)ay.innerHTML=general
+    ?'📌 <strong>No crea nada de entrada.</strong> Cada año te deja una sola tarea que aparece arriba en Actividades 30 días antes del vencimiento. Ahí elegís qué lotes y creás las actividades en ese momento. (Con el tipo "Relevamiento" te lista los lotes que cumplen la condición.)'
+    :'⚡ <strong>Crea ya, sin preguntarte.</strong> Apenas la guardás (y cada campaña) genera un relevamiento en cada lote que tenga esos cultivos, también para la campaña que viene si ya la cargaste.';
   const esRelevGeneral=general&&document.getElementById('tr-tipo-actividad').value==='RelevGeneral';
   document.getElementById('tr-cultivo-rol-wrap').style.display=(!general||esRelevGeneral)?'block':'none';
   document.getElementById('tr-cultivo-rol-hint').style.display=esRelevGeneral?'block':'none';
@@ -2738,10 +2746,10 @@ function openModalTareaRecurrente(id=null){
   const t=id?(DB.tareasRecurrentes||[]).find(x=>x.id===id):null;
   document.getElementById('mtr-title').textContent=t?'Editar actividad recurrente':'Nueva actividad recurrente';
   document.getElementById('tr-nombre').value=t?.nombre||'';
-  document.getElementById('tr-alcance').value=t?.alcance==='general'?'general':'lote';
+  document.getElementById('tr-alcance').value=(!t||t.alcance==='general')?'general':'lote';
   trCultivosRender(trCultivosDe(t));
   document.getElementById('tr-rol').value=t?.rol||'cualquiera';
-  if(st&&t?.tipoActividad)st.value=t.tipoActividad;
+  if(st)st.value=t?.tipoActividad||'RelevGeneral';
   document.getElementById('tr-dia-ini').value=t?.diaIni||'';
   document.getElementById('tr-mes-ini').value=t?.mesIni||'';
   document.getElementById('tr-dia-fin').value=t?.diaFin||'';
@@ -2769,16 +2777,17 @@ function renderTrInstancias(t){
       txt:`${(ACT_TIPOS[a.tipo]||{}).icono||'📝'} ${a.tipo==='RelevGeneral'?'Relevamiento (por lote)':a.tipo} — ${a.fechaRealizacion?'✅ Realizada '+a.fechaRealizacion:'🕒 Pendiente, desde '+(a.fecha||'?')}`
     }));
   } else {
-    const camp=getCampanaActiva();
-    vivas=(DB.relevamientos||[]).filter(r=>r.tareaRecurrenteId===t.id&&r.campaña===camp&&!r.borrado).map(r=>({
-      id:r.id,esRelev:true,txt:`🔬 ${r.loteNombre||'?'} — ${r.fecha?'✅ Realizado '+r.fecha:'🕒 Pendiente'}`
+    vivas=(DB.relevamientos||[]).filter(r=>r.tareaRecurrenteId===t.id&&!r.borrado).sort((a,b)=>(a.campaña||'').localeCompare(b.campaña||'')||(a.loteNombre||'').localeCompare(b.loteNombre||'','es')).map(r=>({
+      id:r.id,esRelev:true,txt:`🔬 ${r.loteNombre||'?'} <span class="muted">(${r.campaña||'?'})</span> — ${r.fecha?'✅ Realizado '+r.fecha:'🕒 Pendiente'}`
     }));
   }
-  const omit=(DB.recurrentesOmitidas||[]).filter(o=>o.tareaRecurrenteId===t.id&&(t.alcance==='general'||o.campaña===getCampanaActiva()));
+  const omit=(DB.recurrentesOmitidas||[]).filter(o=>o.tareaRecurrenteId===t.id);
   const omitHtml=omit.length?`<div style="font-size:11px;color:var(--text3);margin-top:6px"><strong>⏭ No se hicieron (quedan como registro):</strong>${omit.map(o=>`<div>${o._esRelev?'🔬 '+(o.loteNombre||'?'):((ACT_TIPOS[o.tipo]||{}).icono||'📝')+' '+o.tipo} — ${o.campaña||''} · venció ${vFmt(o._esRelev?o.fechaLimite:o.fechaFin)}</div>`).join('')}</div>`:'';
   if(!vivas.length&&!omit.length){wrap.style.display='none';return;}
   wrap.style.display='block';
-  document.getElementById('tr-instancias').innerHTML=omitHtml+vivas.map(v=>
+  const nPend=(DB.relevamientos||[]).filter(r=>r.tareaRecurrenteId===t.id&&!r.borrado&&!r.fecha).length;
+  const btnBulk=nPend?`<div style="margin:2px 0 8px"><button class="btn bd bxs" onclick="trBorrarPendientes('${t.id}')">🗑️ Borrar los ${nPend} relevamiento(s) pendientes de esta plantilla</button> <span class="muted" style="font-size:10px">(los realizados no se tocan; quedan 30 días en la papelera)</span></div>`:'';
+  document.getElementById('tr-instancias').innerHTML=btnBulk+omitHtml+vivas.map(v=>
     `<div style="display:flex;align-items:center;gap:6px;font-size:11px;padding:3px 0">
       <a href="#" onclick="event.preventDefault();${v.esRelev?`closeModal('modal-tarea-recurrente');openModalRelev('${v.id}')`:(v.esRelevGeneral?`closeModal('modal-tarea-recurrente');abrirRelevGeneral('${v.id}')`:`closeModal('modal-tarea-recurrente');openModalActividad(null,null,null,'${v.id}')`)}" style="color:var(--accent);flex:1">${v.txt}</a>
       <button class="btn bd bxs" title="Eliminar esta instancia" onclick="${v.esRelev?`trEliminarInstancia('${v.id}',true)`:`trEliminarInstancia('${v.id}',false)`}">✕</button>
@@ -2788,6 +2797,20 @@ function renderTrInstancias(t){
 // Eliminar una instancia generada, sin salir del modal de la plantilla — y
 // si es General, dispara ahí mismo la generación del ciclo siguiente (misma
 // regla que al eliminarla desde Actividades).
+// Manda a la papelera todos los relevamientos PENDIENTES (sin realizar y sin productos ni diagnóstico
+// cargados) que generó la plantilla, de cualquier campaña. Lo realizado o con datos no se toca.
+function trBorrarPendientes(tid){
+  const lista=(DB.relevamientos||[]).filter(r=>r.tareaRecurrenteId===tid&&!r.borrado&&!r.fecha);
+  const seguros=lista.filter(r=>!(r.productos||[]).length&&!(r.malezas||[]).length);
+  const conDatos=lista.length-seguros.length;
+  if(!seguros.length){mostrarSnackbar('No hay pendientes sin datos para borrar','amber');return;}
+  confirmarAccion(`¿Mandar a la papelera ${seguros.length} relevamiento(s) pendiente(s) de esta plantilla?`+(conDatos?` (${conDatos} con datos cargados se dejan como están.)`:'')+' Se pueden restaurar durante 30 días.',()=>{
+    seguros.forEach(r=>{r.borrado=true;r.fechaBorrado=hoyLocal();r.borradoTs=Date.now();});
+    save();refrescarVistasActividad();
+    const t=(DB.tareasRecurrentes||[]).find(x=>x.id===tid);renderTrInstancias(t);
+    mostrarSnackbar(`🗑️ ${seguros.length} relevamiento(s) a la papelera`);
+  },'Borrar');
+}
 function trEliminarInstancia(id,esRelev){
   confirmarAccion('¿Eliminar esta actividad generada? Queda 30 días en la papelera.',()=>{
     if(esRelev){
@@ -9978,6 +10001,7 @@ function clearFiltrosActM(){
   const s=document.getElementById('act-m-search');if(s)s.value='';
   const acc=document.getElementById('act-m-accionable');if(acc)acc.value='';
   const mej=document.getElementById('act-m-mejora');if(mej)mej.value='';
+  const ori=document.getElementById('act-m-origen');if(ori)ori.value='';
   ['act-m-creada-desde','act-m-creada-hasta','act-m-real-desde','act-m-real-hasta','act-m-plan-desde','act-m-plan-hasta'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   const per=document.getElementById('act-m-periodo');if(per)per.value='';
   const inv=document.getElementById('act-m-invertir');if(inv)inv.checked=false;
@@ -10180,6 +10204,17 @@ function renderActividadesMaster(){
   msRender('act-m-urgencia',[{value:'vencida',label:'🔴 Vencida'},{value:'hoy',label:'🟠 Vencimiento hoy'},{value:'estasemana',label:'🟡 Vence esta semana'},{value:'proxsemana',label:'🔵 Vence próxima semana'},{value:'luego',label:'🟢 Vence más adelante'},{value:'sinfecha',label:'— Sin vencimiento'}],'Vencimiento',()=>renderActividadesMaster());
   const fUrgs=msValues('act-m-urgencia');
   const fMejora=document.getElementById('act-m-mejora')?.value||'';
+  // Origen: de cualquier recurrente / de una en particular / manuales (las que cargaste a mano)
+  const selOrig=document.getElementById('act-m-origen');
+  let fOrigen=selOrig?.value||'';
+  if(selOrig){
+    const usadas=new Set([...(DB.actividades||[]),...(DB.relevamientos||[])].filter(x=>x.tareaRecurrenteId&&!x.borrado).map(x=>x.tareaRecurrenteId));
+    const plant=(DB.tareasRecurrentes||[]).filter(t=>usadas.has(t.id)).sort((a,b)=>a.nombre.localeCompare(b.nombre,'es'));
+    selOrig.innerHTML='<option value="">🔁 Origen: todas</option><option value="rec">🔁 Solo las de tareas recurrentes</option><option value="man">✍️ Solo las cargadas a mano</option>'
+      +plant.map(t=>`<option value="${t.id}">↳ ${hEsc(t.nombre)}</option>`).join('');
+    if(fOrigen&&!['rec','man'].includes(fOrigen)&&!usadas.has(fOrigen))fOrigen='';
+    selOrig.value=fOrigen;
+  }
   // "Vence esta semana" trae de yapa lo Vencido y lo de Vencimiento hoy — son,
   // en los hechos, lo más urgente de la semana, así que conviene que aparezcan
   // juntos sin tener que tildar los tres a mano.
@@ -10210,6 +10245,7 @@ function renderActividadesMaster(){
     if(fUrgs.length)partes.push('Vencimiento: '+corto(fUrgs,k=>URGENCIA_LABELS[k]||k));
     if(fAccionable)partes.push('Accionable: '+(fAccionable==='si'?'Sí':'No'));
     if(fMejora)partes.push('Mejora programada: '+(fMejora==='si'?'Sí':'No'));
+    if(fOrigen)partes.push('Origen: '+(fOrigen==='rec'?'tareas recurrentes':fOrigen==='man'?'cargadas a mano':((DB.tareasRecurrentes||[]).find(t=>t.id===fOrigen)?.nombre||'recurrente')));
     if(fCreadaDesde||fCreadaHasta)partes.push(`Creación: ${fCreadaDesde||'…'} a ${fCreadaHasta||'…'}`);
     if(fRealDesde||fRealHasta)partes.push(`Realización: ${fRealDesde||'…'} a ${fRealHasta||'…'}`);
     if(fPlanDesde||fPlanHasta)partes.push(`Inicio/límite: ${fPlanDesde||'…'} a ${fPlanHasta||'…'}`);
@@ -10253,7 +10289,7 @@ function renderActividadesMaster(){
       origenRelevId:(r.origenRelevId&&DB.relevamientos.some(x=>x.id===r.origenRelevId))?r.origenRelevId:null,
       actividadLigada:tieneAplic?{id:tieneAplic.id,tipo:tieneAplic.tipo,estado:estadoDe(tieneAplic),corto:tieneAplic.corto||''}:null,
       mejoraProgramada:!!r.mejoraProgramada,mejoraId:r.mejoraId||null,
-      cortoCodigo:r.corto||'',responsable:r.responsable||''
+      cortoCodigo:r.corto||'',responsable:r.responsable||'',tareaRecurrenteId:r.tareaRecurrenteId||null
     };
   });
   filas=filas.concat(filasRelev);
@@ -10275,6 +10311,9 @@ function renderActividadesMaster(){
     if(fAccionable==='no'&&(!u||u.accionable))return false;
     if(fMejora==='si'&&!f.mejoraProgramada)return false;
     if(fMejora==='no'&&f.mejoraProgramada)return false;
+    if(fOrigen==='rec'&&!f.tareaRecurrenteId)return false;
+    if(fOrigen==='man'&&f.tareaRecurrenteId)return false;
+    if(fOrigen&&fOrigen!=='rec'&&fOrigen!=='man'&&f.tareaRecurrenteId!==fOrigen)return false;
     if(fCreadaDesde&&(f.creada||'')<fCreadaDesde)return false;
     if(fCreadaHasta&&(f.creada||'')>fCreadaHasta)return false;
     if(fRealDesde||fRealHasta){
