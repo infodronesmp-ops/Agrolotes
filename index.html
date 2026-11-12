@@ -1836,7 +1836,8 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
         <div class="field"><label>Observación precargada <span class="muted">(se vuelca en la actividad generada, para dar contexto de qué estás buscando — editable después)</span></label>
           <textarea id="tr-obs" class="fi" rows="3" placeholder="Ej: Revisar nacimiento de lecherón. Si hay presencia, evaluar aplicación con dron o siembra aérea."></textarea>
         </div>
-        <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer"><input type="checkbox" id="tr-mejora"> 🔧 Marcar la actividad generada como Mejora programada</label>
+        <div class="field"><label>🔧 ¿Pertenece a una mejora programada? <span class="muted" style="font-weight:400">(lo que genere queda ligado a esa mejora y se ve desde ella)</span></label>
+          <select id="tr-mejora-id" class="fi"></select></div>
         <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer"><input type="checkbox" id="tr-activo" checked> Activa (si se destilda, deja de generar pero no se borra)</label>
         <div id="tr-instancias-wrap" style="display:none;margin-top:4px">
           <label>Instancias generadas, vigentes</label>
@@ -2527,7 +2528,7 @@ function generarTareasRecurrentes(camp){
         malezas:[],productos:[],
         obs:[avisoCicloAnterior(t.id,l.id)?.txt,t.obs].filter(Boolean).join('\n'),
         cicloAnteriorOmitido:avisoCicloAnterior(t.id,l.id),
-        mejoraProgramada:!!t.mejora,
+        mejoraProgramada:!!t.mejora,mejoraId:t.mejoraId||null,
         estado:'Relevado',
         tareaRecurrenteId:t.id,
         origenRelevId:null,
@@ -2606,7 +2607,7 @@ function generarTareasRecurrentesGenerales(){
       obs:[avisoCicloAnterior(t.id,null)?.txt,t.obs].filter(Boolean).join('\n'),datos:{},
       cicloAnteriorOmitido:avisoCicloAnterior(t.id,null),
       estado:'Pendiente',fechaRealizacion:null,
-      mejoraProgramada:!!t.mejora,
+      mejoraProgramada:!!t.mejora,mejoraId:(t.tipoActividad==='RelevGeneral'?null:(t.mejoraId||null)),
       relevId:null,
       general:true,
       tareaRecurrenteId:t.id,
@@ -2756,7 +2757,11 @@ function openModalTareaRecurrente(id=null){
   document.getElementById('tr-mes-fin').value=t?.mesFin||'';
   document.getElementById('tr-anio-ventana').value=t?.anioVentana||1;
   document.getElementById('tr-obs').value=t?.obs||'';
-  document.getElementById('tr-mejora').checked=!!t?.mejora;
+  (()=>{const sm=document.getElementById('tr-mejora-id');
+    const ms=(DB.mejoras||[]).filter(m=>m.estado!=='cerrada'||m.id===t?.mejoraId).sort((a,b)=>a.nombre.localeCompare(b.nombre,'es'));
+    sm.innerHTML='<option value="">(ninguna)</option>'+(t?.mejora&&!t?.mejoraId?'<option value="__marca">Solo marcar como mejora (sin ligar a una)</option>':'')
+      +ms.map(m=>`<option value="${m.id}">${hEsc(m.nombre)}</option>`).join('');
+    sm.value=t?.mejoraId||((t?.mejora&&!t?.mejoraId)?'__marca':'');})();
   document.getElementById('tr-activo').checked=t?t.activo!==false:true;
   onTrAlcanceChange();
   trVentanaResumen();
@@ -2937,7 +2942,7 @@ function generarRelevamientosDesdeGeneral(){
         loteNombre:l.nombre||'',loteHa:l.ha||0,
         malezas:[],productos:[],
         obs:t.obs||'',
-        mejoraProgramada:!!t.mejora,
+        mejoraProgramada:!!t.mejora,mejoraId:t.mejoraId||null,
         estado:'Relevado',
         tareaRecurrenteId:t.id,
         origenRelevId:null,
@@ -2973,7 +2978,8 @@ function saveTareaRecurrente(){
     diaIni,mesIni,diaFin,mesFin,
     anioVentana:trAnioVentanaDeMes(mesIni),
     obs:document.getElementById('tr-obs').value.trim(),
-    mejora:!!document.getElementById('tr-mejora').checked,
+    mejora:!!document.getElementById('tr-mejora-id').value,
+    mejoraId:(()=>{const v=document.getElementById('tr-mejora-id').value;return v&&v!=='__marca'?v:null;})(),
     activo:!!document.getElementById('tr-activo').checked,
     createdAt:_editTareaRecId?((DB.tareasRecurrentes||[]).find(x=>x.id===_editTareaRecId)?.createdAt||Date.now()):Date.now(),
   };
@@ -3021,7 +3027,7 @@ function instanciasDeTarea(tareaId){
     if(a.tareaRecurrenteId!==tareaId)return;
     const l=DB.lotes.find(x=>x.id===a.loteId),cli=DB.clientes.find(c=>c.id===a.clienteId),campo=DB.campos.find(c=>c.id===a.campoId);
     items.push({id:a.id,esRelev:false,tipo:a.tipo,loteNombre:a.loteId?(l?.nombre||'—'):'— (general)',clienteNombre:cli?.nombre||'—',campoNombre:campo?.nombre||'—',
-      campaña:a.campaña||'—',fechaRef:a.fechaRealizacion||a.fechaFin||a.fecha||'',borrado:!!a.borrado,
+      campaña:(a.tipo==='RelevGeneral'&&a.fecha)?campanaDeFecha(a.fecha):(a.campaña||'—'),fechaRef:a.fechaRealizacion||a.fechaFin||a.fecha||'',borrado:!!a.borrado,
       estado:a.fechaRealizacion?'Realizada':'Pendiente'});
   });
   items.sort((a,b)=>(b.fechaRef||'').localeCompare(a.fechaRef||''));
@@ -3036,10 +3042,10 @@ function renderTareaInstancias(){
   const items=instanciasDeTarea(t.id);
   const vivas=items.filter(i=>!i.borrado);
   const filasHTML=items.map(it=>{
-    const abrir=it.esRelev?`openModalRelev('${it.id}')`:`openModalActividad(null,null,null,'${it.id}')`;
+    const abrir=it.esRelev?`openModalRelev('${it.id}')`:(it.tipo==='RelevGeneral'?`abrirRelevGeneral('${it.id}')`:`openModalActividad(null,null,null,'${it.id}')`);
     return`<tr${it.borrado?' style="opacity:.55"':''}>
-      <td style="font-size:12px">${it.esRelev?'🔬':((ACT_TIPOS[it.tipo]||{}).icono||'📝')} ${it.tipo}</td>
-      <td>${it.loteNombre}</td>
+      <td style="font-size:12px">${it.esRelev?'🔬 Relevamiento':(it.tipo==='RelevGeneral'?'🔁 Ciclo anual (recordatorio)':((ACT_TIPOS[it.tipo]||{}).icono||'📝')+' '+it.tipo)}</td>
+      <td>${it.tipo==='RelevGeneral'?'<span class="muted">— (recordatorio)</span>':it.loteNombre}</td>
       <td style="font-size:12px">${it.clienteNombre} <span class="muted">— ${it.campoNombre}</span></td>
       <td class="mono" style="font-size:11px">${it.campaña}</td>
       <td class="mono" style="font-size:11px">${it.fechaRef||'—'}</td>
@@ -3387,6 +3393,10 @@ function planPill(it){
 // una debajo de otra en una celda chica, conviene ver de un vistazo QUÉ tipo
 // es cada una sin tener que fijarse en el ícono — por eso lleva la inicial
 // del tipo (A: Aplicación, R: Relevamiento, S: Siembra...) bien visible.
+function trNombreDeAct(id){
+  const a=(DB.actividades||[]).find(x=>x.id===id);
+  return a?.tareaRecurrenteId?((DB.tareasRecurrentes||[]).find(t=>t.id===a.tareaRecurrenteId)?.nombre||''):'';
+}
 function calPill(it){
   let cls='bg-blue';
   const pendiente=it.estado!=='Realizada';
@@ -3396,7 +3406,7 @@ function calPill(it){
   const txt=f?f.slice(8,10)+'/'+f.slice(5,7):'s/f';
   const letra=ACT_TIPO_LETRA[it.tipo]||(it.tipo||'?').slice(0,1).toUpperCase();
   const abrir=it.esRelev?`openModalRelev('${it.id}')`:(it.tipo==='RelevGeneral'?`abrirRelevGeneral('${it.id}')`:`openModalActividad(null,null,null,'${it.id}')`);
-  const tit=`${it.tipo==='RelevGeneral'?'Relevamiento (por lote)':it.tipo} — ${it.estado}${it.fecha?' · inicio '+it.fecha:''}${it.fechaFin?' · límite '+it.fechaFin:''}${it.real?' · realizada '+it.real:''}${it.cultivo?' · '+it.cultivo:''}${it.mejoraProgramada?' · 🔧 Mejora programada':''}`;
+  const tit=`${it.tipo==='RelevGeneral'?(trNombreDeAct(it.id)?'🔁 '+trNombreDeAct(it.id)+' (relevamiento por lote)':'Relevamiento (por lote)'):it.tipo} — ${it.estado}${it.fecha?' · inicio '+it.fecha:''}${it.fechaFin?' · límite '+it.fechaFin:''}${it.real?' · realizada '+it.real:''}${it.cultivo?' · '+it.cultivo:''}${it.mejoraProgramada?' · 🔧 Mejora programada':''}`;
   // Lo Pendiente (todavía no se hizo) tiene que distinguirse de un vistazo de
   // lo Realizado — no solo por el color, que se puede confundir entre celdas
   // chicas: lleva además un borde marcado y el 🕒 antes de la inicial.
@@ -10203,7 +10213,15 @@ function renderActividadesMaster(){
   const fResp=msValues('act-m-resp');
   msRender('act-m-urgencia',[{value:'vencida',label:'🔴 Vencida'},{value:'hoy',label:'🟠 Vencimiento hoy'},{value:'estasemana',label:'🟡 Vence esta semana'},{value:'proxsemana',label:'🔵 Vence próxima semana'},{value:'luego',label:'🟢 Vence más adelante'},{value:'sinfecha',label:'— Sin vencimiento'}],'Vencimiento',()=>renderActividadesMaster());
   const fUrgs=msValues('act-m-urgencia');
-  const fMejora=document.getElementById('act-m-mejora')?.value||'';
+  const selMej=document.getElementById('act-m-mejora');
+  let fMejora=selMej?.value||'';
+  if(selMej){
+    const ms=(DB.mejoras||[]).slice().sort((a,b)=>a.nombre.localeCompare(b.nombre,'es'));
+    selMej.innerHTML='<option value="">🔧 Mejora: todas</option><option value="si">🔧 Solo vinculadas a una mejora</option><option value="no">Sin mejora</option>'
+      +ms.map(m=>`<option value="m:${m.id}">↳ ${hEsc(m.nombre)}</option>`).join('');
+    if(fMejora.startsWith('m:')&&!ms.some(m=>'m:'+m.id===fMejora))fMejora='';
+    selMej.value=fMejora;
+  }
   // Origen: de cualquier recurrente / de una en particular / manuales (las que cargaste a mano)
   const selOrig=document.getElementById('act-m-origen');
   let fOrigen=selOrig?.value||'';
@@ -10244,7 +10262,7 @@ function renderActividadesMaster(){
     if(fResp.length)partes.push('Responsable: '+corto(fResp,v=>v==='__sin__'?'(sin responsable)':v));
     if(fUrgs.length)partes.push('Vencimiento: '+corto(fUrgs,k=>URGENCIA_LABELS[k]||k));
     if(fAccionable)partes.push('Accionable: '+(fAccionable==='si'?'Sí':'No'));
-    if(fMejora)partes.push('Mejora programada: '+(fMejora==='si'?'Sí':'No'));
+    if(fMejora)partes.push('Mejora programada: '+(fMejora==='si'?'Sí':fMejora==='no'?'No':((DB.mejoras||[]).find(m=>'m:'+m.id===fMejora)?.nombre||'una mejora')));
     if(fOrigen)partes.push('Origen: '+(fOrigen==='rec'?'tareas recurrentes':fOrigen==='man'?'cargadas a mano':((DB.tareasRecurrentes||[]).find(t=>t.id===fOrigen)?.nombre||'recurrente')));
     if(fCreadaDesde||fCreadaHasta)partes.push(`Creación: ${fCreadaDesde||'…'} a ${fCreadaHasta||'…'}`);
     if(fRealDesde||fRealHasta)partes.push(`Realización: ${fRealDesde||'…'} a ${fRealHasta||'…'}`);
@@ -10311,6 +10329,7 @@ function renderActividadesMaster(){
     if(fAccionable==='no'&&(!u||u.accionable))return false;
     if(fMejora==='si'&&!f.mejoraProgramada)return false;
     if(fMejora==='no'&&f.mejoraProgramada)return false;
+    if(fMejora.startsWith('m:')&&f.mejoraId!==fMejora.slice(2))return false;
     // Los recordatorios generales pendientes (sin lote) viven en la franja "Pendientes generales" de arriba;
     // en la tabla solo aparecen si filtrás por Origen, para no mezclarlos con las actividades reales.
     if(f.general&&f.tareaRecurrenteId&&f.estado!=='Realizada'&&!fOrigen)return false;
@@ -10521,7 +10540,8 @@ function renderActividadesMaster(){
     // esta fila es una Actividad derivada de uno — así se ve de un vistazo
     // qué relevamiento le dio origen, sin tener que entrar a averiguarlo.
     const codigoBadge=f.cortoCodigo?`<span class="badge bg-gray mono" style="font-size:9px;margin-right:4px" title="Código corto — buscalo escribiéndolo en el buscador">${f.cortoCodigo}</span>`:'';
-    const recurrenteBadge=(!f.esRelev&&f.tareaRecurrenteId)?` <span class="badge bg-blue" style="font-size:9px" title="Generada por una actividad recurrente">🔁</span>`:'';
+    const _recT=f.tareaRecurrenteId?(DB.tareasRecurrentes||[]).find(t=>t.id===f.tareaRecurrenteId):null;
+    const recurrenteBadge=f.tareaRecurrenteId?` <span class="badge bg-blue" style="font-size:9px" title="Generada por una tarea recurrente — tocá para ver todo lo que generó"><a href="#" onclick="event.preventDefault();event.stopPropagation();navTo('tarea-instancias',{tareaId:'${f.tareaRecurrenteId}'})" style="color:inherit;text-decoration:none">🔁${_recT?' '+hEsc(_recT.nombre):''}</a></span>`:'';
     const relevVinculadoCadena=(f.relevId&&!f.esRelev)?cadenaRelevHTML(f.relevId):'';
     const linkRelevVinculado=relevVinculadoCadena?` <span style="font-size:10px">🔗 ${relevVinculadoCadena}</span>`:'';
     const celdas=[
@@ -12627,7 +12647,7 @@ function vItems(){
     let det=vProdNombres(a.productos).slice(0,2).join(', ');
     if(!det&&a.datos&&a.datos.variedad)det=a.datos.variedad;
     if(!det)det=vTxt(a.obs,32);
-    out.push({kind:'A',id:a.id,tipo:a.tipo==='RelevGeneral'?'Relevamiento (por lote)':a.tipo,icono:(ACT_TIPOS[a.tipo]||{}).icono||'📝',pend,ini:a.fecha||'',lim:a.fechaFin||'',
+    out.push({kind:'A',id:a.id,tipo:a.tipo==='RelevGeneral'?(trNombreDeAct(a.id)||'Relevamiento (por lote)'):a.tipo,icono:(ACT_TIPOS[a.tipo]||{}).icono||'📝',pend,ini:a.fecha||'',lim:a.fechaFin||'',
       real:pend?'':(a.fechaRealizacion||a.fecha||''),loteId:a.loteId||'',cliId:a.clienteId||'',campoId:a.campoId||'',camp:a.campaña||'',
       det,codigo:a.corto||'',mejora:mej(a.mejoraId),rec:!!a.tareaRecurrenteId,resp:a.responsable||''});
   });
