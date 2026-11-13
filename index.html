@@ -616,7 +616,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
           <div style="height:12px"></div>
           <label style="font-size:12px;font-weight:600">Soluciones</label>
           <div id="otl-prods" style="margin:6px 0"></div>
-          <button class="btn bs bxs" onclick="otlAddProd()">+ Agregar solución</button>
+          <button class="btn bs bxs" onclick="otlAddProd()">+ Agregar solución</button> <button class="btn bs bxs" onclick="otlNuevaSolucion()" title="Crear una solución que no está en tu catálogo, sin salir de esta orden">➕ Solución nueva (no está en el catálogo)</button>
           <div class="field" style="margin-top:12px"><label>Observaciones <span class="muted">(salen impresas en la orden)</span></label><textarea id="otl-obs" class="fi" rows="2" placeholder="Ej: aplicar con viento &lt; 15 km/h"></textarea></div>
           <div class="rf" style="gap:8px">
             <button class="btn bp bsm" onclick="otlGenerar()">Generar orden</button>
@@ -4746,7 +4746,7 @@ function cancelModalMaleza(){
 }
 function cancelModalProducto(){
   document.getElementById('modal-producto').classList.remove('open');
-  if(_afterProdSave){_afterProdSave=null;openModal(_afterProdReturnModal||'modal-relev');}
+  if(_afterProdSave){_afterProdSave=null;if(_afterProdReturnModal!=='__ninguno')openModal(_afterProdReturnModal||'modal-relev');}
 }
 // Editar un relevamiento puntual desde la Orden de Trabajo: al guardar o
 // cancelar, se vuelve directo a esa misma OT (ya actualizada).
@@ -5134,6 +5134,31 @@ function convUnidad(u){
   return UNIDAD_BASE[u]||{f:1,base:(u||'').replace('/ha','')||'u'};
 }
 // Dosis*ha normalizada a la unidad base, para totales físicos (OT, exportaciones).
+// Catálogo ordenado A-Z sin importar mayúsculas ni tildes
+function _normS(x){return(x||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();}
+function productosOrdenados(){return DB.productos.slice().sort((a,b)=>_normS(a.nombre).localeCompare(_normS(b.nombre),'es'));}
+// Le agrega una lupa (buscador) a un <select> de productos: escribís y filtra; con Enter elige el primero.
+function prodSelectMejorar(sel){
+  if(!sel||sel.dataset.psm)return;sel.dataset.psm='1';
+  const inp=document.createElement('input');inp.type='search';inp.placeholder='🔍 buscar';inp.className='fi';
+  inp.style.cssText='width:96px;flex:none;font-size:12px';inp.title='Escribí parte del nombre para filtrar la lista';
+  let todas=null;
+  const snap=()=>{todas=[...sel.options].map(o=>({v:o.value,t:o.textContent}));};
+  const pintar=lista=>{const cur=sel.value;sel.innerHTML=lista.map(o=>`<option value="${hEsc(o.v)}"${o.v===cur?' selected':''}>${hEsc(o.t)}</option>`).join('');sel.value=cur;};
+  inp.addEventListener('focus',()=>{if(!inp.value)snap();});
+  inp.addEventListener('input',()=>{
+    if(!inp.value){if(todas)pintar(todas);return;}
+    if(!todas)snap();
+    const q=_normS(inp.value);
+    pintar(todas.filter(o=>o.v===''||o.v===sel.value||_normS(o.t).includes(q)));
+  });
+  inp.addEventListener('keydown',e=>{
+    if(e.key!=='Enter')return;e.preventDefault();
+    const o=[...sel.options].find(x=>x.value&&x.value!==sel.value);
+    if(o){sel.value=o.value;sel.dispatchEvent(new Event('change',{bubbles:true}));inp.value='';pintar(todas||[...sel.options].map(x=>({v:x.value,t:x.textContent})));sel.value=o.value;}
+  });
+  sel.parentNode.insertBefore(inp,sel);
+}
 function totalBaseUnidad(dosis,ha,unidad){
   const c=convUnidad(unidad);
   return {valor:(dosis||0)*(ha||0)*c.f,unidad:c.base};
@@ -6951,7 +6976,38 @@ function malComboSelect(idx,val,display){
 // pfx: 'pr' (filas de Relevamiento) o 'adpr' (filas de Aplicación sin
 // relevamiento) — mismo mecanismo para las dos, nada más que el prefijo de
 // ids cambia, así quedan siempre sincronizadas con el catálogo de Soluciones.
+// Hectáreas del lote elegido en el modal (relevamiento: #r-lote · aplicación: #act-lote-id)
+function haLoteModal(pfx){
+  const id=document.getElementById(pfx==='adpr'?'act-lote-id':'r-lote')?.value;
+  const l=id?DB.lotes.find(x=>x.id===id):null;return l?(parseFloat(l.ha)||0):0;
+}
+function _haEfectivas(idx,pfx){
+  const fp=(parseFloat(document.getElementById(pfx+'-f-'+idx)?.value)||100)/100;
+  return haLoteModal(pfx)*fp;
+}
+// dosis → total
+function syncTotalRow(idx,pfx='pr'){
+  const ti=document.getElementById(pfx+'-t-'+idx);if(!ti)return;
+  const uni=document.getElementById(pfx+'-u-'+idx)?.value||'';
+  const lb=document.getElementById(pfx+'-tl-'+idx);if(lb)lb.textContent=uni?convUnidad(uni).base:'';
+  if(document.activeElement===ti)return;
+  const d=parseFloat(document.getElementById(pfx+'-d-'+idx)?.value)||0,ha=_haEfectivas(idx,pfx);
+  ti.value=(d>0&&ha>0&&uni)?String(Math.round(d*ha*convUnidad(uni).f*1000)/1000):'';
+}
+// total → dosis/ha
+function totalADosisRow(idx,pfx='pr'){
+  const t=parseFloat(document.getElementById(pfx+'-t-'+idx)?.value);
+  const uni=document.getElementById(pfx+'-u-'+idx)?.value||'';
+  const di=document.getElementById(pfx+'-d-'+idx);if(!di)return;
+  if(!(t>0)){return;}
+  if(!uni){mostrarSnackbar('⚠️ Elegí primero la unidad (L/ha, kg/ha…)','amber');return;}
+  const ha=_haEfectivas(idx,pfx);
+  if(!ha){mostrarSnackbar('⚠️ Elegí primero el lote, para saber las hectáreas','amber');return;}
+  di.value=String(Math.round(t/(ha*(convUnidad(uni).f||1))*10000)/10000);
+  calcCostoRow(idx,pfx);
+}
 function calcCostoRow(idx,pfx='pr'){
+  syncTotalRow(idx,pfx);
   const pid=document.getElementById(pfx+'-p-'+idx)?.value;
   const dosis=parseFloat(document.getElementById(pfx+'-d-'+idx)?.value)||0;
   const unidad=document.getElementById(pfx+'-u-'+idx)?.value||'';
@@ -6999,13 +7055,13 @@ function addProdRow(data=null){
   const idx=_prodRowN++;
   const d=document.createElement('div');
   d.id='pr-'+idx;d.style.cssText='display:flex;gap:8px;margin-bottom:7px;flex-wrap:wrap;align-items:center';
-  const opts=DB.productos.map(p=>`<option value="${p.id}"${data?.productoId===p.id?' selected':''}>${p.nombre} (${p.tipo||'—'})</option>`).join('');
+  const opts=productosOrdenados().map(p=>`<option value="${p.id}"${data?.productoId===p.id?' selected':''}>${p.nombre} (${p.tipo||'—'})</option>`).join('');
   const precioGuardado=data?.precioUSD||'';
   const factorGuardado=data?.factor!==undefined?Math.round((data.factor)*100):100;
   d.innerHTML=`
     <select id="pr-p-${idx}" class="fi" style="flex:2;min-width:140px" onchange="autoFillPrecio(${idx})"><option value="">Producto...</option>${opts}</select>
     <input type="number" id="pr-d-${idx}" value="${data?.dosis||''}" step="0.01" placeholder="Dosis" class="fi" style="width:78px" oninput="calcCostoRow(${idx})">
-    <select id="pr-u-${idx}" class="fi" style="width:80px">
+    <select id="pr-u-${idx}" class="fi" style="width:80px" onchange="calcCostoRow(${idx})">
       <option value="">Unidad...</option>
       <option value="L/ha"${(data?.unidad||'')==='L/ha'?' selected':''}>L/ha</option>
       <option value="ml/ha"${(data?.unidad||'')==='ml/ha'?' selected':''}>ml/ha</option>
@@ -7017,6 +7073,11 @@ function addProdRow(data=null){
       <option value="u/ha"${(data?.unidad||'')==='u/ha'?' selected':''}>u/ha</option>
       <option value="$/ha"${(data?.unidad||'')==='$/ha'?' selected':''}>$/ha</option>
     </select>
+    <div style="display:flex;align-items:center;gap:3px;flex-shrink:0" title="Tipeá el total que llevás y calcula la dosis por ha (usa las ha del lote y el %lote)">
+      <span style="font-size:10px;color:var(--text3)">o total</span>
+      <input type="number" id="pr-t-${idx}" step="0.001" min="0" placeholder="Total" class="fi" style="width:72px" oninput="totalADosisRow(${idx},'pr')">
+      <span id="pr-tl-${idx}" style="font-size:10px;color:var(--text3);min-width:16px"></span>
+    </div>
     <div style="display:flex;align-items:center;gap:3px;flex-shrink:0" title="% del lote al que se aplica este producto (100% = todo el lote)">
       <span style="font-size:10px;color:var(--text3)">%lote</span>
       <input type="number" id="pr-f-${idx}" value="${factorGuardado}" min="1" max="100" step="1" placeholder="100" class="fi" style="width:54px" oninput="calcCostoRow(${idx})" title="% del lote">
@@ -7038,6 +7099,7 @@ function addProdRow(data=null){
     calcCostoRow(idx);
   },50);
   document.getElementById('prod-rows').appendChild(d);
+  prodSelectMejorar(d.querySelector('select'));
 }
 
 function saveRelev(){
@@ -7641,7 +7703,7 @@ function renderRelev(){
 
   // Poblar filtro producto
   const sp=document.getElementById('f-prod');
-  if(sp){const pv=sp.value;sp.innerHTML='<option value="">Producto...</option>';DB.productos.forEach(p=>sp.innerHTML+=`<option value="${p.id}"${p.id===pv?' selected':''}>${p.nombre}</option>`);}
+  if(sp){const pv=sp.value;sp.innerHTML='<option value="">Producto...</option>';productosOrdenados().forEach(p=>sp.innerHTML+=`<option value="${p.id}"${p.id===pv?' selected':''}>${p.nombre}</option>`);}
 
   const rs=getFiltrados();
   // Barra total has
@@ -8088,6 +8150,7 @@ function otlAddLote(){
 function otlDelLote(i){_otlLotes.splice(i,1);if(!_otlLotes.length)otlAddLote();else otlRenderLotes();}
 function otlSetLote(i,k,v){_otlLotes[i][k]=v;otlTotalHa();}
 function otlTotalHa(){
+  otlRefrescarTotales();
   const el=document.getElementById('otl-ha-total');if(!el)return;
   const t=_otlLotes.reduce((s,l)=>s+(parseFloat(l.ha)||0),0);
   el.textContent=t?`Total: ${Math.round(t*100)/100} ha en ${_otlLotes.filter(l=>parseFloat(l.ha)>0).length} lote(s)`:'';
@@ -8110,21 +8173,59 @@ function otlSetProd(i,k,v){
   _otlRows[i][k]=v;
   if(k==='pid'){const pr=DB.productos.find(x=>x.id===v);if(pr&&pr.unidad){_otlRows[i].unidad=pr.unidad;otlRenderProds();}}
 }
+function otlHaTotal(){return _otlLotes.reduce((s,l)=>s+(parseFloat(l.ha)||0),0);}
+function otlSetTotal(i,v){
+  const r=_otlRows[i],ha=otlHaTotal(),f=convUnidad(r.unidad).f||1,t=parseFloat(v);
+  if(t>0&&ha>0){r.dosis=t/(ha*f);const di=document.getElementById('otl-d-'+i);if(di)di.value=_fmtN(r.dosis,4);}
+  else if(t>0){mostrarSnackbar('⚠️ Cargá primero las hectáreas de los lotes','amber');}
+}
+function otlSetDosis(i,v){
+  _otlRows[i].dosis=v;otlRefrescarTotales();
+}
+function otlRefrescarTotales(){
+  const ha=otlHaTotal();
+  _otlRows.forEach((r,i)=>{
+    const ti=document.getElementById('otl-t-'+i);if(!ti||document.activeElement===ti)return;
+    const d=parseFloat(r.dosis),f=convUnidad(r.unidad).f||1;
+    ti.value=(d>0&&ha>0)?_fmtN(d*ha*f,3):'';
+    const lb=document.getElementById('otl-tl-'+i);if(lb)lb.textContent=convUnidad(r.unidad).base;
+  });
+}
+// Alta de una solución nueva sin salir de la OT (no se pierde lo cargado)
+function otlNuevaSolucion(){
+  const n0=DB.productos.length;
+  _afterProdReturnModal='__ninguno';
+  _afterProdSave=()=>{
+    const nuevo=DB.productos.length>n0?DB.productos[DB.productos.length-1]:null;
+    if(nuevo){
+      let fila=_otlRows.find(r=>!r.pid);if(!fila){fila={pid:'',dosis:'',unidad:'L/ha'};_otlRows.push(fila);}
+      fila.pid=nuevo.id;if(nuevo.unidad)fila.unidad=nuevo.unidad;
+      mostrarSnackbar('✅ Solución agregada y elegida: '+nuevo.nombre);
+    }
+    otlRenderProds();
+  };
+  openModalProducto();
+}
 function otlRenderProds(){
   const el=document.getElementById('otl-prods');if(!el)return;
-  const cat=DB.productos.slice().sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||'','es'));
+  const cat=productosOrdenados();
   el.innerHTML=_otlRows.map((r,i)=>{
     const unis=_OTL_UNIDADES.includes(r.unidad)?_OTL_UNIDADES:[r.unidad,..._OTL_UNIDADES];
     return`<div class="rf" style="gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap">
-      <select class="fi" style="flex:1;min-width:200px" onchange="otlSetProd(${i},'pid',this.value)">
+      <select class="fi" data-otlp="1" style="flex:1;min-width:200px" onchange="otlSetProd(${i},'pid',this.value)">
         <option value="">Elegí una solución…</option>
         ${cat.map(pr=>`<option value="${pr.id}"${pr.id===r.pid?' selected':''}>${hEsc(pr.nombre)}${pr.tipo?' ('+hEsc(pr.tipo)+')':''}</option>`).join('')}
       </select>
-      <input type="number" class="fi" style="width:90px" step="0.01" min="0" placeholder="Dosis" value="${hEsc(r.dosis)}" oninput="otlSetProd(${i},'dosis',this.value)">
-      <select class="fi" style="width:130px" onchange="otlSetProd(${i},'unidad',this.value)">${unis.map(u=>`<option${u===r.unidad?' selected':''}>${hEsc(u)}</option>`).join('')}</select>
+      <input type="number" id="otl-d-${i}" class="fi" style="width:90px" step="0.0001" min="0" placeholder="Dosis/ha" value="${r.dosis===''?'':_fmtN(parseFloat(r.dosis)||0,4)}" oninput="otlSetDosis(${i},this.value)">
+      <select class="fi" style="width:130px" onchange="otlSetProd(${i},'unidad',this.value);otlRefrescarTotales()">${unis.map(u=>`<option${u===r.unidad?' selected':''}>${hEsc(u)}</option>`).join('')}</select>
+      <span class="muted" style="font-size:11px">o total</span>
+      <input type="number" id="otl-t-${i}" class="fi" style="width:90px" step="0.001" min="0" placeholder="Total" title="Tipeá el total que llevás para todos los lotes y calcula la dosis por ha" oninput="otlSetTotal(${i},this.value)">
+      <span class="muted" id="otl-tl-${i}" style="font-size:11px;min-width:18px">${hEsc(convUnidad(r.unidad).base)}</span>
       <button class="btn bd bxs" onclick="otlDelProd(${i})" title="Quitar">✕</button>
     </div>`;
   }).join('');
+  el.querySelectorAll('select[data-otlp]').forEach(prodSelectMejorar);
+  otlRefrescarTotales();
 }
 function otlNueva(){
   _otlRows=[];_otlLotes=[];_otlId=null;
@@ -8178,7 +8279,7 @@ function otlRender(rec){
       const info=[p.pr.tipo||'',fc&&fc!=='—'?fc:''].filter(Boolean).join(' · ');
       return`<tr><td style="padding:7px 6px;text-align:center"><span class="ot-orden-badge">${i+1}</span></td>
         <td style="font-size:13px;padding:7px 10px"><strong>${hEsc(p.pr.nombre||'?')}</strong>${info?`<div style="font-size:10px;color:var(--text3);margin-top:1px">${hEsc(info)}</div>`:''}</td>
-        <td class="mono" style="font-size:14px;font-weight:700;white-space:nowrap;padding:7px 10px">${p.dosis} <span style="font-weight:500">${hEsc(p.unidad)}</span></td>
+        <td class="mono" style="font-size:14px;font-weight:700;white-space:nowrap;padding:7px 10px">${_fmtN(p.dosis,4)} <span style="font-weight:500">${hEsc(p.unidad)}</span></td>
         <td class="mono" style="font-size:14px;font-weight:700;color:var(--accent2);white-space:nowrap;padding:7px 10px">${fmt(t.valor)} ${hEsc(t.unidad)}</td></tr>`;
     }).join('');
     return`<table class="ot-prod-tabla" style="width:100%;border-collapse:collapse;table-layout:fixed"><col class="col-orden"><col class="col-prod"><col class="col-dosis"><col class="col-total"><thead><tr style="background:var(--bg2)">${thC('Orden de carga')}${th('Producto')}${th('Dosis / ha')}${th(etq)}</tr></thead><tbody>${filas}</tbody></table>`;
@@ -8333,8 +8434,19 @@ function eliminarProductoOT(productoId,relevIdsCsv){
 // Mostrar/ocultar el mini-formulario para sumar un producto nuevo a un bloque de la OT
 function toggleAgregarProductoOT(blockKey){
   const box=document.getElementById('ot-add-'+blockKey);
-  if(box)box.style.display=box.style.display==='none'?'block':'none';
+  if(box){box.style.display=box.style.display==='none'?'block':'none';prodSelectMejorar(document.getElementById('ot-add-prod-'+blockKey));}
 }
+// Total ↔ dosis/ha: tipeás el total que llevás y calcula la dosis por ha (o al revés)
+function otAddSync(blockKey,desde){
+  const box=document.getElementById('ot-add-'+blockKey);const ha=parseFloat(box?.dataset.ha)||0;
+  const uni=document.getElementById('ot-add-uni-'+blockKey)?.value;const f=convUnidad(uni).f||1;
+  const di=document.getElementById('ot-add-dosis-'+blockKey),ti=document.getElementById('ot-add-total-'+blockKey);
+  if(!ha||!di||!ti)return;
+  if(desde==='total'){const t=parseFloat(ti.value);if(t>0)di.value=_fmtN(t/(ha*f),4);else di.value='';}
+  else{const d=parseFloat(di.value);ti.value=d>0?_fmtN(d*ha*f,3):'';}
+  const lb=document.getElementById('ot-add-totlbl-'+blockKey);if(lb)lb.textContent=convUnidad(uni).base;
+}
+function _fmtN(v,dec){return String(Math.round(v*Math.pow(10,dec))/Math.pow(10,dec));}
 function confirmarAgregarProductoOT(blockKey,relevIdsCsv){
   const productoId=document.getElementById('ot-add-prod-'+blockKey)?.value;
   const dosis=parseFloat(document.getElementById('ot-add-dosis-'+blockKey)?.value);
@@ -8489,17 +8601,20 @@ function buildOTFromIds(ids){
         +(prodsRows?`<table class="ot-prod-tabla" style="width:100%;border-collapse:collapse;table-layout:fixed"><col class="col-orden"><col class="col-prod"><col class="col-dosis"><col class="col-total"><col style="width:34px"><thead><tr style="background:var(--bg2)">${thC('Orden de carga')}${th('Producto')}${th('Dosis / ha')}${th('Total '+(multi?lts.length+' lotes':'lote'))}<th></th></tr></thead><tbody>${prodsRows}</tbody></table>`:'<div style="padding:8px 12px;font-size:12px;color:var(--text3)">Sin productos</div>')
         +`<div class="no-print" style="padding:6px 10px;border-top:1px solid var(--border)">
             <button class="btn bs bxs" onclick="toggleAgregarProductoOT('${blockKey}')">+ Agregar producto</button>
-            <div id="ot-add-${blockKey}" style="display:none;margin-top:6px">
+            <div id="ot-add-${blockKey}" data-ha="${haG}" style="display:none;margin-top:6px">
               <div class="rf" style="gap:6px;flex-wrap:wrap;align-items:center">
                 <select id="ot-add-prod-${blockKey}" class="fi" style="width:200px;font-size:12px">
                   <option value="">Producto...</option>
-                  ${DB.productos.slice().sort((a,b)=>a.nombre.localeCompare(b.nombre)).map(pr=>`<option value="${pr.id}">${pr.nombre}</option>`).join('')}
+                  ${productosOrdenados().map(pr=>`<option value="${pr.id}">${pr.nombre}</option>`).join('')}
                 </select>
-                <input type="number" id="ot-add-dosis-${blockKey}" class="fi" placeholder="Dosis" step="0.01" style="width:80px;font-size:12px">
-                <select id="ot-add-uni-${blockKey}" class="fi" style="width:80px;font-size:12px">
+                <input type="number" id="ot-add-dosis-${blockKey}" class="fi" placeholder="Dosis/ha" step="0.0001" style="width:86px;font-size:12px" oninput="otAddSync('${blockKey}','dosis')">
+                <select id="ot-add-uni-${blockKey}" class="fi" style="width:80px;font-size:12px" onchange="otAddSync('${blockKey}','dosis')">
                   <option value="L/ha">L/ha</option><option value="ml/ha">ml/ha</option><option value="kg/ha">kg/ha</option>
                   <option value="g/ha">g/ha</option><option value="cc/ha">cc/ha</option><option value="tn/ha">tn/ha</option><option value="u/ha">u/ha</option><option value="pack/ha">pack/ha</option>
                 </select>
+                <span class="muted" style="font-size:11px">o total</span>
+                <input type="number" id="ot-add-total-${blockKey}" class="fi" placeholder="Total" step="0.001" style="width:80px;font-size:12px" oninput="otAddSync('${blockKey}','total')" title="Tipeá el total que llevás para este lote y calcula la dosis por ha">
+                <span class="muted" id="ot-add-totlbl-${blockKey}" style="font-size:11px">L</span>
                 <button class="btn bp bxs" onclick="confirmarAgregarProductoOT('${blockKey}','${relevIdsAttr}')">Agregar</button>
                 <button class="btn bs bxs" onclick="toggleAgregarProductoOT('${blockKey}')">Cancelar</button>
               </div>
@@ -8937,7 +9052,7 @@ function renderTablero(){
   mselRender('msel-tl-camp','tl-camp-vals','Campaña',campOpts,()=>renderTablero());
   const malOpts=[...new Set(DB.relevamientos.flatMap(r=>(r.malezas||[]).map(m=>m.nombre)).filter(Boolean))].sort().map(v=>({value:v,label:v}));
   mselRender('msel-tl-mal','tl-mal-vals','Diagnóstico',malOpts,()=>renderTablero());
-  const prodOpts=DB.productos.slice().sort((a,b)=>a.nombre.localeCompare(b.nombre)).map(p=>({value:p.id,label:p.nombre}));
+  const prodOpts=productosOrdenados().map(p=>({value:p.id,label:p.nombre}));
   mselRender('msel-tl-prod','tl-prod-vals','Producto aplicado',prodOpts,()=>renderTablero());
   // Multiselect cultivo — sale de lo que está cargado en la solapa
   // Clientes/Lotes (Cultivo 1 / Cultivo 2da / Cobertura), con cada cultivo+
@@ -9613,13 +9728,13 @@ function addProdRowApl(data=null){
   const idx=_prodRowAplN++;
   const d=document.createElement('div');
   d.id='adpr-'+idx;d.style.cssText='display:flex;gap:8px;margin-bottom:7px;flex-wrap:wrap;align-items:center';
-  const opts=DB.productos.slice().sort((a,b)=>a.nombre.localeCompare(b.nombre)).map(pr=>`<option value="${pr.id}"${data?.productoId===pr.id?' selected':''}>${pr.nombre} (${pr.tipo||'—'})</option>`).join('');
+  const opts=productosOrdenados().map(pr=>`<option value="${pr.id}"${data?.productoId===pr.id?' selected':''}>${pr.nombre} (${pr.tipo||'—'})</option>`).join('');
   const precioGuardado=data?.precioUSD||'';
   const factorGuardado=data?.factor!==undefined?Math.round((data.factor)*100):100;
   d.innerHTML=`
     <select id="adpr-p-${idx}" class="fi" style="flex:2;min-width:140px" onchange="autoFillPrecio(${idx},'adpr')"><option value="">Producto...</option>${opts}</select>
     <input type="number" id="adpr-d-${idx}" value="${data?.dosis||''}" step="0.01" placeholder="Dosis" class="fi" style="width:78px" oninput="calcCostoRow(${idx},'adpr')">
-    <select id="adpr-u-${idx}" class="fi" style="width:80px">
+    <select id="adpr-u-${idx}" class="fi" style="width:80px" onchange="calcCostoRow(${idx},'adpr')">
       <option value="">Unidad...</option>
       <option value="L/ha"${(data?.unidad||'')==='L/ha'?' selected':''}>L/ha</option>
       <option value="ml/ha"${(data?.unidad||'')==='ml/ha'?' selected':''}>ml/ha</option>
@@ -9631,6 +9746,11 @@ function addProdRowApl(data=null){
       <option value="u/ha"${(data?.unidad||'')==='u/ha'?' selected':''}>u/ha</option>
       <option value="$/ha"${(data?.unidad||'')==='$/ha'?' selected':''}>$/ha</option>
     </select>
+    <div style="display:flex;align-items:center;gap:3px;flex-shrink:0" title="Tipeá el total que llevás y calcula la dosis por ha (usa las ha del lote y el %lote)">
+      <span style="font-size:10px;color:var(--text3)">o total</span>
+      <input type="number" id="adpr-t-${idx}" step="0.001" min="0" placeholder="Total" class="fi" style="width:72px" oninput="totalADosisRow(${idx},'adpr')">
+      <span id="adpr-tl-${idx}" style="font-size:10px;color:var(--text3);min-width:16px"></span>
+    </div>
     <div style="display:flex;align-items:center;gap:3px;flex-shrink:0" title="% del lote al que se aplica este producto (100% = todo el lote)">
       <span style="font-size:10px;color:var(--text3)">%lote</span>
       <input type="number" id="adpr-f-${idx}" value="${factorGuardado}" min="1" max="100" step="1" placeholder="100" class="fi" style="width:54px" oninput="calcCostoRow(${idx},'adpr')" title="% del lote">
@@ -9642,6 +9762,7 @@ function addProdRowApl(data=null){
     <span id="adpr-costo-${idx}" style="font-size:11px;color:var(--text3);white-space:nowrap;font-family:'DM Mono',monospace;min-width:90px"></span>
     <button class="btn bd bxs" onclick="document.getElementById('adpr-${idx}').remove()">✕</button>`;
   cont.appendChild(d);
+  prodSelectMejorar(d.querySelector('select'));
   setTimeout(()=>{
     if(data?.productoId&&!data?.precioUSD){
       const prod=DB.productos.find(p=>p.id===data.productoId);
@@ -11317,7 +11438,7 @@ function openModalProductoDesdeRelev(){
     // Refrescar todas las filas de producto
     document.querySelectorAll('[id^="pr-p-"]').forEach(sel=>{
       const pv=sel.value;
-      sel.innerHTML='<option value="">Producto...</option>'+DB.productos.map(p=>`<option value="${p.id}"${p.id===pv?' selected':''}>${p.nombre} (${p.tipo||'—'})</option>`).join('');
+      sel.innerHTML='<option value="">Producto...</option>'+productosOrdenados().map(p=>`<option value="${p.id}"${p.id===pv?' selected':''}>${p.nombre} (${p.tipo||'—'})</option>`).join('');
     });
     openModal('modal-relev');
   };
@@ -11330,7 +11451,7 @@ function openModalProductoDesdeActividad(){
   _afterProdSave=()=>{
     document.querySelectorAll('[id^="adpr-p-"]').forEach(sel=>{
       const pv=sel.value;
-      sel.innerHTML='<option value="">Producto...</option>'+DB.productos.slice().sort((a,b)=>a.nombre.localeCompare(b.nombre)).map(p=>`<option value="${p.id}"${p.id===pv?' selected':''}>${p.nombre} (${p.tipo||'—'})</option>`).join('');
+      sel.innerHTML='<option value="">Producto...</option>'+productosOrdenados().map(p=>`<option value="${p.id}"${p.id===pv?' selected':''}>${p.nombre} (${p.tipo||'—'})</option>`).join('');
     });
     openModal('modal-actividad');
   };
