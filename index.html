@@ -8409,6 +8409,40 @@ function actualizarDosisOT(productoId,relevIdsCsv,nuevoValor){
   }
   buildOTFromIds(window._otCurrentIds||[]);
 }
+// Redondear el TOTAL de un producto desde el resumen final de la OT: se calcula
+// cuánto suma hoy (en unidad base, L/kg) en todas las Aplicaciones de la orden
+// y se escala la dosis/ha de cada una por el mismo factor (nuevo/actual). Así
+// se mantiene la proporción entre lotes y solo se tocan los lotes que ya
+// tenían cargado ese producto. Se guarda en las Aplicaciones de origen.
+function ajustarTotalProductoOT(productoId,nuevoValor){
+  const nuevo=parseFloat(nuevoValor);
+  const ids=window._otCurrentIds||[];
+  if(isNaN(nuevo)||nuevo<=0){mostrarSnackbar('⚠️ Total inválido');buildOTFromIds(ids);return;}
+  const prodCat=DB.productos.find(x=>x.id===productoId);
+  const objetivos=[];let actual=0;
+  ids.forEach(id=>{
+    const act=DB.actividades.find(a=>a.id===id&&a.tipo==='Aplicación'&&!a.borrado);if(!act)return;
+    const ha=DB.lotes.find(l=>l.id===act.loteId)?.ha||0;if(!ha)return;
+    (act.productos||[]).forEach(p=>{
+      if(p.productoId!==productoId||!(p.dosis>0))return;
+      const f=p.factor!==undefined?p.factor:1;
+      actual+=totalBaseUnidad(p.dosis,ha,p.unidad||prodCat?.unidad||'').valor*f;
+      objetivos.push({act,p});
+    });
+  });
+  if(!actual||!objetivos.length){mostrarSnackbar('⚠️ No hay lotes con dosis de este producto para ajustar');buildOTFromIds(ids);return;}
+  const k=nuevo/actual;
+  if(Math.abs(k-1)<1e-9){buildOTFromIds(ids);return;}
+  const nombre=prodCat?.nombre||'?';
+  objetivos.forEach(({act,p})=>{
+    const antes=p.dosis;
+    p.dosis=Math.round(antes*k*10000)/10000;
+    if(act.historial)act.historial.push({fecha:hoyLocal(),texto:`${nombre}: ${antes}${p.unidad||''} → ${p.dosis}${p.unidad||''} (total de la OT ajustado a ${nuevo})`});
+  });
+  save();
+  mostrarSnackbar(`✅ ${nombre}: dosis ajustada en ${objetivos.length} lote(s) para llegar a ${nuevo}`);
+  buildOTFromIds(ids);
+}
 // Quitar un producto del tratamiento directo desde la OT — se saca de TODAS las
 // aplicaciones del bloque (si es un tratamiento unificado de varios lotes, se
 // saca de todas por igual; para sacarlo de una sola, primero desunificar
@@ -8633,7 +8667,7 @@ function buildOTFromIds(ids){
     const infoSec=[ap.tipo||'',ap.fl&&ap.fl!=='—'?ap.fl:''].filter(Boolean).join(' · ');
     return`<tr>
       <td style="font-size:13px;padding:7px 10px"><strong>${ap.nombre}</strong>${infoSec?`<div style="font-size:10px;color:var(--text3);margin-top:1px">${infoSec}</div>`:''}${ap.pa?`<div class="mono muted" style="font-size:10px">${ap.pa}</div>`:''}</td>
-      <td class="mono" style="font-size:14px;font-weight:700;color:var(--accent2);white-space:nowrap;padding:7px 10px">${tot?tot.toFixed(3).replace(/\.?0+$/,'')+' '+uRef:'—'}</td>
+      <td class="mono" style="font-size:14px;font-weight:700;color:var(--accent2);white-space:nowrap;padding:7px 10px">${tot?`<input type="number" step="0.001" min="0" value="${tot.toFixed(3).replace(/\.?0+$/,'')}" class="fi" style="width:90px;padding:2px 5px;font-size:13px;font-weight:700;color:var(--accent2)" title="Redondeá el total que querés gastar: ajusta proporcionalmente la dosis/ha de cada lote que lleva este producto" onchange="ajustarTotalProductoOT('${ap.pid}',this.value)"> ${uRef}`:'—'}</td>
     </tr>`;
   }).join('');
 
