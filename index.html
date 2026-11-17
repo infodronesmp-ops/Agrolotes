@@ -6992,7 +6992,7 @@ function syncTotalRow(idx,pfx='pr'){
   const lb=document.getElementById(pfx+'-tl-'+idx);if(lb)lb.textContent=uni?convUnidad(uni).base:'';
   if(document.activeElement===ti)return;
   const d=parseFloat(document.getElementById(pfx+'-d-'+idx)?.value)||0,ha=_haEfectivas(idx,pfx);
-  ti.value=(d>0&&ha>0&&uni)?String(Math.round(d*ha*convUnidad(uni).f*1000)/1000):'';
+  ti.value=(d>0&&ha>0&&uni)?String(Math.round(d*ha*convUnidad(uni).f*100)/100):'';
 }
 // total → dosis/ha
 function totalADosisRow(idx,pfx='pr'){
@@ -7003,7 +7003,7 @@ function totalADosisRow(idx,pfx='pr'){
   if(!uni){mostrarSnackbar('⚠️ Elegí primero la unidad (L/ha, kg/ha…)','amber');return;}
   const ha=_haEfectivas(idx,pfx);
   if(!ha){mostrarSnackbar('⚠️ Elegí primero el lote, para saber las hectáreas','amber');return;}
-  di.value=String(Math.round(t/(ha*(convUnidad(uni).f||1))*10000)/10000);
+  di.value=String(Math.round(t/(ha*(convUnidad(uni).f||1))*1e8)/1e8);
   calcCostoRow(idx,pfx);
 }
 function calcCostoRow(idx,pfx='pr'){
@@ -8176,7 +8176,7 @@ function otlSetProd(i,k,v){
 function otlHaTotal(){return _otlLotes.reduce((s,l)=>s+(parseFloat(l.ha)||0),0);}
 function otlSetTotal(i,v){
   const r=_otlRows[i],ha=otlHaTotal(),f=convUnidad(r.unidad).f||1,t=parseFloat(v);
-  if(t>0&&ha>0){r.dosis=t/(ha*f);const di=document.getElementById('otl-d-'+i);if(di)di.value=_fmtN(r.dosis,4);}
+  if(t>0&&ha>0){r.dosis=t/(ha*f);const di=document.getElementById('otl-d-'+i);if(di)di.value=_fmtN(r.dosis,8);}
   else if(t>0){mostrarSnackbar('⚠️ Cargá primero las hectáreas de los lotes','amber');}
 }
 function otlSetDosis(i,v){
@@ -8187,7 +8187,7 @@ function otlRefrescarTotales(){
   _otlRows.forEach((r,i)=>{
     const ti=document.getElementById('otl-t-'+i);if(!ti||document.activeElement===ti)return;
     const d=parseFloat(r.dosis),f=convUnidad(r.unidad).f||1;
-    ti.value=(d>0&&ha>0)?_fmtN(d*ha*f,3):'';
+    ti.value=(d>0&&ha>0)?_fmtN(d*ha*f,2):'';
     const lb=document.getElementById('otl-tl-'+i);if(lb)lb.textContent=convUnidad(r.unidad).base;
   });
 }
@@ -8271,7 +8271,7 @@ function otlRender(rec){
   }).sort((a,b)=>a.ord-b.ord);
   const th=t=>`<th style="text-align:left;padding:5px 10px;font-size:10px;font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:.05em;color:var(--text3)">${t}</th>`;
   const thC=t=>th(t).replace('text-align:left','text-align:center');
-  const fmt=v=>v.toFixed(3).replace(/\.?0+$/,'')||'0';
+  const fmt=v=>v.toFixed(2).replace(/\.?0+$/,'')||'0';
   const tabla=(ha,etq)=>{
     const filas=prods.map((p,i)=>{
       const t=totalBaseUnidad(p.dosis,ha,p.unidad);
@@ -8391,7 +8391,7 @@ function renderOT(){
 // agruparse con otro tratamiento, o separarse, según la nueva dosis).
 function actualizarDosisOT(productoId,relevIdsCsv,nuevoValor){
   const nueva=parseFloat(nuevoValor);
-  if(isNaN(nueva)||nueva<=0){mostrarSnackbar('⚠️ Dosis inválida');buildOTFromIds(window._otCurrentIds||[]);return;}
+  if(isNaN(nueva)||nueva<=0){mostrarSnackbar('⚠️ Dosis inválida');buildOTFromIds(window._otCurrentIds||[],true);return;}
   const ids=relevIdsCsv.split(',').filter(Boolean);
   let cambios=0;
   ids.forEach(rid=>{
@@ -8407,7 +8407,7 @@ function actualizarDosisOT(productoId,relevIdsCsv,nuevoValor){
     save();
     mostrarSnackbar(`✅ Dosis actualizada en ${cambios} aplicación(es)`);
   }
-  buildOTFromIds(window._otCurrentIds||[]);
+  buildOTFromIds(window._otCurrentIds||[],true);
 }
 // Redondear el TOTAL de un producto desde el resumen final de la OT: se calcula
 // cuánto suma hoy (en unidad base, L/kg) en todas las Aplicaciones de la orden
@@ -8417,7 +8417,7 @@ function actualizarDosisOT(productoId,relevIdsCsv,nuevoValor){
 function ajustarTotalProductoOT(productoId,nuevoValor){
   const nuevo=parseFloat(nuevoValor);
   const ids=window._otCurrentIds||[];
-  if(isNaN(nuevo)||nuevo<=0){mostrarSnackbar('⚠️ Total inválido');buildOTFromIds(ids);return;}
+  if(isNaN(nuevo)||nuevo<=0){mostrarSnackbar('⚠️ Total inválido');buildOTFromIds(ids,true);return;}
   const prodCat=DB.productos.find(x=>x.id===productoId);
   const objetivos=[];let actual=0;
   ids.forEach(id=>{
@@ -8430,18 +8430,18 @@ function ajustarTotalProductoOT(productoId,nuevoValor){
       objetivos.push({act,p});
     });
   });
-  if(!actual||!objetivos.length){mostrarSnackbar('⚠️ No hay lotes con dosis de este producto para ajustar');buildOTFromIds(ids);return;}
+  if(!actual||!objetivos.length){mostrarSnackbar('⚠️ No hay lotes con dosis de este producto para ajustar');buildOTFromIds(ids,true);return;}
   const k=nuevo/actual;
-  if(Math.abs(k-1)<1e-9){buildOTFromIds(ids);return;}
+  if(Math.abs(k-1)<1e-9){buildOTFromIds(ids,true);return;}
   const nombre=prodCat?.nombre||'?';
   objetivos.forEach(({act,p})=>{
     const antes=p.dosis;
-    p.dosis=Math.round(antes*k*10000)/10000;
+    p.dosis=Math.round(antes*k*1e8)/1e8;
     if(act.historial)act.historial.push({fecha:hoyLocal(),texto:`${nombre}: ${antes}${p.unidad||''} → ${p.dosis}${p.unidad||''} (total de la OT ajustado a ${nuevo})`});
   });
   save();
   mostrarSnackbar(`✅ ${nombre}: dosis ajustada en ${objetivos.length} lote(s) para llegar a ${nuevo}`);
-  buildOTFromIds(ids);
+  buildOTFromIds(ids,true);
 }
 // Quitar un producto del tratamiento directo desde la OT — se saca de TODAS las
 // aplicaciones del bloque (si es un tratamiento unificado de varios lotes, se
@@ -8462,7 +8462,7 @@ function eliminarProductoOT(productoId,relevIdsCsv){
       }
     });
     if(cambios){save();mostrarSnackbar(`✅ Producto quitado de ${cambios} aplicación(es)`);}
-    buildOTFromIds(window._otCurrentIds||[]);
+    buildOTFromIds(window._otCurrentIds||[],true);
   },'Quitar');
 }
 // Mostrar/ocultar el mini-formulario para sumar un producto nuevo a un bloque de la OT
@@ -8476,8 +8476,8 @@ function otAddSync(blockKey,desde){
   const uni=document.getElementById('ot-add-uni-'+blockKey)?.value;const f=convUnidad(uni).f||1;
   const di=document.getElementById('ot-add-dosis-'+blockKey),ti=document.getElementById('ot-add-total-'+blockKey);
   if(!ha||!di||!ti)return;
-  if(desde==='total'){const t=parseFloat(ti.value);if(t>0)di.value=_fmtN(t/(ha*f),4);else di.value='';}
-  else{const d=parseFloat(di.value);ti.value=d>0?_fmtN(d*ha*f,3):'';}
+  if(desde==='total'){const t=parseFloat(ti.value);if(t>0)di.value=_fmtN(t/(ha*f),8);else di.value='';}
+  else{const d=parseFloat(di.value);ti.value=d>0?_fmtN(d*ha*f,2):'';}
   const lb=document.getElementById('ot-add-totlbl-'+blockKey);if(lb)lb.textContent=convUnidad(uni).base;
 }
 function _fmtN(v,dec){return String(Math.round(v*Math.pow(10,dec))/Math.pow(10,dec));}
@@ -8500,7 +8500,7 @@ function confirmarAgregarProductoOT(blockKey,relevIdsCsv){
     cambios++;
   });
   if(cambios){save();mostrarSnackbar(`✅ Producto agregado a ${cambios} aplicación(es)`);}
-  buildOTFromIds(window._otCurrentIds||[]);
+  buildOTFromIds(window._otCurrentIds||[],true);
 }
 
 // Resuelve un id de la OT contra Aplicación (Actividad) primero, y si no,
@@ -8511,7 +8511,8 @@ function _otResolverId(id){
   if(act)return act;
   return DB.relevamientos.find(r=>r.id===id);
 }
-function buildOTFromIds(ids){
+function buildOTFromIds(ids,keep){
+  const _sc=document.querySelector('.content');const _st=_sc?_sc.scrollTop:0;
   window._otCurrentIds=[...ids];
   const cont=document.getElementById('ot-content');
   // La OT se arma EXCLUSIVAMENTE a partir de Aplicaciones (su propia foto +
@@ -8601,7 +8602,7 @@ function buildOTFromIds(ids){
         // Total normalizado a la unidad base (ml→L, g→kg, etc.) para no mostrar
         // números inflados cuando la dosis se cargó en una sub-unidad.
         const {valor:totBase,unidad:unidadBaseNombre}=totalBaseUnidad(p.dosis,haEfectiva,unidadRaw);
-        const totStr=haEfectiva?`${totBase.toFixed(3).replace(/\.?0+$/,'')||'0'} ${unidadBaseNombre}`:'—';
+        const totStr=haEfectiva?`${totBase.toFixed(2).replace(/\.?0+$/,'')||'0'} ${unidadBaseNombre}`:'—';
         // Info secundaria: tipo de producto + formulación (SC, CE, ME...) + superficie tratada si es parcial
         const formCorta=fl(prod.form);
         const infoSec=[prod.tipo||'',formCorta&&formCorta!=='—'?formCorta:'',factor<1?`${Math.round(factor*100)}% del lote (${haEfectiva.toFixed(1)} ha)`:''].filter(Boolean).join(' · ');
@@ -8667,7 +8668,7 @@ function buildOTFromIds(ids){
     const infoSec=[ap.tipo||'',ap.fl&&ap.fl!=='—'?ap.fl:''].filter(Boolean).join(' · ');
     return`<tr>
       <td style="font-size:13px;padding:7px 10px"><strong>${ap.nombre}</strong>${infoSec?`<div style="font-size:10px;color:var(--text3);margin-top:1px">${infoSec}</div>`:''}${ap.pa?`<div class="mono muted" style="font-size:10px">${ap.pa}</div>`:''}</td>
-      <td class="mono" style="font-size:14px;font-weight:700;color:var(--accent2);white-space:nowrap;padding:7px 10px">${tot?`<input type="number" step="0.001" min="0" value="${tot.toFixed(3).replace(/\.?0+$/,'')}" class="fi" style="width:90px;padding:2px 5px;font-size:13px;font-weight:700;color:var(--accent2)" title="Redondeá el total que querés gastar: ajusta proporcionalmente la dosis/ha de cada lote que lleva este producto" onchange="ajustarTotalProductoOT('${ap.pid}',this.value)"> ${uRef}`:'—'}</td>
+      <td class="mono" style="font-size:14px;font-weight:700;color:var(--accent2);white-space:nowrap;padding:7px 10px">${tot?`<input type="number" step="0.01" min="0" value="${tot.toFixed(2).replace(/\.?0+$/,'')}" class="fi" style="width:90px;padding:2px 5px;font-size:13px;font-weight:700;color:var(--accent2)" title="Redondeá el total que querés gastar: ajusta proporcionalmente la dosis/ha de cada lote que lleva este producto" onchange="ajustarTotalProductoOT('${ap.pid}',this.value)"> ${uRef}`:'—'}</td>
     </tr>`;
   }).join('');
 
@@ -8722,7 +8723,7 @@ function buildOTFromIds(ids){
   // hasta acá cada vez que se genera una — sube solo hasta el principio de esta
   // orden. El setTimeout es necesario: recién asignado el HTML, el navegador
   // todavía no terminó de acomodar el layout nuevo y scrollIntoView calculaba mal.
-  setTimeout(()=>{cont.scrollIntoView({behavior:'smooth',block:'start'});},50);
+  if(keep){if(_sc)_sc.scrollTop=_st;}else setTimeout(()=>{cont.scrollIntoView({behavior:'smooth',block:'start'});},50);
 }
 
 
