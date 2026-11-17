@@ -588,17 +588,6 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
 
     <!-- OT -->
     <div class="page" id="page-ot">
-      <!-- LISTA DE OTs guardadas -->
-      <div class="card mb16" id="ot-list-card">
-        <div class="ch">
-          <span class="ct">📋 Órdenes de trabajo</span>
-          <div class="rf ph" style="gap:6px">
-            <input type="text" id="ot-list-search" class="fi bsm" placeholder="Buscar por cliente, lote..." style="width:200px" oninput="renderOTList()">
-            <select id="ot-list-cli" class="fi bsm" style="width:160px" onchange="renderOTList()"><option value="">Cliente...</option></select>
-          </div>
-        </div>
-        <div id="ot-list-body"></div>
-      </div>
       <!-- OT LIBRE: para alguien que no está cargado como cliente -->
       <div class="card mb12" id="otl-card">
         <div class="ch"><span class="ct">📝 OT libre — para alguien que no cargaste como cliente</span>
@@ -623,6 +612,17 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
             <button class="btn bs bsm" onclick="otlNueva()">Limpiar</button>
           </div>
         </div>
+      </div>
+      <!-- LISTA DE OTs guardadas -->
+      <div class="card mb16" id="ot-list-card">
+        <div class="ch">
+          <span class="ct">📋 Órdenes de trabajo</span>
+          <div class="rf ph" style="gap:6px">
+            <input type="text" id="ot-list-search" class="fi bsm" placeholder="Buscar por cliente, lote..." style="width:200px" oninput="renderOTList()">
+            <select id="ot-list-cli" class="fi bsm" style="width:160px" onchange="renderOTList()"><option value="">Cliente...</option></select>
+          </div>
+        </div>
+        <div id="ot-list-body"></div>
       </div>
       <!-- Formulario generar nueva OT -->
       <div class="card mb12">
