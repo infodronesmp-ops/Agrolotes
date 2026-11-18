@@ -1237,7 +1237,8 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
         <select id="act-m-origen" class="fi" style="width:190px" onchange="renderActividadesMaster()" title="Filtra por si la actividad la generó una tarea recurrente">
           <option value="">🔁 Origen: todas</option>
         </select>
-        <select id="act-m-prod" class="fi" style="width:190px" onchange="renderActividadesMaster()" title="Muestra solo las actividades que llevan esta solución"><option value="">🧪 Solución: todas</option></select>
+        <select id="act-m-prodmodo" class="fi" style="width:92px" onchange="renderActividadesMaster()" title="Lleva = solo las que incluyen lo elegido · No lleva = solo las Aplicaciones que NO lo incluyen"><option value="si">Lleva</option><option value="no">❌ No lleva</option></select>
+        <select id="act-m-prod" class="fi" style="width:190px" onchange="renderActividadesMaster()" title="Filtra por solución, por tipo (Herbicida, Fungicida...) o por familia"><option value="">🧪 Solución: todas</option></select>
         <span class="rf" style="gap:3px;align-items:center;background:var(--bg2);border-radius:var(--r);padding:3px 8px">
           <span class="muted" style="font-size:10px">Creación:</span>
           <input type="date" id="act-m-creada-desde" class="fi" style="width:118px;font-size:11px" onchange="renderActividadesMaster()">
@@ -2018,7 +2019,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
 
 <!-- ══ MODAL PRODUCTO ══ -->
 <div class="mo" id="modal-prod-uso">
-  <div class="modal" style="max-width:760px">
+  <div class="modal" style="max-width:900px">
     <div class="mh"><span class="mt">📍 Dónde se usó esta solución</span><button class="mx" onclick="closeModal('modal-prod-uso')">✕</button></div>
     <div class="mb" id="prod-uso-body"></div>
     <div class="mf"><button class="btn bb" id="prod-uso-ver">🔎 Ver en Actividades</button><button class="btn bp" onclick="closeModal('modal-prod-uso')">Cerrar</button></div>
@@ -6056,7 +6057,7 @@ function prodUsos(pid,conRelev){
         clienteId:x.clienteId,campoId:x.campoId,loteId:x.loteId,
         cli:DB.clientes.find(z=>z.id===x.clienteId)?.nombre||x.clienteNombre||'—',
         campo:DB.campos.find(z=>z.id===x.campoId)?.nombre||x.campoNombre||'—',
-        lote:l?.nombre||x.loteNombre||'—',ha,dosis:p.dosis,unidad:p.unidad||'',
+        lote:l?.nombre||x.loteNombre||'—',lim:esRelev?'':(x.fechaFin||''),ha,dosis:p.dosis,unidad:p.unidad||'',
         total:(parseFloat(p.dosis)||0)*ha*fac*c.f,base:c.base});
     });
   };
@@ -6064,31 +6065,83 @@ function prodUsos(pid,conRelev){
   if(conRelev)(DB.relevamientos||[]).forEach(r=>arma(r,true));
   return out;
 }
+// Estado del tablero "Dónde se usó" (se reinicia al abrirlo)
+let _pu={pid:'',cli:'',campo:'',lote:'',desde:'',hasta:'',inc:'real'};
 function prodUsoAbrir(pid){
   const p=DB.productos.find(x=>x.id===pid);if(!p)return;
-  const usos=prodUsos(pid,true);
-  const apl=usos.filter(u=>!u.esRelev);
-  const suma=est=>{const m={};apl.filter(u=>u.estado===est).forEach(u=>{m[u.base]=(m[u.base]||0)+u.total;});return Object.entries(m).map(([b,v])=>fmtDosis(v,'L')+' '+b).join(' + ')||'0';};
-  const nApl=est=>apl.filter(u=>u.estado===est).length;
-  const card=(t,est,col)=>`<div style="flex:1;min-width:120px;background:var(--bg2);border-radius:var(--r);padding:8px 10px;border-left:3px solid ${col}"><div class="muted" style="font-size:10px">${t}</div><div class="mono" style="font-size:15px;font-weight:700">${suma(est)}</div><div class="muted" style="font-size:10px">${nApl(est)} aplicación(es)</div></div>`;
-  const badge=u=>u.esRelev?'<span class="badge bg-gray" style="font-size:9px">🔬 Relevamiento (recomendación)</span>':u.estado==='Realizada'?'<span class="badge bg-green" style="font-size:9px">✅ Realizada</span>':u.estado==='Con OT'?'<span class="badge bg-amber" style="font-size:9px">📋 Con OT, sin realizar</span>':'<span class="badge bg-blue" style="font-size:9px">🕒 Programada</span>';
-  const orden={'Con OT':0,'Pendiente':1,'Realizada':2};
-  const grupos={};
-  usos.forEach(u=>{const k=u.cli+' › '+u.campo;(grupos[k]=grupos[k]||[]).push(u);});
-  let html=`<div style="font-size:13px;margin-bottom:8px"><strong>${hEsc(p.nombre)}</strong> <span class="muted">· ${hEsc(p.tipo||'')} ${p.pa?'· '+hEsc(p.pa):''}</span></div>`;
-  if(!usos.length)html+='<div class="empty"><div class="empty-icon">🧪</div><div class="empty-t">Todavía no se usó en ninguna actividad</div></div>';
-  else{
-    html+=`<div class="rf" style="gap:8px;margin-bottom:12px;flex-wrap:wrap">${card('Ya aplicado','Realizada','var(--green,#2e7d32)')}${card('Con OT, sin realizar','Con OT','var(--amber,#f59e0b)')}${card('Programado','Pendiente','var(--blue,#1976d2)')}</div>`;
-    html+='<div class="muted" style="font-size:11px;margin-bottom:6px">Los totales suman solo aplicaciones (dosis × ha del lote). Los relevamientos se listan como referencia.</div>';
-    Object.keys(grupos).sort((a,b)=>a.localeCompare(b,'es')).forEach(k=>{
-      const rows=grupos[k].slice().sort((a,b)=>(orden[a.estado]-orden[b.estado])||String(b.fecha).localeCompare(String(a.fecha)));
-      html+=`<div style="font-weight:700;font-size:12px;margin:10px 0 4px">📍 ${hEsc(k)}</div><div class="tw"><table><thead><tr><th>Lote</th><th>Qué</th><th>Estado</th><th>Fecha</th><th>Dosis/ha</th><th>Total</th></tr></thead><tbody>${rows.map(u=>`<tr><td><strong>${hEsc(u.lote)}</strong> <span class="muted" style="font-size:10px">${u.ha?u.ha+' ha':''}</span></td><td>${u.esRelev?'🔬':'💧'} ${hEsc(u.tipo)}</td><td>${badge(u)}</td><td class="mono" style="font-size:11px">${hEsc(u.fecha||'—')}</td><td class="mono">${fmtDosis(u.dosis,u.unidad)} ${hEsc(u.unidad)}</td><td class="mono">${u.esRelev?'<span class="muted">—</span>':fmtDosis(u.total,'L')+' '+hEsc(u.base)}</td></tr>`).join('')}</tbody></table></div>`;
-    });
-  }
-  document.getElementById('prod-uso-body').innerHTML=html;
-  document.getElementById('prod-uso-ver').onclick=()=>{closeModal('modal-prod-uso');navTo('actividades');const sel=document.getElementById('act-m-prod');if(sel){renderActividadesMaster();sel.value=pid;renderActividadesMaster();}};
-  document.getElementById('prod-uso-ver').style.display=usos.length?'':'none';
+  _pu={pid,cli:'',campo:'',lote:'',desde:'',hasta:'',inc:'real'};
+  document.getElementById('prod-uso-body').innerHTML=`<div style="font-size:13px;margin-bottom:8px"><strong>${hEsc(p.nombre)}</strong> <span class="muted">· ${hEsc(p.tipo||'')} ${p.pa?'· '+hEsc(p.pa):''}</span></div>
+    <div id="pu-filtros" class="rf" style="gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:10px"></div><div id="pu-res"></div>`;
+  document.getElementById('prod-uso-ver').onclick=()=>{closeModal('modal-prod-uso');navTo('actividades');const sel=document.getElementById('act-m-prod');if(sel){renderActividadesMaster();sel.value='p:'+pid;const mo=document.getElementById('act-m-prodmodo');if(mo)mo.value='si';renderActividadesMaster();}};
+  prodUsoRender(true);
   openModal('modal-prod-uso');
+}
+function prodUsoSet(k,v){
+  _pu[k]=v;
+  if(k==='cli'){_pu.campo='';_pu.lote='';}
+  if(k==='campo')_pu.lote='';
+  prodUsoRender(k!=='desde'&&k!=='hasta'); // las fechas no se repintan para no perder el foco
+}
+function prodUsoLimpiar(){_pu={pid:_pu.pid,cli:'',campo:'',lote:'',desde:'',hasta:'',inc:'real'};prodUsoRender(true);}
+function prodUsoRender(repintarFiltros){
+  const todos=prodUsos(_pu.pid,true);
+  // Dos vistas: lo ya aplicado (por defecto) o lo que falta aplicar (programado / con OT / vencido)
+  const incluye=u=>!u.esRelev&&(_pu.inc==='real'?u.estado==='Realizada':u.estado!=='Realizada');
+  const base=todos.filter(incluye);
+  // Opciones de los selects según lo que realmente existe (en cascada)
+  const uniq=(arr,k,n)=>{const m=new Map();arr.forEach(u=>{if(u[k]&&!m.has(u[k]))m.set(u[k],u[n]);});return [...m.entries()].sort((a,b)=>a[1].localeCompare(b[1],'es'));};
+  const optsCli=uniq(base,'clienteId','cli');
+  const optsCampo=uniq(base.filter(u=>!_pu.cli||u.clienteId===_pu.cli),'campoId','campo');
+  const optsLote=uniq(base.filter(u=>(!_pu.cli||u.clienteId===_pu.cli)&&(!_pu.campo||u.campoId===_pu.campo)),'loteId','lote');
+  if(_pu.cli&&!optsCli.some(o=>o[0]===_pu.cli)){_pu.cli='';_pu.campo='';_pu.lote='';}
+  if(_pu.campo&&!optsCampo.some(o=>o[0]===_pu.campo)){_pu.campo='';_pu.lote='';}
+  if(_pu.lote&&!optsLote.some(o=>o[0]===_pu.lote))_pu.lote='';
+  const sel=(k,etq,opts)=>`<select class="fi" style="width:150px;font-size:12px" onchange="prodUsoSet('${k}',this.value)"><option value="">${etq}: todos</option>${opts.map(([v,n])=>`<option value="${v}"${_pu[k]===v?' selected':''}>${hEsc(n)}</option>`).join('')}</select>`;
+  if(repintarFiltros){
+    document.getElementById('pu-filtros').innerHTML=
+      sel('cli','Cliente',optsCli)+sel('campo','Campo',optsCampo)+sel('lote','Lote',optsLote)
+      +`<span class="muted" style="font-size:11px">Desde</span><input type="date" class="fi" style="width:128px;font-size:12px" value="${_pu.desde}" onchange="prodUsoSet('desde',this.value)">`
+      +`<span class="muted" style="font-size:11px">hasta</span><input type="date" class="fi" style="width:128px;font-size:12px" value="${_pu.hasta}" onchange="prodUsoSet('hasta',this.value)">`
+      +`<div style="display:flex;gap:0;margin-left:6px"><button class="btn bsm ${_pu.inc==='real'?'bp':'bs'}" style="border-radius:var(--r) 0 0 var(--r)" onclick="prodUsoSet('inc','real')">✅ Realizadas</button><button class="btn bsm ${_pu.inc==='prev'?'bp':'bs'}" style="border-radius:0 var(--r) var(--r) 0" onclick="prodUsoSet('inc','prev')">🕒 No realizadas (programadas / vencidas)</button></div>`
+      +`<button class="btn bs bxs" onclick="prodUsoLimpiar()">Limpiar</button>`;
+  }
+  const f=base.filter(u=>{
+    if(_pu.cli&&u.clienteId!==_pu.cli)return false;
+    if(_pu.campo&&u.campoId!==_pu.campo)return false;
+    if(_pu.lote&&u.loteId!==_pu.lote)return false;
+    if((_pu.desde||_pu.hasta)&&u.estado==='Realizada'){
+      if(_pu.desde&&(u.fecha||'')<_pu.desde)return false;
+      if(_pu.hasta&&(u.fecha||'')>_pu.hasta)return false;
+    } else if((_pu.desde||_pu.hasta)&&u.estado!=='Realizada'){
+      // lo no realizado se filtra por su fecha programada si la tiene
+      if(u.fecha){if(_pu.desde&&u.fecha<_pu.desde)return false;if(_pu.hasta&&u.fecha>_pu.hasta)return false;}
+    }
+    return true;
+  });
+  const res=document.getElementById('pu-res');
+  const prev=_pu.inc==='prev';
+  const aplic=f; // la vista ya viene limitada a realizadas o a no realizadas
+  const sumaBase=arr=>{const m={};arr.forEach(u=>{m[u.base]=(m[u.base]||0)+u.total;});return Object.entries(m).map(([b,v])=>fmtDosis(v,'L')+' '+b).join(' + ')||'0';};
+  const haTot=aplic.reduce((s,u)=>s+(u.ha||0),0);
+  const card=(t,v,sub,col)=>`<div style="flex:1;min-width:130px;background:var(--bg2);border-radius:var(--r);padding:8px 10px;border-left:3px solid ${col}"><div class="muted" style="font-size:10px">${t}</div><div class="mono" style="font-size:16px;font-weight:700">${v}</div><div class="muted" style="font-size:10px">${sub}</div></div>`;
+  const hoy=hoyLocal();
+  const venc=u=>u.estado!=='Realizada'&&u.estado!=='Con OT'&&((u.lim||u.fecha)||'9999')<hoy;
+  let html=`<div class="rf" style="gap:8px;margin-bottom:12px;flex-wrap:wrap">`
+    +card(prev?'Total previsto':'Total aplicado',sumaBase(aplic),prev?'a aplicar en lo filtrado':'en lo filtrado',prev?'var(--amber,#f59e0b)':'var(--green,#2e7d32)')
+    +card(prev?'Aplicaciones previstas':'Aplicaciones',String(aplic.length),`${new Set(aplic.map(u=>u.loteId)).size} lote(s)`+(prev&&aplic.some(venc)?` · ${aplic.filter(venc).length} vencida(s)`:''),'var(--accent)')
+    +card('Superficie',(Math.round(haTot*100)/100)+' ha',haTot?'suma de pasadas':'','var(--accent2)')
+    +'</div>';
+  if(!f.length){res.innerHTML=html+'<div class="empty"><div class="empty-icon">🧪</div><div class="empty-t">Sin resultados con estos filtros</div><div class="empty-s">Probá con «Limpiar» o ampliá las fechas.</div></div>';return;}
+  const badge=u=>venc(u)?'<span class="badge bg-red" style="font-size:9px">🔴 Vencida</span>':u.estado==='Con OT'?'<span class="badge bg-amber" style="font-size:9px">📋 Con OT</span>':'<span class="badge bg-blue" style="font-size:9px">🕒 Programada</span>';
+  const grupos={};
+  f.forEach(u=>{const k=u.cli+' › '+u.campo;(grupos[k]=grupos[k]||[]).push(u);});
+  Object.keys(grupos).sort((a,b)=>a.localeCompare(b,'es')).forEach(k=>{
+    const rows=grupos[k].slice().sort((a,b)=>String(b.fecha).localeCompare(String(a.fecha)));
+    const sub=sumaBase(rows);
+    html+=`<div style="display:flex;justify-content:space-between;font-weight:700;font-size:12px;margin:10px 0 4px"><span>📍 ${hEsc(k)}</span><span class="mono muted" style="font-weight:600">${prev?'previsto':'aplicado'}: ${sub}</span></div>
+      <div class="tw"><table><thead><tr><th>Fecha</th><th>Lote</th><th>Dosis/ha</th><th>Total</th>${prev?'<th>Vence / programada</th><th>Estado</th>':''}</tr></thead><tbody>${rows.map(u=>`<tr><td class="mono" style="font-size:11px">${hEsc(u.fecha||'—')}</td><td><strong>${hEsc(u.lote)}</strong> <span class="muted" style="font-size:10px">${u.ha?u.ha+' ha':''}</span></td><td class="mono">${fmtDosis(u.dosis,u.unidad)} ${hEsc(u.unidad)}</td><td class="mono">${u.esRelev?'<span class="muted">—</span>':fmtDosis(u.total,'L')+' '+hEsc(u.base)}</td>${prev?`<td class="mono" style="font-size:11px">${hEsc(u.lim||u.fecha||'—')}</td><td>${badge(u)}</td>`:''}</tr>`).join('')}</tbody></table></div>`;
+  });
+  res.innerHTML=html;
 }
 function renderProductos(){
   const cont=document.getElementById('prod-body');if(!cont)return;
@@ -10241,7 +10294,7 @@ function clearFiltrosActM(){
   const acc=document.getElementById('act-m-accionable');if(acc)acc.value='';
   const mej=document.getElementById('act-m-mejora');if(mej)mej.value='';
   const ori=document.getElementById('act-m-origen');if(ori)ori.value='';
-  const prd=document.getElementById('act-m-prod');if(prd)prd.value='';
+  const prd=document.getElementById('act-m-prod');if(prd)prd.value='';const prm=document.getElementById('act-m-prodmodo');if(prm)prm.value='si';
   ['act-m-creada-desde','act-m-creada-hasta','act-m-real-desde','act-m-real-hasta','act-m-plan-desde','act-m-plan-hasta'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   const per=document.getElementById('act-m-periodo');if(per)per.value='';
   const inv=document.getElementById('act-m-invertir');if(inv)inv.checked=false;
@@ -10477,19 +10530,34 @@ function renderActividadesMaster(){
     if(fOrigen&&!['rec','man'].includes(fOrigen)&&!usadas.has(fOrigen))fOrigen='';
     selOrig.value=fOrigen;
   }
-  // Solución: solo las que aparecen en alguna actividad o relevamiento
+  // Solución / tipo / familia: solo lo que aparece en alguna actividad o relevamiento.
+  // Lleva = incluye alguno de esos productos · No lleva = Aplicaciones que no lo incluyen.
   const selProd=document.getElementById('act-m-prod');
   let fProd=selProd?.value||'';
-  let _idsProd=null;
+  const fProdModo=document.getElementById('act-m-prodmodo')?.value||'si';
+  let _prodOk=null;
   if(selProd){
-    const usados=new Set();
-    [...(DB.actividades||[]),...(DB.relevamientos||[])].forEach(x=>{if(x.borrado)return;(x.productos||[]).forEach(p=>{if(p.productoId)usados.add(p.productoId);});});
-    const lista=productosOrdenados().filter(p=>usados.has(p.id));
-    selProd.innerHTML='<option value="">🧪 Solución: todas</option>'+lista.map(p=>`<option value="${p.id}">${hEsc(p.nombre)}</option>`).join('');
-    if(fProd&&!usados.has(fProd))fProd='';
+    const usados=new Set();const prodsDeFila={};
+    [...(DB.actividades||[]),...(DB.relevamientos||[])].forEach(x=>{if(x.borrado)return;const ids=(x.productos||[]).map(p=>p.productoId).filter(Boolean);prodsDeFila[x.id]=ids;ids.forEach(i=>usados.add(i));});
+    const pu=productosOrdenados().filter(p=>usados.has(p.id));
+    const tipos=[...new Set(pu.map(p=>p.tipo).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es'));
+    const fams=[...new Set(pu.map(p=>p.familia).filter(f=>f&&!tipos.includes(f)))].sort((a,b)=>a.localeCompare(b,'es'));
+    selProd.innerHTML='<option value="">🧪 Solución: todas</option>'
+      +(tipos.length?'<optgroup label="Por tipo">'+tipos.map(t=>`<option value="t:${hEsc(t)}">Tipo: ${hEsc(t)}</option>`).join('')+'</optgroup>':'')
+      +(fams.length?'<optgroup label="Por familia / mecanismo">'+fams.map(f=>`<option value="f:${hEsc(f)}">Familia: ${hEsc(f)}</option>`).join('')+'</optgroup>':'')
+      +'<optgroup label="Soluciones">'+pu.map(p=>`<option value="p:${p.id}">${hEsc(p.nombre)}</option>`).join('')+'</optgroup>';
+    if(fProd&&![...selProd.options].some(o=>o.value===fProd))fProd='';
     selProd.value=fProd;
     prodSelectMejorar(selProd);
-    if(fProd)_idsProd=new Set(prodUsos(fProd,true).map(u=>u.id));
+    if(fProd){
+      const k=fProd[0],v=fProd.slice(2);
+      const coincide=id=>{const p=DB.productos.find(x=>x.id===id);return !!p&&(k==='p'?p.id===v:k==='t'?p.tipo===v:p.familia===v);};
+      _prodOk=f=>{
+        const lleva=(prodsDeFila[f.id]||[]).some(coincide);
+        if(fProdModo==='no')return !f.esRelev&&f.tipo==='Aplicación'&&!lleva;
+        return lleva;
+      };
+    }
   }
   // "Vence esta semana" trae de yapa lo Vencido y lo de Vencimiento hoy — son,
   // en los hechos, lo más urgente de la semana, así que conviene que aparezcan
@@ -10522,7 +10590,7 @@ function renderActividadesMaster(){
     if(fAccionable)partes.push('Accionable: '+(fAccionable==='si'?'Sí':'No'));
     if(fMejora)partes.push('Mejora programada: '+(fMejora==='si'?'Sí':fMejora==='no'?'No':((DB.mejoras||[]).find(m=>'m:'+m.id===fMejora)?.nombre||'una mejora')));
     if(fOrigen)partes.push('Origen: '+(fOrigen==='rec'?'tareas recurrentes':fOrigen==='man'?'cargadas a mano':((DB.tareasRecurrentes||[]).find(t=>t.id===fOrigen)?.nombre||'recurrente')));
-    if(fProd)partes.push('Solución: '+(DB.productos.find(p=>p.id===fProd)?.nombre||'?'));
+    if(fProd)partes.push((fProdModo==='no'?'NO lleva: ':'Lleva: ')+(fProd[0]==='p'?(DB.productos.find(p=>p.id===fProd.slice(2))?.nombre||'?'):fProd.slice(2)));
     if(fCreadaDesde||fCreadaHasta)partes.push(`Creación: ${fCreadaDesde||'…'} a ${fCreadaHasta||'…'}`);
     if(fRealDesde||fRealHasta)partes.push(`Realización: ${fRealDesde||'…'} a ${fRealHasta||'…'}`);
     if(fPlanDesde||fPlanHasta)partes.push(`Inicio/límite: ${fPlanDesde||'…'} a ${fPlanHasta||'…'}`);
@@ -10592,7 +10660,7 @@ function renderActividadesMaster(){
     // Los recordatorios generales pendientes (sin lote) viven en la franja "Pendientes generales" de arriba;
     // en la tabla solo aparecen si filtrás por Origen, para no mezclarlos con las actividades reales.
     if(f.general&&f.tareaRecurrenteId&&f.estado!=='Realizada'&&!fOrigen)return false;
-    if(_idsProd&&!_idsProd.has(f.id))return false;
+    if(_prodOk&&!_prodOk(f))return false;
     if(fOrigen==='rec'&&!f.tareaRecurrenteId)return false;
     if(fOrigen==='man'&&f.tareaRecurrenteId)return false;
     if(fOrigen&&fOrigen!=='rec'&&fOrigen!=='man'&&f.tareaRecurrenteId!==fOrigen)return false;
