@@ -1672,6 +1672,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
     <div class="mf">
       <button class="btn bs" onclick="cancelModalActividad()">Cancelar</button>
       <button class="btn bd" id="act-btn-del" style="display:none;margin-right:auto" onclick="eliminarDesdeModal('A')" title="La manda a la papelera (30 días)">🗑 Eliminar</button>
+      <button class="btn bs" id="act-btn-ultot" style="display:none" onclick="otDesdeModalActUltima()" title="Abre la última orden de trabajo emitida que incluye esta Aplicación (no crea una nueva)">📋 Ver última OT</button>
       <button class="btn bb" id="act-btn-ot" style="display:none" onclick="otDesdeModalAct()" title="Arma la orden de trabajo con esta Aplicación (usa la versión guardada)">📋 Orden de trabajo</button>
       <button class="btn bs" id="act-btn-dup" style="display:none" onclick="duplicarDesdeModal('A')" title="Crea una copia pendiente (sin el relevamiento adjunto) y la abre para editarla. Se copia la versión guardada.">📄 Duplicar</button>
       <button class="btn bp" onclick="saveActividad()">Guardar actividad</button>
@@ -8401,7 +8402,7 @@ function recargarOT(id){
   const ot=DB.ots.find(o=>o.id===id);if(!ot)return;
   if(ot.libre){otlCargar(ot);return;}
   // Regenerar desde los relevIds originales
-  buildOTFromIds(ot.relevIds);
+  buildOTFromIds(ot.relevIds,false,ot);
   document.getElementById('ot-content').scrollIntoView({behavior:'smooth',block:'start'});
 }
 function renderOTPage(params={}){
@@ -8579,7 +8580,7 @@ function _otResolverId(id){
   if(act)return act;
   return DB.relevamientos.find(r=>r.id===id);
 }
-function buildOTFromIds(ids,keep){
+function buildOTFromIds(ids,keep,existing){
   const _sc=document.querySelector('.content');const _st=_sc?_sc.scrollTop:0;
   window._otCurrentIds=[...ids];
   const cont=document.getElementById('ot-content');
@@ -8617,8 +8618,11 @@ function buildOTFromIds(ids,keep){
   // Marcar como Con OT
   relevs.forEach(r=>{r.estado='Con OT';});
 
-  const fechaOT=hoyLocal();
-  const otNum='OT-'+fechaOT.replace(/-/g,'')+'-'+Math.random().toString(36).slice(2,5).toUpperCase();
+  // Al volver a ver una OT guardada, o al ajustarla desde adentro (dosis, totales, productos),
+  // se actualiza esa misma OT — no se crea una nueva por cada retoque.
+  const _ex=existing||(keep&&window._otCurrentRecId?DB.ots.find(o=>o.id===window._otCurrentRecId&&!o.libre):null);
+  const fechaOT=_ex?_ex.fecha:hoyLocal();
+  const otNum=_ex?_ex.num:'OT-'+fechaOT.replace(/-/g,'')+'-'+Math.random().toString(36).slice(2,5).toUpperCase();
   const totalHaOT=relevs.reduce((s,r)=>s+(r.loteHa||0),0);
 
   // Todos los productos únicos de toda la OT
@@ -8750,7 +8754,8 @@ function buildOTFromIds(ids,keep){
     relevIds:ids,
     html:''// se rellena abajo
   };
-  DB.ots.unshift(otRecord);
+  if(_ex){Object.assign(_ex,{clientes:otRecord.clientes,campos:otRecord.campos,lotes:otRecord.lotes,haTotal:otRecord.haTotal,relevIds:otRecord.relevIds});window._otCurrentRecId=_ex.id;}
+  else{DB.ots.unshift(otRecord);window._otCurrentRecId=otRecord.id;}
   save();
   renderOTList();
 
@@ -9671,7 +9676,7 @@ function openModalActividad(loteId,cliId,campoId,editId=null){
   _actLoteCtx=loteId?{loteId,cliId,campoId}:null;
   _editActId=editId;
   document.getElementById('mact-title').textContent=editId?'Editar actividad':'Nueva actividad';
-  {const bd=document.getElementById('act-btn-del');if(bd)bd.style.display=editId?'':'none';const b=document.getElementById('act-btn-dup');if(b)b.style.display=editId?'':'none';const bo=document.getElementById('act-btn-ot');if(bo)bo.style.display=(editId&&(DB.actividades.find(x=>x.id===editId)||{}).tipo==='Aplicación')?'':'none';}
+  {const bd=document.getElementById('act-btn-del');if(bd)bd.style.display=editId?'':'none';const b=document.getElementById('act-btn-dup');if(b)b.style.display=editId?'':'none';const bo=document.getElementById('act-btn-ot');if(bo)bo.style.display=(editId&&(DB.actividades.find(x=>x.id===editId)||{}).tipo==='Aplicación')?'':'none';const bu=document.getElementById('act-btn-ultot');if(bu)bu.style.display=(editId&&ultimaOTDeActividad(editId))?'':'none';}
   document.getElementById('act-fecha').value='';
   document.getElementById('act-fecha-fin').value='';
   document.getElementById('act-obs').value='';
@@ -10393,6 +10398,20 @@ function renderFranjaGenerales(){
     <summary style="cursor:pointer;padding:9px 14px;font-weight:600;font-size:13px;background:var(--amber-bg);color:var(--amber)">📌 Pendientes generales (${items.length}) <span style="font-weight:400;font-size:11px">— no dependen de un lote ni de tus filtros; vencen dentro de los próximos ${LIM} días o ya vencieron</span></summary>
     ${items.map(fila).join('')}</details>`;
 }
+// Última OT emitida que incluye una actividad (DB.ots viene con la más nueva primero)
+function ultimaOTDeActividad(actId){
+  return (DB.ots||[]).find(o=>!o.libre&&(o.relevIds||[]).includes(actId))||null;
+}
+function otBadgeHTML(actId){
+  const ot=ultimaOTDeActividad(actId);if(!ot)return '';
+  const n=(ot.lotes||[]).length;
+  const tip=`Última OT emitida para esta actividad: ${ot.num} (${ot.fecha}). Incluye ${n} lote(s)${ot.haTotal?', '+ot.haTotal+' ha':''}: `+(ot.lotes||[]).map(l=>l.nombre).join(', ')+'. Tocá para abrirla.';
+  return ` <a href="#" onclick="event.preventDefault();event.stopPropagation();navTo('ot');recargarOT('${ot.id}')" title="${hEsc(tip)}"><span class="badge bg-amber" style="font-size:9px">📋 Últ. OT ${hEsc(ot.fecha)} · ${n} lote${n===1?'':'s'}</span></a>`;
+}
+function otDesdeModalActUltima(){
+  const ot=ultimaOTDeActividad(_editActId);if(!ot)return;
+  closeModal('modal-actividad');navTo('ot');recargarOT(ot.id);
+}
 function renderActividadesMaster(){
   renderFranjaGenerales();
   const cont=document.getElementById('act-m-body');if(!cont)return;
@@ -10787,7 +10806,7 @@ function renderActividadesMaster(){
     const linkRelevVinculado=relevVinculadoCadena?` <span style="font-size:10px">🔗 ${relevVinculadoCadena}</span>`:'';
     const celdas=[
       {k:'chk',w:28,html:`<td class="ph">${chk}</td>`},
-      {k:'tipo',w:115,html:`<td style="font-size:12px">${codigoBadge}${tipoLink}${origenLink}${ligadaBadge}${recurrenteBadge}${mejoraBadgeF}${linkRelevVinculado}${(()=>{const d=vDetalleFila(f);return d?`<div class="muted" style="font-size:10.5px;margin-top:2px" title="${hEsc(d)}">${hEsc(vTxt(d,46))}</div>`:'';})()}</td>`},
+      {k:'tipo',w:115,html:`<td style="font-size:12px">${codigoBadge}${tipoLink}${origenLink}${ligadaBadge}${recurrenteBadge}${mejoraBadgeF}${linkRelevVinculado}${(!f.esRelev&&f.tipo==='Aplicación')?otBadgeHTML(f.id):''}${(()=>{const d=vDetalleFila(f);return d?`<div class="muted" style="font-size:10.5px;margin-top:2px" title="${hEsc(d)}">${hEsc(vTxt(d,46))}</div>`:'';})()}</td>`},
       {k:'lote',w:95,html:`<td>${loteLink}</td>`},
       {k:'cliente',w:125,html:`<td style="font-size:12px">${f.campoId?`${f.clienteNombre} <span class="muted">— </span><a href="#" onclick="event.preventDefault();navTo('campo-detail',{campoId:'${f.campoId}'})" style="color:var(--text2);text-decoration:underline;text-decoration-style:dotted" title="Ver ficha del campo">${f.campoNombre}</a>`:'<span class="muted">—</span>'}</td>`},
       {k:'resp',w:88,html:`<td style="font-size:11px">${f.responsable?`<span class="vresp">👤 ${hEsc(f.responsable)}</span>`:'<span class="muted">—</span>'}</td>`},
