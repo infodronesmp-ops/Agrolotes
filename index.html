@@ -8549,6 +8549,10 @@ function ajustarTotalProductoOT(productoId,nuevoValor){
     });
   });
   if(!actual||!objetivos.length){mostrarSnackbar('⚠️ No hay lotes con dosis de este producto para ajustar');buildOTFromIds(ids,true);return;}
+  // Si ya había declarado este mismo total y las dosis no cambiaron, no hay nada que ajustar
+  const _rec0=DB.ots.find(o=>o.id===window._otCurrentRecId);
+  const _d0=_rec0?.totDecl?.[productoId];
+  if(_d0&&Math.abs(_d0.v-nuevo)<1e-9&&Math.abs(_d0.calc-actual)<1e-6){buildOTFromIds(ids,true);return;}
   const k=nuevo/actual;
   if(Math.abs(k-1)<1e-9){buildOTFromIds(ids,true);return;}
   const nombre=prodCat?.nombre||'?';
@@ -8557,6 +8561,11 @@ function ajustarTotalProductoOT(productoId,nuevoValor){
     p.dosis=redondDosis(antes*k,p.unidad);
     if(act.historial)act.historial.push({fecha:hoyLocal(),texto:`${nombre}: ${fmtDosis(antes,p.unidad)}${p.unidad||''} → ${fmtDosis(p.dosis,p.unidad)}${p.unidad||''} (total de la OT ajustado a ${nuevo})`});
   });
+  // Las dosis por lote se redondean a lo que lee el aplicador (2 decimales), así que la suma
+  // puede dar 14,98 en vez de 15. El total que tipeó Mariano es el que llevó: se recuerda en la OT.
+  {let calc=0;objetivos.forEach(({act,p})=>{const ha=DB.lotes.find(l=>l.id===act.loteId)?.ha||0;const f=p.factor!==undefined?p.factor:1;calc+=totalBaseUnidad(p.dosis,ha,p.unidad||prodCat?.unidad||'').valor*f;});
+   const rec=DB.ots.find(o=>o.id===window._otCurrentRecId);
+   if(rec){rec.totDecl=rec.totDecl||{};rec.totDecl[productoId]={v:nuevo,calc};}}
   save();
   mostrarSnackbar(`✅ ${nombre}: dosis ajustada en ${objetivos.length} lote(s) para llegar a ${nuevo}`);
   buildOTFromIds(ids,true);
@@ -8789,6 +8798,7 @@ function buildOTFromIds(ids,keep,existing){
   const resumenProds=allProds.map((ap,i)=>{
     let tot=0;let uRef='';
     relevs.forEach(r=>{const p=(r.productos||[]).find(x=>x.productoId===ap.pid);if(p&&r.loteHa){const f=p.factor!==undefined?p.factor:1;const uRaw=p.unidad||DB.productos.find(x=>x.id===ap.pid)?.unidad||'';const {valor,unidad}=totalBaseUnidad(p.dosis,r.loteHa,uRaw);tot+=valor*f;uRef=unidad;}});
+    {const _dd=_ex?.totDecl?.[ap.pid];if(_dd&&Math.abs(_dd.calc-tot)<1e-6)tot=_dd.v;} // total declarado (las dosis por lote van redondeadas)
     const refP=relevs.flatMap(r=>r.productos||[]).find(p=>p.productoId===ap.pid);
     const infoSec=[ap.tipo||'',ap.fl&&ap.fl!=='—'?ap.fl:''].filter(Boolean).join(' · ');
     return`<tr>
