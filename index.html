@@ -396,7 +396,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
 <div class="sidebar-overlay" onclick="toggleSidebar(false)"></div>
 <!-- SIDEBAR -->
 <nav class="sidebar">
-  <div class="brand"><h1>🌱 AgroLotes</h1><small>Relevamientos y OT</small></div>
+  <div class="brand"><h1>🌱 AgroLotes</h1><small>Relevamientos y OT</small><div id="fb-status" onclick="_fbSyncPending=true;_fbSync()" title="Tocá para sincronizar ahora" style="font-size:10px;margin-top:4px;cursor:pointer;color:var(--text3)">☁️ Conectando...</div></div>
   <div class="nav-sec">
     <span class="nav-lbl">Principal</span>
     <button class="nb active" onclick="navTo('vistas-venc')"><span>👁</span> Vistas</button>
@@ -4872,8 +4872,8 @@ setInterval(()=>{if(_fbSyncPending&&!_fbBusy&&navigator.onLine!==false)_fbSync()
 function _fbShowSyncStatus(estado){
   const el=document.getElementById('fb-status');if(!el)return;
   if(estado==='syncing'){el.textContent='☁️ Guardando...';el.style.color='var(--text3)';}
-  else if(estado==='ok'){el.textContent='✅ Guardado en la nube';el.style.color='var(--accent2)';}
-  else if(estado==='error'){el.textContent='⚠️ Sin conexión — datos locales OK';el.style.color='var(--amber)';}
+  else if(estado==='ok'){const d=new Date();el.textContent='✅ Sincronizado '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');el.style.color='var(--accent2)';}
+  else if(estado==='error'){el.textContent='⚠️ Sin conexión — se sube al volver';el.style.color='var(--amber)';}
 }
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
 
