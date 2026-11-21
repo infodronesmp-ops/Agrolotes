@@ -1483,15 +1483,16 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
       <div class="field"><label>👤 Responsable <span class="muted">(opcional)</span></label><input type="text" id="r-resp" class="fi" list="resp-datalist" placeholder="Quién tiene que hacerlo" autocomplete="off" onfocus="respDatalistRefrescar()"></div>
       <div class="field"><label>Observaciones</label><textarea id="r-obs" class="fi" placeholder="Condiciones del lote, estadío de las malezas, notas..."></textarea></div>
       <details class="field" id="r-adj-det" style="border:1px solid var(--border);border-radius:var(--r);padding:8px 10px">
-        <summary style="cursor:pointer;font-weight:600;font-size:13px">📎 Fotos y videos <span class="muted" id="r-adj-cnt"></span> <span class="muted" style="font-weight:400;font-size:11px">(opcional)</span></summary>
+        <summary style="cursor:pointer;font-weight:600;font-size:13px">📎 Fotos, notas de voz y videos <span class="muted" id="r-adj-cnt"></span> <span class="muted" style="font-weight:400;font-size:11px">(opcional)</span></summary>
         <div style="margin-top:8px">
           <div id="r-adj-lista"></div>
-          <div class="rf" style="gap:6px;align-items:center;margin-bottom:8px">
+          <div class="rf" style="gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap">
             <label class="btn bb bxs" style="cursor:pointer;margin:0">📷 Agregar foto<input type="file" accept="image/*" multiple style="display:none" onchange="adjFotosElegidas(this)"></label>
-            <span class="muted" style="font-size:11px">Se achican solas. Máx. 8 por relevamiento.</span>
+            <button type="button" class="btn bb bxs" id="r-adj-rec" onclick="adjGrabarToggle()">🎙️ Grabar nota de voz</button>
           </div>
-          <div class="muted" style="font-size:11px;margin-bottom:4px">🎥 Video: subilo a Drive o Google Fotos y pegá el enlace</div>
-          <div class="rf" style="gap:6px"><input type="text" id="r-adj-link" class="fi" placeholder="https://drive.google.com/..." style="flex:2"><input type="text" id="r-adj-link-nom" class="fi" placeholder="Nombre (opcional)" style="flex:1"><button type="button" class="btn bs bxs" onclick="adjAgregarLink()">+ Agregar</button></div>
+          <div class="muted" style="font-size:11px;margin-bottom:8px">Las fotos y notas se guardan en el celu aunque no tengas señal y se suben solas cuando vuelve internet. Fotos: máx. 8. Notas: máx. 5 de 3 min.</div>
+          <div class="muted" style="font-size:11px;margin-bottom:4px">🎥 Video: subilo a Google Fotos o Drive, copiá el enlace y pegalo acá</div>
+          <div class="rf" style="gap:6px;flex-wrap:wrap"><input type="text" id="r-adj-link" class="fi" placeholder="https://..." style="flex:2;min-width:140px"><button type="button" class="btn bs bxs" onclick="adjPegarLink()">📋 Pegar enlace</button><input type="text" id="r-adj-link-nom" class="fi" placeholder="Nombre (opcional)" style="flex:1;min-width:110px"><button type="button" class="btn bs bxs" onclick="adjAgregarLink()">+ Agregar</button></div>
         </div>
       </details>
       <div class="field" style="margin-top:4px">
@@ -1509,6 +1510,21 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
       <button class="btn bs" id="relev-btn-dup" style="display:none" onclick="duplicarDesdeModal('R')" title="Crea una copia y la abre para editarla. Se copia la versión guardada.">📄 Duplicar</button>
       <button class="btn bs" onclick="hitoDesdeRelev()" title="Registrar un hito (espigazón, emergencia, primera detección...) en este lote con la fecha de este relevamiento">📌 Registrar hito</button>
       <button class="btn bp" onclick="saveRelev()">Guardar relevamiento</button>
+    </div>
+  </div>
+</div>
+
+<div class="mo" id="modal-share">
+  <div class="modal" style="max-width:460px">
+    <div class="mh"><span class="mt">🔗 Enlace recibido</span><button class="mx" onclick="closeModal('modal-share')">✕</button></div>
+    <div class="mb">
+      <div class="muted" style="font-size:11px;word-break:break-all;margin-bottom:10px" id="share-url"></div>
+      <div class="field"><label>¿A qué relevamiento lo agrego?</label><select id="share-relev" class="fi"></select></div>
+      <div class="field"><label>Nombre del enlace</label><input type="text" id="share-nom" class="fi" value="Video"></div>
+    </div>
+    <div class="mf" style="display:flex;gap:8px;justify-content:flex-end;padding:10px 14px">
+      <button class="btn bs" onclick="closeModal('modal-share')">Cancelar</button>
+      <button class="btn bp" onclick="compartidoAgregar()">Agregar</button>
     </div>
   </div>
 </div>
@@ -4869,11 +4885,14 @@ async function _fbInitSync(){
 window.addEventListener('online',()=>{_fbSyncPending=true;_fbSync();});
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){_fbSyncPending=true;_fbSync();}});
 setInterval(()=>{if(_fbSyncPending&&!_fbBusy&&navigator.onLine!==false)_fbSync();},30000);
+let _fbEstadoUlt='';
 function _fbShowSyncStatus(estado){
+  _fbEstadoUlt=estado;
   const el=document.getElementById('fb-status');if(!el)return;
   if(estado==='syncing'){el.textContent='☁️ Guardando...';el.style.color='var(--text3)';}
   else if(estado==='ok'){const d=new Date();el.textContent='✅ Sincronizado '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');el.style.color='var(--accent2)';}
   else if(estado==='error'){el.textContent='⚠️ Sin conexión — se sube al volver';el.style.color='var(--amber)';}
+  if(typeof _mediaPend!=='undefined'&&_mediaPend>0){el.textContent+=' · '+_mediaPend+(_mediaPend===1?' archivo':' archivos')+' por subir';el.style.color='var(--amber)';}
 }
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
 
@@ -7045,15 +7064,99 @@ function renderMejoraDetail(){
       </div>
     </div>`;
 }
-// ══ FOTOS Y ENLACES DE VIDEO EN RELEVAMIENTOS ══
-// Las fotos NO van dentro de los datos de la app (DB): cada una es un documento aparte en
-// Firebase (colección "data", id "foto_xxx"), achicada a ~1280 px. En el relevamiento solo
-// queda la lista liviana r.adjuntos=[{id,tipo:'foto'|'link',...}]. Los videos se suben a
-// Drive / Google Fotos y se pega el enlace.
-const ADJ_MAX_FOTOS=8;
+// ══ FOTOS, NOTAS DE VOZ Y ENLACES EN RELEVAMIENTOS ══
+// Fotos y audios NO van dentro de los datos de la app (DB): cada uno es un documento aparte en
+// Firebase (colección "data", id "foto_xxx" / "audio_xxx"). En el relevamiento solo queda la
+// lista liviana r.adjuntos=[{id,tipo:'foto'|'audio'|'link',...}].
+// Se guardan PRIMERO en el celu (IndexedDB) y se suben solos cuando hay internet.
+const ADJ_MAX_FOTOS=8,ADJ_MAX_AUDIOS=5,ADJ_AUDIO_SEG=180;
 let _relevAdj=[],_adjNuevos=[],_adjQuitados=[];
-const _fotoCache={};
-function _adjDoc(id){return _db.collection('agrolotes').doc(FIXED_UID).collection('data').doc('foto_'+id);}
+let _mediaPend=0,_mediaBusy=false;
+const _memMedia=new Map(); // respaldo si IndexedDB no está disponible
+// ── IndexedDB mínima ──
+let _idbP=null;
+function _idb(){
+  if(_idbP)return _idbP;
+  _idbP=new Promise((ok,mal)=>{
+    try{
+      const q=indexedDB.open('agrolotes_media',1);
+      q.onupgradeneeded=()=>{q.result.createObjectStore('m',{keyPath:'id'});};
+      q.onsuccess=()=>ok(q.result);q.onerror=()=>mal(q.error);q.onblocked=()=>mal(new Error('blocked'));
+    }catch(e){mal(e);}
+  });
+  _idbP.catch(()=>{});
+  return _idbP;
+}
+async function _idbOp(modo,fn){
+  const db=await _idb();
+  return new Promise((ok,mal)=>{
+    const tx=db.transaction('m',modo);const st=tx.objectStore('m');
+    const rq=fn(st);
+    tx.oncomplete=()=>ok(rq&&rq.result!==undefined?rq.result:undefined);
+    tx.onerror=()=>mal(tx.error);tx.onabort=()=>mal(tx.error);
+  });
+}
+async function idbPut(o){try{await _idbOp('readwrite',s=>s.put(o));_memMedia.delete(o.id);}catch(e){_memMedia.set(o.id,o);}}
+async function idbGet(id){try{const r=await _idbOp('readonly',s=>s.get(id));return r||_memMedia.get(id)||null;}catch(e){return _memMedia.get(id)||null;}}
+async function idbDel(id){_memMedia.delete(id);try{await _idbOp('readwrite',s=>s.delete(id));}catch(e){}}
+async function idbAll(){
+  let l=[];try{l=await _idbOp('readonly',s=>s.getAll())||[];}catch(e){}
+  _memMedia.forEach(v=>{if(!l.some(x=>x.id===v.id))l.push(v);});
+  return l;
+}
+function _mediaDoc(id,tipo){return _db.collection('agrolotes').doc(FIXED_UID).collection('data').doc((tipo==='audio'?'audio_':'foto_')+id);}
+function _mediaBorrarNube(id,tipo){try{const p=_mediaDoc(id,tipo).delete();if(p&&p.catch)p.catch(()=>{});}catch(e){}}
+// ── Subida en segundo plano ──
+function _mediaUsados(){
+  const s=new Set(_adjCompletos());_relevAdj.forEach(a=>s.add(a.id));return s;
+}
+async function _mediaSubir(){
+  if(_mediaBusy)return;
+  _mediaBusy=true;
+  try{
+    const todos=await idbAll();
+    const usados=_mediaUsados();
+    const lim=Date.now()-2*86400000;
+    for(const m of todos){ // archivos que quedaron sueltos hace más de 2 días: se descartan
+      if(!m.subido&&!usados.has(m.id)&&(m.ts||0)<lim){await idbDel(m.id);}
+    }
+    const pend=todos.filter(m=>!m.subido&&usados.has(m.id));
+    _mediaPend=pend.length;_mediaPintar();
+    for(const m of pend){
+      if(navigator.onLine===false)break;
+      try{
+        await Promise.race([
+          _mediaDoc(m.id,m.tipo).set({data:m.data,w:m.w||0,h:m.h||0,dur:m.dur||0,mime:m.mime||'',ts:m.ts||Date.now(),v:2}),
+          new Promise((_,no)=>setTimeout(()=>no(new Error('timeout')),25000))
+        ]);
+        m.subido=true;await idbPut(m);
+        _mediaPend=Math.max(0,_mediaPend-1);_mediaPintar();
+      }catch(e){break;}
+    }
+  }catch(e){console.warn('media',e);}
+  _mediaBusy=false;
+  try{if(document.getElementById('r-adj-lista'))_adjRender();}catch(e){}
+}
+function _mediaPintar(){try{if(typeof _fbEstadoUlt!=='undefined'&&_fbEstadoUlt)_fbShowSyncStatus(_fbEstadoUlt);}catch(e){}}
+async function _mediaContar(){
+  try{const u=_mediaUsados();const t=await idbAll();_mediaPend=t.filter(m=>!m.subido&&u.has(m.id)).length;_mediaPintar();}catch(e){}
+}
+async function _mediaCargar(id,tipo){ // 1) del celu, 2) de la nube (y se guarda en el celu)
+  const loc=await idbGet(id);if(loc&&loc.data)return {data:loc.data,dur:loc.dur||0,subido:!!loc.subido};
+  if(navigator.onLine===false)return null;
+  try{
+    const s=await _mediaDoc(id,tipo).get();
+    if(!s.exists)return null;
+    const d=s.data();
+    idbPut({id,tipo,data:d.data,w:d.w||0,h:d.h||0,dur:d.dur||0,mime:d.mime||'',ts:d.ts||0,subido:true});
+    return {data:d.data,dur:d.dur||0,subido:true};
+  }catch(e){return null;}
+}
+window.addEventListener('online',()=>setTimeout(_mediaSubir,1500));
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')setTimeout(_mediaSubir,1500);});
+setInterval(()=>{if(navigator.onLine!==false)_mediaSubir();},30000);
+setTimeout(()=>{_mediaSubir();},4000);
+// ── Edición ──
 function _adjInit(editId){
   _adjLimpiarHuerfanos();
   const r=editId?DB.relevamientos.find(x=>x.id===editId):null;
@@ -7062,15 +7165,18 @@ function _adjInit(editId){
 }
 function _adjCompletos(){return new Set(DB.relevamientos.flatMap(r=>(r.adjuntos||[]).map(a=>a.id)));}
 function _adjLimpiarHuerfanos(){
+  if(_rec){_rec._descartar=true;try{_rec.mr.stop();}catch(e){}_recLimpiar();}
   const usados=_adjCompletos();
-  _adjNuevos.filter(id=>!usados.has(id)).forEach(id=>{try{_adjDoc(id).delete();}catch(e){}delete _fotoCache[id];});
-  _adjNuevos=[];
+  const nuevos=_adjNuevos.slice();_adjNuevos=[];
+  nuevos.filter(n=>!usados.has(n.id)).forEach(n=>{idbDel(n.id);_mediaBorrarNube(n.id,n.tipo);});
+  _mediaContar();
 }
-function _adjCommit(){ // al guardar el relevamiento: recién ahí se borran de verdad las fotos quitadas
+function _adjCommit(){ // al guardar el relevamiento: recién ahí se borran de verdad los archivos quitados
   const usados=new Set(_relevAdj.map(a=>a.id));
   const otros=new Set(DB.relevamientos.filter(r=>r.id!==_editRelevId).flatMap(r=>(r.adjuntos||[]).map(x=>x.id)));
-  _adjQuitados.filter(id=>!usados.has(id)&&!otros.has(id)).forEach(id=>{try{_adjDoc(id).delete();}catch(e){}delete _fotoCache[id];});
+  _adjQuitados.filter(q=>!usados.has(q.id)&&!otros.has(q.id)).forEach(q=>{idbDel(q.id);_mediaBorrarNube(q.id,q.tipo);});
   _adjQuitados=[];_adjNuevos=[];
+  setTimeout(_mediaSubir,300);
 }
 function _adjComprimir(file){
   return new Promise((ok,mal)=>{
@@ -7095,57 +7201,157 @@ async function adjFotosElegidas(input){
     if(f.type.startsWith('video/')){mostrarSnackbar('🎥 Los videos pesan mucho: subilo a Drive o Google Fotos y pegá el enlace acá abajo','amber');continue;}
     if(!f.type.startsWith('image/'))continue;
     if(_relevAdj.filter(a=>a.tipo==='foto').length>=ADJ_MAX_FOTOS){mostrarSnackbar(`Máximo ${ADJ_MAX_FOTOS} fotos por relevamiento`,'amber');break;}
-    if(!navigator.onLine){mostrarSnackbar('Sin internet: la foto necesita conexión para guardarse','amber');break;}
     try{
       const {data,w,h}=await _adjComprimir(f);
-      const id=uid();
-      await _adjDoc(id).set({data,w,h,ts:Date.now(),v:1});
-      _fotoCache[id]=data;
-      _relevAdj.push({id,tipo:'foto',ts:Date.now()});_adjNuevos.push(id);
+      const id=uid(),ts=Date.now();
+      await idbPut({id,tipo:'foto',data,w,h,ts,subido:false});
+      _relevAdj.push({id,tipo:'foto',ts});_adjNuevos.push({id,tipo:'foto'});
       _adjRender();
     }catch(e){mostrarSnackbar('⚠️ No pude guardar esa foto. Probá de nuevo.','red');}
   }
+  _mediaContar();_mediaSubir();
+}
+// ── Nota de voz ──
+let _rec=null;
+function _recLimpiar(){
+  if(!_rec)return;
+  clearInterval(_rec.timer);
+  try{_rec.stream.getTracks().forEach(t=>t.stop());}catch(e){}
+  _rec=null;_recBoton();
+}
+function _fmtSeg(s){s=Math.round(s||0);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');}
+function _recBoton(){
+  const b=document.getElementById('r-adj-rec');if(!b)return;
+  if(_rec){const s=Math.floor((Date.now()-_rec.t0)/1000);b.textContent='⏹ Parar ('+_fmtSeg(s)+')';b.style.background='var(--red,#c0392b)';b.style.color='#fff';}
+  else{b.textContent='🎙️ Grabar nota de voz';b.style.background='';b.style.color='';}
+}
+async function adjGrabarToggle(){
+  if(_rec){try{_rec.mr.stop();}catch(e){_recLimpiar();}return;}
+  if(_relevAdj.filter(a=>a.tipo==='audio').length>=ADJ_MAX_AUDIOS){mostrarSnackbar(`Máximo ${ADJ_MAX_AUDIOS} notas de voz por relevamiento`,'amber');return;}
+  if(!navigator.mediaDevices||!window.MediaRecorder){mostrarSnackbar('Este navegador no permite grabar audio','amber');return;}
+  let stream;
+  try{stream=await navigator.mediaDevices.getUserMedia({audio:true});}
+  catch(e){mostrarSnackbar('No tengo permiso para usar el micrófono. Habilitalo en el navegador.','amber');return;}
+  const mimes=['audio/webm;codecs=opus','audio/webm','audio/mp4','audio/ogg;codecs=opus'];
+  const mime=mimes.find(m=>{try{return MediaRecorder.isTypeSupported(m);}catch(e){return false;}})||'';
+  let mr;
+  try{mr=new MediaRecorder(stream,Object.assign({audioBitsPerSecond:20000},mime?{mimeType:mime}:{}));}
+  catch(e){stream.getTracks().forEach(t=>t.stop());mostrarSnackbar('No pude iniciar la grabación','red');return;}
+  const chunks=[];
+  _rec={mr,stream,t0:Date.now(),_descartar:false,timer:null};
+  const rec=_rec;
+  mr.ondataavailable=ev=>{if(ev.data&&ev.data.size)chunks.push(ev.data);};
+  mr.onstop=async()=>{
+    const dur=Math.round((Date.now()-rec.t0)/1000);const descartar=rec._descartar;
+    if(_rec===rec)_recLimpiar();else{clearInterval(rec.timer);try{stream.getTracks().forEach(t=>t.stop());}catch(e){}}
+    if(descartar||!chunks.length)return;
+    try{
+      const blob=new Blob(chunks,{type:mr.mimeType||mime||'audio/webm'});
+      const data=await new Promise((ok,no)=>{const fr=new FileReader();fr.onload=()=>ok(fr.result);fr.onerror=()=>no(fr.error);fr.readAsDataURL(blob);});
+      if(data.length>900000){mostrarSnackbar('La nota quedó muy larga. Grabá una más corta (máx. 3 min).','amber');return;}
+      const id=uid(),ts=Date.now();
+      await idbPut({id,tipo:'audio',data,dur,mime:blob.type,ts,subido:false});
+      _relevAdj.push({id,tipo:'audio',dur,ts});_adjNuevos.push({id,tipo:'audio'});
+      _adjRender();_mediaContar();_mediaSubir();
+    }catch(e){mostrarSnackbar('⚠️ No pude guardar la nota de voz','red');}
+  };
+  mr.start(1000);
+  rec.timer=setInterval(()=>{
+    const s=(Date.now()-rec.t0)/1000;_recBoton();
+    if(s>=ADJ_AUDIO_SEG){try{mr.stop();}catch(e){}}
+  },500);
+  _recBoton();
+}
+// ── Enlaces ──
+function _adjNormUrl(u){
+  u=(u||'').trim();if(!u)return null;
+  if(!/^https?:\/\//i.test(u))u='https://'+u;
+  try{new URL(u);}catch(e){return null;}
+  return u;
 }
 function adjAgregarLink(){
   const inp=document.getElementById('r-adj-link');const nom=document.getElementById('r-adj-link-nom');
-  let u=(inp.value||'').trim();
-  if(!u)return;
-  if(!/^https?:\/\//i.test(u))u='https://'+u;
-  try{new URL(u);}catch(e){mostrarSnackbar('Ese enlace no parece válido','amber');return;}
+  if(!(inp.value||'').trim())return;
+  const u=_adjNormUrl(inp.value);
+  if(!u){mostrarSnackbar('Ese enlace no parece válido','amber');return;}
   _relevAdj.push({id:uid(),tipo:'link',url:u,nombre:(nom.value||'').trim()||'Video',ts:Date.now()});
   inp.value='';nom.value='';_adjRender();
+}
+async function adjPegarLink(){
+  const inp=document.getElementById('r-adj-link');
+  try{
+    const t=await navigator.clipboard.readText();
+    const m=(t||'').match(/https?:\/\/\S+/i);
+    if(!m){mostrarSnackbar('No hay ningún enlace copiado','amber');return;}
+    inp.value=m[0];
+    mostrarSnackbar('Enlace pegado. Tocá "+ Agregar"','green');
+  }catch(e){mostrarSnackbar('No pude leer lo copiado. Mantené apretado el campo y elegí "Pegar".','amber');inp.focus();}
 }
 function adjQuitar(id){
   const a=_relevAdj.find(x=>x.id===id);if(!a)return;
   _relevAdj=_relevAdj.filter(x=>x.id!==id);
-  if(a.tipo==='foto')_adjQuitados.push(id);
+  if(a.tipo==='foto'||a.tipo==='audio')_adjQuitados.push({id,tipo:a.tipo});
   _adjRender();
 }
-async function _adjCargarFoto(id){
-  if(_fotoCache[id])return _fotoCache[id];
-  const s=await _adjDoc(id).get();
-  const d=s.exists?s.data().data:null;if(d)_fotoCache[id]=d;return d;
+async function adjVer(id){
+  const m=await _mediaCargar(id,'foto');
+  if(!m){mostrarSnackbar('Esa foto todavía no llegó a este equipo (se está subiendo desde el celular)','amber');return;}
+  const o=document.createElement('div');
+  o.style.cssText='position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.88);display:flex;align-items:center;justify-content:center;padding:12px;cursor:zoom-out';
+  o.innerHTML=`<img src="${m.data}" style="max-width:100%;max-height:100%;border-radius:6px"><span style="position:absolute;top:10px;right:16px;color:#fff;font-size:26px">✕</span>`;
+  o.onclick=()=>o.remove();document.body.appendChild(o);
 }
-function adjVer(id){
-  _adjCargarFoto(id).then(d=>{
-    if(!d){mostrarSnackbar('No encontré la foto','amber');return;}
-    const o=document.createElement('div');
-    o.style.cssText='position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.88);display:flex;align-items:center;justify-content:center;padding:12px;cursor:zoom-out';
-    o.innerHTML=`<img src="${d}" style="max-width:100%;max-height:100%;border-radius:6px"><span style="position:absolute;top:10px;right:16px;color:#fff;font-size:26px">✕</span>`;
-    o.onclick=()=>o.remove();document.body.appendChild(o);
-  });
+async function adjEscuchar(id){
+  const box=document.getElementById('adj-au-'+id);if(!box)return;
+  box.innerHTML='<span class="muted" style="font-size:11px">Cargando...</span>';
+  const m=await _mediaCargar(id,'audio');
+  if(!m){box.innerHTML=`<button type="button" class="btn bs bxs" onclick="adjEscuchar('${id}')">⏳ Todavía no llegó · reintentar</button>`;return;}
+  box.innerHTML=`<audio controls autoplay src="${m.data}" style="height:32px;max-width:100%"></audio>`;
 }
 function _adjRender(){
   const box=document.getElementById('r-adj-lista');if(!box)return;
-  const fotos=_relevAdj.filter(a=>a.tipo==='foto'),links=_relevAdj.filter(a=>a.tipo==='link');
+  const fotos=_relevAdj.filter(a=>a.tipo==='foto'),links=_relevAdj.filter(a=>a.tipo==='link'),audios=_relevAdj.filter(a=>a.tipo==='audio');
   const det=document.getElementById('r-adj-det');if(det&&_relevAdj.length&&!det.dataset.touched){det.open=true;}
   const cnt=document.getElementById('r-adj-cnt');if(cnt)cnt.textContent=_relevAdj.length?`(${_relevAdj.length})`:'';
   box.innerHTML=
     (fotos.length?`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">${fotos.map(a=>`<div style="position:relative"><img id="adj-th-${a.id}" alt="foto" style="width:84px;height:84px;object-fit:cover;border-radius:6px;border:1px solid var(--border);cursor:zoom-in;background:var(--bg2)" onclick="adjVer('${a.id}')"><button type="button" class="btn bs bxs" style="position:absolute;top:-6px;right:-6px;padding:0 5px;border-radius:50%" title="Quitar foto" onclick="adjQuitar('${a.id}')">✕</button></div>`).join('')}</div>`:'')
+    +(audios.length?audios.map(a=>`<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px"><span id="adj-au-${a.id}"><button type="button" class="btn bs bxs" onclick="adjEscuchar('${a.id}')">▶ Escuchar nota (${_fmtSeg(a.dur)})</button></span><button type="button" class="btn bs bxs" title="Quitar nota" onclick="adjQuitar('${a.id}')">✕</button></div>`).join(''):'')
     +(links.length?links.map(a=>`<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px"><a href="${hEsc(a.url)}" target="_blank" rel="noopener noreferrer" class="btn bs bxs">▶ ${hEsc(a.nombre)}</a><span class="muted" style="font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:240px">${hEsc(a.url)}</span><button type="button" class="btn bs bxs" onclick="adjQuitar('${a.id}')">✕</button></div>`).join(''):'')
     +(!_relevAdj.length?'<div class="muted" style="font-size:11px">Todavía no hay nada adjunto.</div>':'');
-  fotos.forEach(a=>_adjCargarFoto(a.id).then(d=>{const el=document.getElementById('adj-th-'+a.id);if(el&&d)el.src=d;}).catch(()=>{}));
+  fotos.forEach(a=>_mediaCargar(a.id,'foto').then(m=>{const el=document.getElementById('adj-th-'+a.id);if(!el)return;if(m)el.src=m.data;else{el.alt='⏳';el.style.opacity='.35';el.title='Todavía no llegó a este equipo';}}).catch(()=>{}));
+  _recBoton();
 }
+// ── Compartir desde Google Fotos / Drive (Android, app instalada) ──
+function _compartidoRevisar(){
+  let u=null,t='';
+  try{
+    const p=new URLSearchParams(location.search);
+    if(!p.has('url')&&!p.has('text')&&!p.has('title'))return;
+    const crudo=[p.get('url'),p.get('text'),p.get('title')].filter(Boolean).join(' ');
+    const m=crudo.match(/https?:\/\/[^\s<>"']+/i);
+    u=m?m[0]:null;t=(p.get('title')||'').trim();
+    history.replaceState(null,'',location.pathname);
+  }catch(e){return;}
+  if(!u){mostrarSnackbar('Lo que compartiste no trae ningún enlace','amber');return;}
+  _shareUrl=u;
+  const sel=document.getElementById('share-relev');
+  const lista=(DB.relevamientos||[]).filter(r=>!r.borrado).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0)).slice(0,60);
+  sel.innerHTML=lista.length?lista.map(r=>`<option value="${hEsc(r.id)}">${hEsc((r.corto?r.corto+' · ':'')+[r.clienteNombre,r.campoNombre,r.loteNombre].filter(Boolean).join(' › ')+(r.fecha?' · '+r.fecha:''))}</option>`).join(''):'<option value="">No hay relevamientos</option>';
+  document.getElementById('share-nom').value=(t&&!/^https?:/i.test(t)&&t.length<40)?t:'Video';
+  document.getElementById('share-url').textContent=u;
+  openModal('modal-share');
+}
+let _shareUrl='';
+function compartidoAgregar(){
+  const id=document.getElementById('share-relev').value;
+  const r=(DB.relevamientos||[]).find(x=>x.id===id);
+  if(!r){mostrarSnackbar('Elegí un relevamiento','amber');return;}
+  r.adjuntos=(r.adjuntos||[]).concat([{id:uid(),tipo:'link',url:_shareUrl,nombre:(document.getElementById('share-nom').value||'').trim()||'Video',ts:Date.now()}]);
+  save();closeModal('modal-share');
+  try{if(typeof renderRelev==='function')renderRelev();}catch(e){}
+  mostrarSnackbar('✅ Enlace agregado al relevamiento','green');
+}
+setTimeout(_compartidoRevisar,800);
 function openModalRelev(editId=null){
   window._volverAAct=null;window._relevLigarActId=null;
   _editRelevId=editId;_prodRowN=0;_malRowN=0;
