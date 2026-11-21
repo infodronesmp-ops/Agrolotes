@@ -4,6 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AgroLotes</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#3a6b3e">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="AgroLotes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%8C%B1%3C/text%3E%3C/svg%3E">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Sora:wght@300;400;500;600&display=swap');
@@ -1475,6 +1482,18 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
       </div>
       <div class="field"><label>👤 Responsable <span class="muted">(opcional)</span></label><input type="text" id="r-resp" class="fi" list="resp-datalist" placeholder="Quién tiene que hacerlo" autocomplete="off" onfocus="respDatalistRefrescar()"></div>
       <div class="field"><label>Observaciones</label><textarea id="r-obs" class="fi" placeholder="Condiciones del lote, estadío de las malezas, notas..."></textarea></div>
+      <details class="field" id="r-adj-det" style="border:1px solid var(--border);border-radius:var(--r);padding:8px 10px">
+        <summary style="cursor:pointer;font-weight:600;font-size:13px">📎 Fotos y videos <span class="muted" id="r-adj-cnt"></span> <span class="muted" style="font-weight:400;font-size:11px">(opcional)</span></summary>
+        <div style="margin-top:8px">
+          <div id="r-adj-lista"></div>
+          <div class="rf" style="gap:6px;align-items:center;margin-bottom:8px">
+            <label class="btn bb bxs" style="cursor:pointer;margin:0">📷 Agregar foto<input type="file" accept="image/*" multiple style="display:none" onchange="adjFotosElegidas(this)"></label>
+            <span class="muted" style="font-size:11px">Se achican solas. Máx. 8 por relevamiento.</span>
+          </div>
+          <div class="muted" style="font-size:11px;margin-bottom:4px">🎥 Video: subilo a Drive o Google Fotos y pegá el enlace</div>
+          <div class="rf" style="gap:6px"><input type="text" id="r-adj-link" class="fi" placeholder="https://drive.google.com/..." style="flex:2"><input type="text" id="r-adj-link-nom" class="fi" placeholder="Nombre (opcional)" style="flex:1"><button type="button" class="btn bs bxs" onclick="adjAgregarLink()">+ Agregar</button></div>
+        </div>
+      </details>
       <div class="field" style="margin-top:4px">
         <label>🔧 Mejora programada <span class="muted">(opcional — no es una tarea común, se marca en rojo y se puede filtrar aparte)</span></label>
         <div class="rf" style="gap:6px;align-items:center">
@@ -4903,6 +4922,7 @@ function desprenderActDelRelev(){
   },'Desadjuntar');
 }
 function cancelModalRelev(){
+  _adjLimpiarHuerfanos();
   closeModal('modal-relev');
   if(window._volverAAct){window._volverAAct=null;window._relevLigarActId=null;openModal('modal-actividad');}
   if(window._otEditReturn){
@@ -5015,10 +5035,11 @@ function guardarComoBorrador(){
           campoNombre:campo?.nombre||DB.relevamientos[idx].campoNombre,
           loteNombre:lote?.nombre||DB.relevamientos[idx].loteNombre,
           loteHa:lote?.ha||DB.relevamientos[idx].loteHa||0,
-          malezas,productos,obs,
+          malezas,productos,obs,adjuntos:_relevAdj.map(a=>({...a})),
           estado:estadoGuardado,
           borradorTs:programado?null:Date.now()
         };
+        _adjCommit();
         save();renderRelev();renderDashboard();
         mostrarSnackbar(snackMsg,snackColor);
         return;
@@ -5034,7 +5055,7 @@ function guardarComoBorrador(){
       campoNombre:campo?.nombre||'(sin campo)',
       loteNombre:lote?.nombre||'(sin lote)',
       loteHa:lote?.ha||0,
-      malezas,productos,obs,
+      malezas,productos,obs,adjuntos:_relevAdj.map(a=>({...a})),
       estado:estadoGuardado,
       borradorTs:programado?null:Date.now(),
       createdAt:Date.now(),
@@ -6819,9 +6840,111 @@ function renderMejoraDetail(){
       </div>
     </div>`;
 }
+// ══ FOTOS Y ENLACES DE VIDEO EN RELEVAMIENTOS ══
+// Las fotos NO van dentro de los datos de la app (DB): cada una es un documento aparte en
+// Firebase (colección "data", id "foto_xxx"), achicada a ~1280 px. En el relevamiento solo
+// queda la lista liviana r.adjuntos=[{id,tipo:'foto'|'link',...}]. Los videos se suben a
+// Drive / Google Fotos y se pega el enlace.
+const ADJ_MAX_FOTOS=8;
+let _relevAdj=[],_adjNuevos=[],_adjQuitados=[];
+const _fotoCache={};
+function _adjDoc(id){return _db.collection('agrolotes').doc(FIXED_UID).collection('data').doc('foto_'+id);}
+function _adjInit(editId){
+  _adjLimpiarHuerfanos();
+  const r=editId?DB.relevamientos.find(x=>x.id===editId):null;
+  _relevAdj=(r?.adjuntos||[]).map(a=>({...a}));_adjNuevos=[];_adjQuitados=[];
+  _adjRender();
+}
+function _adjCompletos(){return new Set(DB.relevamientos.flatMap(r=>(r.adjuntos||[]).map(a=>a.id)));}
+function _adjLimpiarHuerfanos(){
+  const usados=_adjCompletos();
+  _adjNuevos.filter(id=>!usados.has(id)).forEach(id=>{try{_adjDoc(id).delete();}catch(e){}delete _fotoCache[id];});
+  _adjNuevos=[];
+}
+function _adjCommit(){ // al guardar el relevamiento: recién ahí se borran de verdad las fotos quitadas
+  const usados=new Set(_relevAdj.map(a=>a.id));
+  const otros=new Set(DB.relevamientos.filter(r=>r.id!==_editRelevId).flatMap(r=>(r.adjuntos||[]).map(x=>x.id)));
+  _adjQuitados.filter(id=>!usados.has(id)&&!otros.has(id)).forEach(id=>{try{_adjDoc(id).delete();}catch(e){}delete _fotoCache[id];});
+  _adjQuitados=[];_adjNuevos=[];
+}
+function _adjComprimir(file){
+  return new Promise((ok,mal)=>{
+    const img=new Image();const url=URL.createObjectURL(file);
+    img.onload=()=>{
+      URL.revokeObjectURL(url);
+      const lado=1280;const esc=Math.min(1,lado/Math.max(img.width,img.height));
+      const w=Math.round(img.width*esc),h=Math.round(img.height*esc);
+      const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);
+      let q=0.72,d=c.toDataURL('image/jpeg',q);
+      while(d.length>680000&&q>0.3){q-=0.1;d=c.toDataURL('image/jpeg',q);}
+      if(d.length>900000)return mal(new Error('grande'));
+      ok({data:d,w,h});
+    };
+    img.onerror=()=>{URL.revokeObjectURL(url);mal(new Error('imagen'));};
+    img.src=url;
+  });
+}
+async function adjFotosElegidas(input){
+  const files=[...(input.files||[])];input.value='';
+  for(const f of files){
+    if(f.type.startsWith('video/')){mostrarSnackbar('🎥 Los videos pesan mucho: subilo a Drive o Google Fotos y pegá el enlace acá abajo','amber');continue;}
+    if(!f.type.startsWith('image/'))continue;
+    if(_relevAdj.filter(a=>a.tipo==='foto').length>=ADJ_MAX_FOTOS){mostrarSnackbar(`Máximo ${ADJ_MAX_FOTOS} fotos por relevamiento`,'amber');break;}
+    if(!navigator.onLine){mostrarSnackbar('Sin internet: la foto necesita conexión para guardarse','amber');break;}
+    try{
+      const {data,w,h}=await _adjComprimir(f);
+      const id=uid();
+      await _adjDoc(id).set({data,w,h,ts:Date.now(),v:1});
+      _fotoCache[id]=data;
+      _relevAdj.push({id,tipo:'foto',ts:Date.now()});_adjNuevos.push(id);
+      _adjRender();
+    }catch(e){mostrarSnackbar('⚠️ No pude guardar esa foto. Probá de nuevo.','red');}
+  }
+}
+function adjAgregarLink(){
+  const inp=document.getElementById('r-adj-link');const nom=document.getElementById('r-adj-link-nom');
+  let u=(inp.value||'').trim();
+  if(!u)return;
+  if(!/^https?:\/\//i.test(u))u='https://'+u;
+  try{new URL(u);}catch(e){mostrarSnackbar('Ese enlace no parece válido','amber');return;}
+  _relevAdj.push({id:uid(),tipo:'link',url:u,nombre:(nom.value||'').trim()||'Video',ts:Date.now()});
+  inp.value='';nom.value='';_adjRender();
+}
+function adjQuitar(id){
+  const a=_relevAdj.find(x=>x.id===id);if(!a)return;
+  _relevAdj=_relevAdj.filter(x=>x.id!==id);
+  if(a.tipo==='foto')_adjQuitados.push(id);
+  _adjRender();
+}
+async function _adjCargarFoto(id){
+  if(_fotoCache[id])return _fotoCache[id];
+  const s=await _adjDoc(id).get();
+  const d=s.exists?s.data().data:null;if(d)_fotoCache[id]=d;return d;
+}
+function adjVer(id){
+  _adjCargarFoto(id).then(d=>{
+    if(!d){mostrarSnackbar('No encontré la foto','amber');return;}
+    const o=document.createElement('div');
+    o.style.cssText='position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.88);display:flex;align-items:center;justify-content:center;padding:12px;cursor:zoom-out';
+    o.innerHTML=`<img src="${d}" style="max-width:100%;max-height:100%;border-radius:6px"><span style="position:absolute;top:10px;right:16px;color:#fff;font-size:26px">✕</span>`;
+    o.onclick=()=>o.remove();document.body.appendChild(o);
+  });
+}
+function _adjRender(){
+  const box=document.getElementById('r-adj-lista');if(!box)return;
+  const fotos=_relevAdj.filter(a=>a.tipo==='foto'),links=_relevAdj.filter(a=>a.tipo==='link');
+  const det=document.getElementById('r-adj-det');if(det&&_relevAdj.length&&!det.dataset.touched){det.open=true;}
+  const cnt=document.getElementById('r-adj-cnt');if(cnt)cnt.textContent=_relevAdj.length?`(${_relevAdj.length})`:'';
+  box.innerHTML=
+    (fotos.length?`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">${fotos.map(a=>`<div style="position:relative"><img id="adj-th-${a.id}" alt="foto" style="width:84px;height:84px;object-fit:cover;border-radius:6px;border:1px solid var(--border);cursor:zoom-in;background:var(--bg2)" onclick="adjVer('${a.id}')"><button type="button" class="btn bs bxs" style="position:absolute;top:-6px;right:-6px;padding:0 5px;border-radius:50%" title="Quitar foto" onclick="adjQuitar('${a.id}')">✕</button></div>`).join('')}</div>`:'')
+    +(links.length?links.map(a=>`<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px"><a href="${hEsc(a.url)}" target="_blank" rel="noopener noreferrer" class="btn bs bxs">▶ ${hEsc(a.nombre)}</a><span class="muted" style="font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:240px">${hEsc(a.url)}</span><button type="button" class="btn bs bxs" onclick="adjQuitar('${a.id}')">✕</button></div>`).join(''):'')
+    +(!_relevAdj.length?'<div class="muted" style="font-size:11px">Todavía no hay nada adjunto.</div>':'');
+  fotos.forEach(a=>_adjCargarFoto(a.id).then(d=>{const el=document.getElementById('adj-th-'+a.id);if(el&&d)el.src=d;}).catch(()=>{}));
+}
 function openModalRelev(editId=null){
   window._volverAAct=null;window._relevLigarActId=null;
   _editRelevId=editId;_prodRowN=0;_malRowN=0;
+  _adjInit(editId);
   relevDesactivarMulti();
   document.getElementById('mrelev-title').textContent=editId?'Editar relevamiento':'Nuevo relevamiento';
   {const bd=document.getElementById('relev-btn-del');if(bd)bd.style.display=editId?'':'none';const b=document.getElementById('relev-btn-dup');if(b)b.style.display=editId?'':'none';}
@@ -7263,6 +7386,7 @@ function saveRelev(){
     loteNombre:lote?.nombre||'',loteHa:lote?.ha||0,
     malezas,productos,
     obs:document.getElementById('r-obs').value.trim(),
+    adjuntos:_relevAdj.map(a=>({...a})),
     responsable:respNombreCanon(document.getElementById('r-resp')?.value),
     mejoraId:document.getElementById('r-mejora-id')?.value||null,
     mejoraProgramada:!!document.getElementById('r-mejora-id')?.value,
@@ -7282,6 +7406,7 @@ function saveRelev(){
   // Modo normal: un solo destino (null = el lote del formulario). Modo "varios
   // lotes": una copia completa por cada lote del carrito, cada una con SU
   // cliente/campo/lote/cultivo, y sus propias actividades derivadas.
+  _adjCommit();
   const targets=esMulti?_relevMultiLotes.slice():[null];
   let mensajeExtra='';
   let cerradosProg=0,creadosMulti=0;
@@ -13621,5 +13746,9 @@ function confirmarImportacionBackup(){
 }
 </script>
 <div id="ot-print-area" style="display:none"></div>
+<script>
+// Abrir sin internet: registra sw.js (si el archivo está junto a la app). En otros entornos falla en silencio.
+try{if('serviceWorker' in navigator&&location.protocol.startsWith('http')){window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{});});}}catch(e){}
+</script>
 </body>
 </html>
