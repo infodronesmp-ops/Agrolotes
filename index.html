@@ -4606,7 +4606,7 @@ function getCliente(cliId){return DB.clientes.find(c=>c.id===cliId);}
 const DEVICE_ID=(()=>{try{let d=localStorage.getItem(SK+'_dev');if(!d){d='d'+Date.now().toString(36)+Math.random().toString(36).slice(2,8);localStorage.setItem(SK+'_dev',d);}return d;}catch(e){return 'd'+Math.random().toString(36).slice(2,10);}})();
 let _lastTs=parseInt(localStorage.getItem(SK+'_ts')||0)||0;           // ts de la última versión de la nube que ya tenemos
 let _base=(()=>{try{return JSON.parse(localStorage.getItem(SK+'_base')||'null');}catch(e){return null;}})();
-let _fbSyncPending=false,_fbSyncTimer=null,_fbLastSync=null,_fbBusy=false,_fbForce=false,_fbUnsub=null,_fbAvisoTam=false;
+let _fbSyncPending=false,_fbSyncTimer=null,_fbLastSync=null,_fbBusy=false,_fbForce=false,_fbUnsub=null;
 const _stampMem={};
 function _canon(v){
   if(v===null||typeof v!=='object')return JSON.stringify(v);
@@ -4702,6 +4702,7 @@ function _mergeNube(cloud,cloudTs){
     }
     if(tomaNube){DB[k]=C;entro=true;}
   });
+  if(entro&&Array.isArray(DB.ots)&&DB.ots.every(o=>o&&typeof o.id==='string'))DB.ots.sort((x,y)=>x.id<y.id?1:x.id>y.id?-1:0); // la OT más nueva primero (el id arranca con la hora)
   return entro;
 }
 // Lo que se corre cada vez que entran datos de la nube (reparaciones y completar defaults)
@@ -4728,7 +4729,58 @@ function save(){
   _fbSyncTimer=setTimeout(_fbSync,2000); // debounce 2 seg
   _fbShowSyncStatus('syncing');
 }
-function _fbGet(){return _docRef.get({source:'server'});}
+// ── Almacenamiento en la nube en PARTES ──
+// Firebase limita cada documento a 1 MB. La base se guarda dividida: un documento "índice"
+// (datos_principal) que lista las partes, y una parte por cada tanda de registros (~200 KB).
+// Solo se reescriben las partes que cambiaron. Si encuentra la copia vieja en un solo
+// documento (formato anterior), la lee igual y la migra sola.
+function _chunkRef(id){return _db.collection('agrolotes').doc(FIXED_UID).collection('data').doc(id);}
+function _nubeArmarPartes(db){
+  const out=[];const mk=(id,key,kind,data)=>({id,key,kind,data,h:_h(data)});
+  const resto={};
+  Object.keys(db).forEach(k=>{
+    const v=db[k];
+    if(v===undefined)return;
+    if(_esRegs(v)){
+      const total=JSON.stringify(v).length;
+      if(total>150000){
+        let cur=[],len=0,n=0;
+        const flush=()=>{if(cur.length){out.push(mk('datos_c_'+k+'_'+n,k,'arr',JSON.stringify(cur)));n++;cur=[];len=0;}};
+        v.forEach(r=>{const s=JSON.stringify(r);if(len+s.length>200000)flush();cur.push(r);len+=s.length+1;});
+        flush();return;
+      }
+    }
+    resto[k]=v;
+  });
+  // lo demás (listas chicas, configuración) en una o más partes de hasta ~300 KB
+  let grupo={},len=0,j=0;
+  const cierra=()=>{if(Object.keys(grupo).length){out.push(mk('datos_m_'+j,'*','obj',JSON.stringify(grupo)));j++;grupo={};len=0;}};
+  Object.keys(resto).forEach(k=>{const s=JSON.stringify(resto[k]);if(len+s.length>300000)cierra();grupo[k]=resto[k];len+=s.length;});
+  cierra();
+  return out;
+}
+async function _nubeLeer(){
+  for(let t=0;t<3;t++){
+    const snap=await _docRef.get({source:'server'});
+    if(!snap.exists)return {exists:false,ts:0,cloud:null,chunks:null};
+    const d=snap.data();
+    if(typeof d.data==='string'){ // formato anterior: todo en un documento
+      let cloud=null;try{cloud=JSON.parse(d.data);}catch(e){}
+      return {exists:true,ts:d.ts||0,cloud,chunks:null};
+    }
+    const metas=d.chunks||[];
+    const docs=await Promise.all(metas.map(m=>_chunkRef(m.id).get({source:'server'})));
+    const cloud={};let ok=true;
+    metas.forEach((m,i)=>{
+      const s=docs[i];if(!s.exists){ok=false;return;}
+      let v;try{v=JSON.parse(s.data().data);}catch(e){ok=false;return;}
+      if(m.kind==='obj')Object.assign(cloud,v);else{(cloud[m.key]=cloud[m.key]||[]).push(...v);}
+    });
+    const otra=await _docRef.get({source:'server'});           // ¿alguien escribió mientras leíamos?
+    if(ok&&otra.exists&&(otra.data().ts||0)===(d.ts||0))return {exists:true,ts:d.ts||0,cloud,chunks:metas};
+  }
+  throw new Error('No pude leer una copia consistente de la nube (reintento)');
+}
 function _fbTx(fn){return _db.runTransaction(fn);}
 function _hayModalAbierto(){return !!document.querySelector('.mo.open');}
 let _refrescoPendiente=false;
@@ -4748,31 +4800,31 @@ async function _fbSync(){
   let huboCambioRemoto=false;
   try{
     for(let intento=0;intento<4;intento++){
-      const snap=await _fbGet();
-      const dat=snap.exists?snap.data():null;
-      const cloudTs=dat?(dat.ts||0):0;
-      if(dat&&!_fbForce&&cloudTs!==_lastTs){
-        let cloud=null;try{cloud=JSON.parse(dat.data||'{}');}catch(e){}
+      const dat=await _nubeLeer();
+      const cloudTs=dat.ts;
+      if(dat.exists&&!_fbForce&&cloudTs!==_lastTs){
+        const cloud=dat.cloud;
         if(!cloud||cloud.clientes===undefined){throw new Error('La copia de la nube no se pudo leer — no se pisa');}
         if(!_base){try{localStorage.setItem(SK+'_backup_premerge',JSON.stringify(DB));}catch(e){}}
         _stampCambios();
         if(_mergeNube(cloud,cloudTs)){huboCambioRemoto=true;_postPull();}
-      }else if(_fbForce){_stampCambios();}
-      else{_stampCambios();}
-      const sNuevo=JSON.stringify(DB);
-      if(sNuevo.length>900000&&!_fbAvisoTam){_fbAvisoTam=true;mostrarSnackbar('⚠️ La base de datos se acerca al límite de Firebase (1 MB). Avisale a Claude para pasar a un esquema más grande.','red');}
+      }else _stampCambios();
       const baseNueva=_calcBase(DB);
       // Si ya es idéntica a la nube, no hace falta escribir (evita rebotes entre aparatos)
-      if(dat&&!_fbForce){
-        let cl=null;try{cl=_calcBase(JSON.parse(dat.data));}catch(e){}
-        if(cl&&_baseIgual(baseNueva,cl)){_lastTs=cloudTs;localStorage.setItem(SK+'_ts',cloudTs);_base=baseNueva;localStorage.setItem(SK+'_base',JSON.stringify(_base));break;}
+      if(dat.exists&&!_fbForce&&dat.cloud){
+        const cl=_calcBase(dat.cloud);
+        if(_baseIgual(baseNueva,cl)){_lastTs=cloudTs;localStorage.setItem(SK+'_ts',cloudTs);_base=baseNueva;localStorage.setItem(SK+'_base',JSON.stringify(_base));break;}
       }
       const newTs=Math.max(Date.now(),cloudTs+1);
       const ok=await _fbTx(async tx=>{
         const s=await tx.get(_docRef);
         const t=s.exists?(s.data().ts||0):0;
         if(t!==cloudTs)return false;               // alguien escribió en el medio: se vuelve a combinar
-        tx.set(_docRef,{data:JSON.stringify(DB),ts:newTs,v:2,by:DEVICE_ID});
+        const nuevas=_nubeArmarPartes(DB);
+        const viejas=new Map(((dat.chunks)||[]).map(m=>[m.id,m]));
+        nuevas.forEach(c=>{const m=viejas.get(c.id);if(!m||m.h!==c.h)tx.set(_chunkRef(c.id),{data:c.data,ts:newTs});});
+        viejas.forEach((m,id)=>{if(!nuevas.some(c=>c.id===id))tx.delete(_chunkRef(id));});
+        tx.set(_docRef,{v:3,ts:newTs,by:DEVICE_ID,chunks:nuevas.map(c=>({id:c.id,key:c.key,kind:c.kind,h:c.h}))});
         return true;
       });
       if(ok){
