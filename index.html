@@ -4595,6 +4595,130 @@ function getLotesByCampo(campoId){return DB.lotes.filter(l=>l.campoId===campoId)
 function getLote(loteId){return DB.lotes.find(l=>l.id===loteId);}
 function getCampo(campoId){return DB.campos.find(c=>c.id===campoId);}
 function getCliente(cliId){return DB.clientes.find(c=>c.id===cliId);}
+// ══ SINCRONIZACIÓN CON LA NUBE (celular ↔ compu) ══
+// Antes: "el que guarda último pisa todo". Ahora: se COMBINA registro por registro.
+//  · Cada registro (relevamiento, actividad, lote, etc.) se compara con cómo estaba en la última
+//    sincronización (la "base"). Si lo tocó solo un aparato, gana ese. Si lo tocaron los dos,
+//    gana el modificado más tarde (_m). Lo nuevo de cualquiera de los dos se suma.
+//  · Nunca se escribe sobre la nube sin comprobar que nadie escribió en el medio (transacción).
+//  · La app escucha la nube: lo que se guarda en un aparato aparece en el otro al instante.
+//  · Sin internet todo se guarda local y se sube/combina solo al volver la conexión.
+const DEVICE_ID=(()=>{try{let d=localStorage.getItem(SK+'_dev');if(!d){d='d'+Date.now().toString(36)+Math.random().toString(36).slice(2,8);localStorage.setItem(SK+'_dev',d);}return d;}catch(e){return 'd'+Math.random().toString(36).slice(2,10);}})();
+let _lastTs=parseInt(localStorage.getItem(SK+'_ts')||0)||0;           // ts de la última versión de la nube que ya tenemos
+let _base=(()=>{try{return JSON.parse(localStorage.getItem(SK+'_base')||'null');}catch(e){return null;}})();
+let _fbSyncPending=false,_fbSyncTimer=null,_fbLastSync=null,_fbBusy=false,_fbForce=false,_fbUnsub=null,_fbAvisoTam=false;
+const _stampMem={};
+function _canon(v){
+  if(v===null||typeof v!=='object')return JSON.stringify(v);
+  if(Array.isArray(v))return '['+v.map(_canon).join(',')+']';
+  return '{'+Object.keys(v).sort().filter(k=>k!=='_m'&&v[k]!==undefined).map(k=>JSON.stringify(k)+':'+_canon(v[k])).join(',')+'}';
+}
+function _h(s){let h1=0xdeadbeef,h2=0x41c6ce57;for(let i=0;i<s.length;i++){const c=s.charCodeAt(i);h1=Math.imul(h1^c,2654435761);h2=Math.imul(h2^c,1597334677);}h1=Math.imul(h1^(h1>>>16),2246822507)^Math.imul(h2^(h2>>>13),3266489909);h2=Math.imul(h2^(h2>>>16),2246822507)^Math.imul(h1^(h1>>>13),3266489909);return (4294967296*(2097151&h2)+(h1>>>0)).toString(36);}
+const _esRegs=a=>Array.isArray(a)&&a.length>0&&a.every(x=>x&&typeof x==='object'&&!Array.isArray(x)&&typeof x.id==='string');
+function _calcBase(db){
+  const cols={},vals={};
+  Object.keys(db||{}).forEach(k=>{
+    const v=db[k];
+    if(_esRegs(v)){const m={};v.forEach(r=>{m[r.id]=_h(_canon(r));});cols[k]=m;}
+    else vals[k]=_h(_canon(v));
+  });
+  return {cols,vals};
+}
+function _baseIgual(a,b){
+  if(!a||!b)return false;
+  const ka=Object.keys(a.cols),kb=Object.keys(b.cols);
+  if(ka.length!==kb.length)return false;
+  for(const k of ka){const x=a.cols[k],y=b.cols[k];if(!y)return false;const ix=Object.keys(x);if(ix.length!==Object.keys(y).length)return false;for(const i of ix)if(x[i]!==y[i])return false;}
+  const va=Object.keys(a.vals),vb=Object.keys(b.vals);
+  if(va.length!==vb.length)return false;
+  for(const k of va)if(a.vals[k]!==b.vals[k])return false;
+  return true;
+}
+// Marca con _m (hora) los registros que cambiaron desde la última sincronización
+function _stampCambios(){
+  if(!_base)return;
+  Object.keys(DB).forEach(k=>{
+    const v=DB[k];if(!_esRegs(v))return;
+    const B=_base.cols[k]||{};
+    v.forEach(r=>{
+      const h=_h(_canon(r));
+      if(B[r.id]!==h&&_stampMem[k+r.id]!==h){r._m=Date.now();_stampMem[k+r.id]=h;}
+    });
+  });
+}
+// Combina la nube (cloud) dentro de DB. Devuelve true si algo de la nube entró a DB.
+function _mergeNube(cloud,cloudTs){
+  const preferCloud=cloudTs>_lastTs;     // sin base: gana el lado más nuevo en lo que no se puede combinar
+  let entro=false;
+  const B=_base;
+  const keys=new Set([...Object.keys(DB),...Object.keys(cloud)]);
+  keys.forEach(k=>{
+    const L=DB[k],C=cloud[k];
+    if(C===undefined)return;                         // solo local: queda
+    if(L===undefined){DB[k]=C;entro=true;return;}    // solo nube: entra
+    if(Array.isArray(L)&&Array.isArray(C)&&(_esRegs(L)||_esRegs(C))){
+      const bk=B?(B.cols[k]||{}):null;
+      const mL=new Map(L.map(r=>[r.id,r])),mC=new Map(C.map(r=>[r.id,r]));
+      const out=[];
+      L.forEach(l=>{
+        const c=mC.get(l.id);
+        if(!c){ // solo local
+          const b=bk?bk[l.id]:undefined;
+          if(bk&&b!==undefined&&_h(_canon(l))===b){entro=true;return;}  // la nube lo eliminó y acá no se tocó: se elimina
+          out.push(l);return;
+        }
+        const hl=_h(_canon(l)),hc=_h(_canon(c));
+        if(hl===hc){out.push(l);return;}
+        const b=bk?bk[l.id]:undefined;
+        let gana;
+        if(bk&&b!==undefined){
+          const lCh=hl!==b,cCh=hc!==b;
+          gana=(lCh&&!cCh)?'l':(cCh&&!lCh)?'c':((l._m||0)>=(c._m||0)?'l':'c');
+        }else gana=((l._m||0)>(c._m||0))?'l':((c._m||0)>(l._m||0))?'c':(preferCloud?'c':'l');
+        if(gana==='c'){out.push(c);entro=true;}else out.push(l);
+      });
+      C.forEach(c=>{
+        if(mL.has(c.id))return;
+        const b=bk?bk[c.id]:undefined;
+        if(bk&&b!==undefined&&_h(_canon(c))===b)return;   // acá se eliminó y en la nube no se tocó: queda eliminado
+        out.push(c);entro=true;
+      });
+      DB[k]=out;
+      return;
+    }
+    // Valores sueltos (listas simples, configuración, etc.)
+    const hl=_h(_canon(L)),hc=_h(_canon(C));
+    if(hl===hc)return;
+    const b=B?B.vals[k]:undefined;
+    let tomaNube;
+    if(B&&b!==undefined){const lCh=hl!==b,cCh=hc!==b;tomaNube=cCh&&!lCh;if(lCh&&cCh){ // los dos cambiaron: se combinan si se puede
+        if(Array.isArray(L)&&Array.isArray(C)&&!_esRegs(L)&&!_esRegs(C)){const u=[...L];C.forEach(x=>{if(!u.some(y=>_canon(y)===_canon(x)))u.push(x);});DB[k]=u;entro=true;return;}
+        if(L&&C&&typeof L==='object'&&typeof C==='object'&&!Array.isArray(L)&&!Array.isArray(C)){DB[k]={...C,...L};entro=true;return;}
+        tomaNube=false;}}
+    else{
+      if(Array.isArray(L)&&Array.isArray(C)&&!_esRegs(L)&&!_esRegs(C)){const u=[...L];C.forEach(x=>{if(!u.some(y=>_canon(y)===_canon(x)))u.push(x);});DB[k]=u;entro=true;return;}
+      if(L&&C&&typeof L==='object'&&typeof C==='object'&&!Array.isArray(L)&&!Array.isArray(C)){DB[k]=preferCloud?{...L,...C}:{...C,...L};entro=true;return;}
+      tomaNube=preferCloud;
+    }
+    if(tomaNube){DB[k]=C;entro=true;}
+  });
+  return entro;
+}
+// Lo que se corre cada vez que entran datos de la nube (reparaciones y completar defaults)
+function _postPull(){
+  const def=ddb();
+  ['campanas','cultivos','malezas','ots','actividades','campos','lotes','mejoras','hitos'].forEach(k=>{if(!Array.isArray(DB[k]))DB[k]=def[k]||[];});
+  if(!Array.isArray(DB.hitoTipos)||!DB.hitoTipos.length)DB.hitoTipos=hitoTiposBase();
+  repararLoteHa();
+  migrarAplicadosAActividades();
+  purgarPapelera();
+  rebuildActTipos();
+  asignarCodigosCortos();
+  repararCodigosCortosDuplicados();
+  if(!Array.isArray(DB.tareasRecurrentes))DB.tareasRecurrentes=[];
+  if(!DB.cierreCultivo||typeof DB.cierreCultivo!=='object')DB.cierreCultivo=cierreCultivoDefault();
+  if(!DB.cierreOverride||typeof DB.cierreOverride!=='object')DB.cierreOverride={};
+}
 function save(){
   // 1. Guardar localmente (instantáneo)
   localStorage.setItem(SK,JSON.stringify(DB));
@@ -4604,66 +4728,95 @@ function save(){
   _fbSyncTimer=setTimeout(_fbSync,2000); // debounce 2 seg
   _fbShowSyncStatus('syncing');
 }
-let _fbSyncPending=false,_fbSyncTimer=null,_fbLastSync=null;
-function _fbSync(){
-  if(!_fbSyncPending||!_docRef||!_fbReady||!_db)return;
-  _fbSyncPending=false;
-  _docRef.set({data:JSON.stringify(DB),ts:Date.now(),v:2})
-    .then(()=>{_fbLastSync=new Date();localStorage.setItem(SK+'_ts',Date.now());_fbShowSyncStatus('ok');})
-    .catch(e=>{console.warn('Firebase sync error:',e);_fbShowSyncStatus('error');});
+function _fbGet(){return _docRef.get({source:'server'});}
+function _fbTx(fn){return _db.runTransaction(fn);}
+function _hayModalAbierto(){return !!document.querySelector('.mo.open');}
+let _refrescoPendiente=false;
+function _refrescarUI(){
+  if(_hayModalAbierto()){_refrescoPendiente=true;return;}
+  _refrescoPendiente=false;
+  try{refrescarVistasActividad();}catch(e){}
+  try{vistasRefrescarSuave();}catch(e){}
+  try{const pg=document.querySelector('.page.active')?.id;if(pg==='page-productos')renderProductos();else if(pg==='page-clientes')renderClientes();else if(pg==='page-campos')renderCampos();}catch(e){}
 }
-async function _fbInitSync(){
+setInterval(()=>{if(_refrescoPendiente&&!_hayModalAbierto())_refrescarUI();},2000);
+async function _fbSync(){
+  if(!_docRef||!_fbReady||!_db)return;
+  if(!_fbSyncPending)return;
+  if(_fbBusy){return;}                       // al terminar vuelve a correr si quedó algo pendiente
+  _fbBusy=true;_fbSyncPending=false;
+  let huboCambioRemoto=false;
   try{
-    _fbShowSyncStatus('syncing');
-    const snap=await _docRef.get();
-    if(snap.exists){
-      const fbData=snap.data();
-      const localTs=parseInt(localStorage.getItem(SK+'_ts')||0);
-      const fbTs=fbData.ts||0;
-      if(fbTs>localTs){
-        const fbDB=JSON.parse(fbData.data||'{}');
-        if(fbDB&&fbDB.clientes!==undefined){
-          Object.assign(DB,fbDB);
-          const def=ddb();
-          ['campanas','cultivos','malezas','ots','actividades','campos','lotes','mejoras','hitos'].forEach(k=>{if(!Array.isArray(DB[k]))DB[k]=def[k]||[];});
-          if(!Array.isArray(DB.hitoTipos)||!DB.hitoTipos.length)DB.hitoTipos=hitoTiposBase();
-          repararLoteHa();
-          migrarAplicadosAActividades();
-          purgarPapelera();
-          rebuildActTipos(); // por si otro dispositivo agregó/renombró un Tipo de Actividad
-          asignarCodigosCortos();
-          // Si dos dispositivos crearon algo casi al mismo tiempo, acá es donde
-          // puede aparecer un código R#/A# repetido — se repara apenas se detecta.
-          const _huboDupFix=repararCodigosCortosDuplicados();
-          if(!Array.isArray(DB.tareasRecurrentes))DB.tareasRecurrentes=[];
-          if(!DB.cierreCultivo||typeof DB.cierreCultivo!=='object')DB.cierreCultivo=cierreCultivoDefault();
-          if(!DB.cierreOverride||typeof DB.cierreOverride!=='object')DB.cierreOverride={};
-          localStorage.setItem(SK,JSON.stringify(DB));
-          localStorage.setItem(SK+'_ts',fbTs);
-          renderDashboard();
-          try{vistasRefrescarSuave();}catch(e){}
-          _fbShowSyncStatus('ok');
-          mostrarSnackbar('✅ Datos sincronizados desde la nube');
-          generarTareasRecurrentesActivas();
-          if(_huboDupFix){_fbSyncPending=true;_fbSync();}
-          return;
-        }
+    for(let intento=0;intento<4;intento++){
+      const snap=await _fbGet();
+      const dat=snap.exists?snap.data():null;
+      const cloudTs=dat?(dat.ts||0):0;
+      if(dat&&!_fbForce&&cloudTs!==_lastTs){
+        let cloud=null;try{cloud=JSON.parse(dat.data||'{}');}catch(e){}
+        if(!cloud||cloud.clientes===undefined){throw new Error('La copia de la nube no se pudo leer — no se pisa');}
+        if(!_base){try{localStorage.setItem(SK+'_backup_premerge',JSON.stringify(DB));}catch(e){}}
+        _stampCambios();
+        if(_mergeNube(cloud,cloudTs)){huboCambioRemoto=true;_postPull();}
+      }else if(_fbForce){_stampCambios();}
+      else{_stampCambios();}
+      const sNuevo=JSON.stringify(DB);
+      if(sNuevo.length>900000&&!_fbAvisoTam){_fbAvisoTam=true;mostrarSnackbar('⚠️ La base de datos se acerca al límite de Firebase (1 MB). Avisale a Claude para pasar a un esquema más grande.','red');}
+      const baseNueva=_calcBase(DB);
+      // Si ya es idéntica a la nube, no hace falta escribir (evita rebotes entre aparatos)
+      if(dat&&!_fbForce){
+        let cl=null;try{cl=_calcBase(JSON.parse(dat.data));}catch(e){}
+        if(cl&&_baseIgual(baseNueva,cl)){_lastTs=cloudTs;localStorage.setItem(SK+'_ts',cloudTs);_base=baseNueva;localStorage.setItem(SK+'_base',JSON.stringify(_base));break;}
+      }
+      const newTs=Math.max(Date.now(),cloudTs+1);
+      const ok=await _fbTx(async tx=>{
+        const s=await tx.get(_docRef);
+        const t=s.exists?(s.data().ts||0):0;
+        if(t!==cloudTs)return false;               // alguien escribió en el medio: se vuelve a combinar
+        tx.set(_docRef,{data:JSON.stringify(DB),ts:newTs,v:2,by:DEVICE_ID});
+        return true;
+      });
+      if(ok){
+        _lastTs=newTs;_base=baseNueva;_fbForce=false;
+        localStorage.setItem(SK+'_ts',newTs);localStorage.setItem(SK+'_base',JSON.stringify(_base));
+        break;
       }
     }
-    _fbSyncPending=true;_fbSync();
+    localStorage.setItem(SK,JSON.stringify(DB));
+    _fbFallos=0;_fbLastSync=new Date();_fbShowSyncStatus('ok');
+    if(huboCambioRemoto){try{generarTareasRecurrentesActivas();}catch(e){}_refrescarUI();mostrarSnackbar('🔄 Se actualizó con cambios de otro aparato');}
   }catch(e){
-    const code=e&&e.code?e.code:'';
-    const msg=e&&e.message?e.message:String(e);
-    console.warn('Firebase init sync error (code='+code+'):', msg, e);
-    if(code==='permission-denied'||msg.toLowerCase().includes('permission')||msg.toLowerCase().includes('missing or insufficient')){
+    console.warn('Firebase sync error:',e);
+    _fbSyncPending=true;_fbFallos++;           // se reintenta al volver la conexión (cada vez más espaciado)
+    const code=e&&e.code?e.code:'',msg=(e&&e.message)?e.message:String(e);
+    if(code==='permission-denied'||/permission|insufficient/i.test(msg)){
       _fbShowSyncStatus('error');
       mostrarSnackbar('⛔ Firestore: permiso denegado — revisá las Reglas en Firebase Console','red');
-      console.error('%cFIRESTORE REGLAS:%c Las reglas actuales bloquean el acceso sin autenticación. Actualizalas en Firebase Console → Firestore → Reglas:\n\nrules_version = \'2\';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    match /agrolotes/Ki43LqAIoIaM1l1QbMqdQDrzIc23/{document=**} {\n      allow read, write: if true;\n    }\n  }\n}','color:red;font-weight:bold','');
-    } else {
-      _fbShowSyncStatus('error');
-    }
+    }else _fbShowSyncStatus('error');
+  }finally{
+    _fbBusy=false;
+    if(_fbSyncPending&&navigator.onLine!==false){clearTimeout(_fbSyncTimer);_fbSyncTimer=setTimeout(_fbSync,_fbReintento());}
   }
 }
+let _fbFallos=0;
+function _fbReintento(){return Math.min(60000,1500*Math.pow(2,Math.min(_fbFallos,6)));}
+// Arranque: combinar con la nube y quedar escuchando cambios del otro aparato
+async function _fbInitSync(){
+  _fbShowSyncStatus('syncing');
+  _fbSyncPending=true;
+  await _fbSync();
+  try{
+    if(_fbUnsub)_fbUnsub();
+    _fbUnsub=_docRef.onSnapshot(snap=>{
+      if(!snap.exists||snap.metadata.hasPendingWrites)return;
+      const d=snap.data();
+      if(d.ts===_lastTs)return;               // es la versión que ya tenemos (la nuestra)
+      _fbSyncPending=true;_fbSync();
+    },e=>{console.warn('Escucha de la nube:',e);});
+  }catch(e){console.warn(e);}
+}
+window.addEventListener('online',()=>{_fbSyncPending=true;_fbSync();});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){_fbSyncPending=true;_fbSync();}});
+setInterval(()=>{if(_fbSyncPending&&!_fbBusy&&navigator.onLine!==false)_fbSync();},30000);
 function _fbShowSyncStatus(estado){
   const el=document.getElementById('fb-status');if(!el)return;
   if(estado==='syncing'){el.textContent='☁️ Guardando...';el.style.color='var(--text3)';}
@@ -13656,7 +13809,7 @@ generarTareasRecurrentesActivas();
 actualizarCampanitaTareas();
 navTo('vistas-venc'); // la app abre en Vistas › Por vencimiento (próximos 30 días)
 window.addEventListener('beforeunload',()=>{
-  if(_fbSyncPending&&_docRef&&_fbReady){localStorage.setItem(SK+'_ts',Date.now());_fbSync();}
+  if(_fbSyncPending&&_docRef&&_fbReady){_fbSync();}
 });
 
 
@@ -13737,7 +13890,7 @@ function confirmarImportacionBackup(){
   repararCodigosCortosDuplicados();
   generarTareasRecurrentesActivas();
   localStorage.setItem('agrolotes_v2',JSON.stringify(DB));
-  localStorage.removeItem('agrolotes_v2_ts');
+  localStorage.removeItem('agrolotes_v2_ts');localStorage.removeItem('agrolotes_v2_base');_lastTs=0;_base=null;_fbForce=true; // un backup importado reemplaza a la nube, no se combina
   _pendingImportData=null;
   closeModal('modal-import-confirm');
   renderDashboard();navTo('dashboard');
