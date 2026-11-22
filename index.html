@@ -69,6 +69,33 @@ body{font-family:'Sora',sans-serif;background:var(--bg);color:var(--text);font-s
   .topbar-left .t1{font-size:14px;}
 }
 
+/* ── Relevamiento en el celular: una columna, botones grandes, Guardar siempre a la vista ── */
+.m-add{display:none;}
+@media(max-width:700px){
+  #modal-relev.mo{align-items:stretch;}
+  #modal-relev .modal{width:100%;max-width:none;height:100%;max-height:none;border-radius:0;border:0;display:flex;flex-direction:column;}
+  #modal-relev .mb{padding:10px;flex:1;overflow-y:auto;}
+  #modal-relev .mf{position:sticky;bottom:0;z-index:5;flex-wrap:wrap;justify-content:flex-start;padding:8px 10px;}
+  #modal-relev .mf .bp{flex:1 1 100%;order:-1;min-height:46px;font-size:15px;}
+  #modal-relev .fg3{grid-template-columns:1fr;}
+  #modal-relev .fi,#modal-relev select,#modal-relev input[type=text],#modal-relev input[type=number],#modal-relev input[type=date]{min-height:42px;font-size:16px;}
+  #modal-relev .ch{flex-wrap:wrap;gap:6px;justify-content:flex-start;}
+  #modal-relev .hdr-add{display:none;}
+  #modal-relev .m-add{display:block;padding:0 12px 12px;}
+  #modal-relev .m-add .btn{width:100%;min-height:46px;font-size:15px;}
+  #modal-relev #maleza-rows>div{border-bottom:1px dashed var(--border);padding-bottom:8px;margin-bottom:10px!important;}
+  #modal-relev #maleza-rows>div>div:first-child{flex-wrap:wrap;}
+  #modal-relev #maleza-rows .mal-combo{flex:1 1 100%!important;}
+  #modal-relev #maleza-rows [id^=mal-metrics-]{flex:1 1 100%;gap:8px!important;}
+  #modal-relev #maleza-rows [id^=mal-metrics-] select,#modal-relev #maleza-rows [id^=mal-metrics-]>span{flex:1;width:auto!important;}
+  #modal-relev #maleza-rows [id^=mal-metrics-] input{width:100%!important;}
+  #modal-relev #maleza-rows [id^=mal-alerta-]{min-width:0!important;flex:1 1 auto;}
+  #modal-relev #prod-rows>div{border-bottom:1px dashed var(--border);padding-bottom:8px;margin-bottom:10px!important;}
+  #modal-relev #prod-rows>div>select:first-child{flex:1 1 100%!important;}
+  #modal-relev .pr-hide-m{display:none!important;}
+  #modal-relev .btn.bxs{min-height:38px;min-width:38px;}
+}
+
 /* CARDS */
 .card{background:var(--card);border:1px solid var(--border);border-radius:var(--rl);box-shadow:var(--shadow);overflow:hidden;margin-bottom:14px;}
 .ch{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--bg2);}
@@ -1455,20 +1482,22 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
         <div class="ch"><span class="ct">🔬 Diagnóstico</span>
           <div class="rf" style="gap:6px">
             <button class="btn bs bsm" onclick="openModalMalezaDesdeRelev()">+ Nuevo diagnóstico</button>
-            <button class="btn bp bsm" onclick="addMalezaRow()">+ Agregar</button>
+            <button class="btn bp bsm hdr-add" onclick="addMalezaRow()">+ Agregar</button>
           </div></div>
         <div class="cb" id="maleza-rows">
           <div class="muted" style="font-size:11px">Cargá lo detectado en el lote — maleza, enfermedad, plaga, fitotoxicidad, daño por helada, etc.</div>
         </div>
+        <div class="m-add"><button type="button" class="btn bp" onclick="addMalezaMovil()">+ Agregar otro diagnóstico</button></div>
       </div>
       <!-- SOLUCIONES -->
       <div class="card mb12">
         <div class="ch"><span class="ct">💊 Soluciones recomendadas</span>
           <div class="rf" style="gap:6px">
             <button class="btn bs bsm" onclick="openModalProductoDesdeRelev()">+ Nuevo producto/servicio</button>
-            <button class="btn bp bsm" onclick="addProdRow()">+ Agregar</button>
+            <button class="btn bp bsm hdr-add" onclick="addProdRow()">+ Agregar</button>
           </div></div>
         <div class="cb" id="prod-rows"></div>
+        <div class="m-add"><button type="button" class="btn bp" onclick="addProdMovil()">+ Agregar otra solución</button></div>
       </div>
       <!-- ACTIVIDADES DERIVADAS (una o varias) -->
       <div class="card mb12">
@@ -1487,11 +1516,13 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
         <div style="margin-top:8px">
           <div id="r-adj-lista"></div>
           <div class="rf" style="gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap">
-            <label class="btn bb bxs" style="cursor:pointer;margin:0">📷 Agregar foto<input type="file" accept="image/*" multiple style="display:none" onchange="adjFotosElegidas(this)"></label>
+            <label class="btn bb bxs" style="cursor:pointer;margin:0">📸 Sacar foto<input type="file" accept="image/*" capture="environment" style="display:none" onchange="adjFotosElegidas(this)"></label>
+            <label class="btn bs bxs" style="cursor:pointer;margin:0">🖼️ Elegir de la galería<input type="file" accept="image/*" multiple style="display:none" onchange="adjFotosElegidas(this)"></label>
             <button type="button" class="btn bb bxs" id="r-adj-rec" onclick="adjGrabarToggle()">🎙️ Grabar nota de voz</button>
+            <button type="button" class="btn bs bxs" onclick="adjVideoPendiente()" title="Si no hay señal: dejá marcado que grabaste un video y pegá el enlace después">🎥 Video pendiente</button>
           </div>
           <div class="muted" style="font-size:11px;margin-bottom:8px">Las fotos y notas se guardan en el celu aunque no tengas señal y se suben solas cuando vuelve internet. Fotos: máx. 8. Notas: máx. 5 de 3 min.</div>
-          <div class="muted" style="font-size:11px;margin-bottom:4px">🎥 Video: subilo a Google Fotos o Drive, copiá el enlace y pegalo acá</div>
+          <div class="muted" style="font-size:11px;margin-bottom:4px">🎥 Video con señal: copiá el enlace desde Google Fotos o Drive y pegalo acá. Sin señal: tocá "Video pendiente" y pegás el enlace después.</div>
           <div class="rf" style="gap:6px;flex-wrap:wrap"><input type="text" id="r-adj-link" class="fi" placeholder="https://..." style="flex:2;min-width:140px"><button type="button" class="btn bs bxs" onclick="adjPegarLink()">📋 Pegar enlace</button><input type="text" id="r-adj-link-nom" class="fi" placeholder="Nombre (opcional)" style="flex:1;min-width:110px"><button type="button" class="btn bs bxs" onclick="adjAgregarLink()">+ Agregar</button></div>
         </div>
       </details>
@@ -7277,6 +7308,27 @@ function adjAgregarLink(){
   _relevAdj.push({id:uid(),tipo:'link',url:u,nombre:(nom.value||'').trim()||'Video',ts:Date.now()});
   inp.value='';nom.value='';_adjRender();
 }
+function adjVideoPendiente(){
+  _relevAdj.push({id:uid(),tipo:'vpend',nombre:'Video',ts:Date.now()});
+  _adjRender();
+  mostrarSnackbar('🎥 Marcado. Cuando tengas señal, pegá el enlace del video ahí','green');
+}
+async function adjVpPegar(id){
+  const inp=document.getElementById('adj-vp-'+id);if(!inp)return;
+  try{
+    const t=await navigator.clipboard.readText();const m=(t||'').match(/https?:\/\/\S+/i);
+    if(!m){mostrarSnackbar('No hay ningún enlace copiado','amber');return;}
+    inp.value=m[0];adjVpListo(id);
+  }catch(e){mostrarSnackbar('No pude leer lo copiado. Mantené apretado el campo y elegí "Pegar".','amber');inp.focus();}
+}
+function adjVpListo(id){
+  const inp=document.getElementById('adj-vp-'+id);if(!inp)return;
+  const u=_adjNormUrl(inp.value);
+  if(!u){mostrarSnackbar('Ese enlace no parece válido','amber');return;}
+  const a=_relevAdj.find(x=>x.id===id);if(!a)return;
+  a.tipo='link';a.url=u;a.nombre=a.nombre||'Video';
+  _adjRender();mostrarSnackbar('✅ Enlace guardado. Falta guardar el relevamiento','green');
+}
 async function adjPegarLink(){
   const inp=document.getElementById('r-adj-link');
   try{
@@ -7310,12 +7362,14 @@ async function adjEscuchar(id){
 }
 function _adjRender(){
   const box=document.getElementById('r-adj-lista');if(!box)return;
+  const vps=_relevAdj.filter(a=>a.tipo==='vpend');
   const fotos=_relevAdj.filter(a=>a.tipo==='foto'),links=_relevAdj.filter(a=>a.tipo==='link'),audios=_relevAdj.filter(a=>a.tipo==='audio');
   const det=document.getElementById('r-adj-det');if(det&&_relevAdj.length&&!det.dataset.touched){det.open=true;}
   const cnt=document.getElementById('r-adj-cnt');if(cnt)cnt.textContent=_relevAdj.length?`(${_relevAdj.length})`:'';
   box.innerHTML=
     (fotos.length?`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">${fotos.map(a=>`<div style="position:relative"><img id="adj-th-${a.id}" alt="foto" style="width:84px;height:84px;object-fit:cover;border-radius:6px;border:1px solid var(--border);cursor:zoom-in;background:var(--bg2)" onclick="adjVer('${a.id}')"><button type="button" class="btn bs bxs" style="position:absolute;top:-6px;right:-6px;padding:0 5px;border-radius:50%" title="Quitar foto" onclick="adjQuitar('${a.id}')">✕</button></div>`).join('')}</div>`:'')
     +(audios.length?audios.map(a=>`<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px"><span id="adj-au-${a.id}"><button type="button" class="btn bs bxs" onclick="adjEscuchar('${a.id}')">▶ Escuchar nota (${_fmtSeg(a.dur)})</button></span><button type="button" class="btn bs bxs" title="Quitar nota" onclick="adjQuitar('${a.id}')">✕</button></div>`).join(''):'')
+    +(vps.length?vps.map(a=>`<div style="background:var(--amber-bg);border:1px solid var(--amber);border-radius:var(--r);padding:6px 8px;margin-bottom:6px"><div style="font-size:12px;font-weight:600;margin-bottom:4px">🎥 Video pendiente — falta el enlace</div><div class="rf" style="gap:6px;flex-wrap:wrap"><input type="text" id="adj-vp-${a.id}" class="fi" placeholder="Pegá el enlace del video" style="flex:1;min-width:140px"><button type="button" class="btn bs bxs" onclick="adjVpPegar('${a.id}')">📋 Pegar</button><button type="button" class="btn bp bxs" onclick="adjVpListo('${a.id}')">Listo</button><button type="button" class="btn bs bxs" onclick="adjQuitar('${a.id}')">✕</button></div></div>`).join(''):'')
     +(links.length?links.map(a=>`<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px"><a href="${hEsc(a.url)}" target="_blank" rel="noopener noreferrer" class="btn bs bxs">▶ ${hEsc(a.nombre)}</a><span class="muted" style="font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:240px">${hEsc(a.url)}</span><button type="button" class="btn bs bxs" onclick="adjQuitar('${a.id}')">✕</button></div>`).join(''):'')
     +(!_relevAdj.length?'<div class="muted" style="font-size:11px">Todavía no hay nada adjunto.</div>':'');
   fotos.forEach(a=>_mediaCargar(a.id,'foto').then(m=>{const el=document.getElementById('adj-th-'+a.id);if(!el)return;if(m)el.src=m.data;else{el.alt='⏳';el.style.opacity='.35';el.title='Todavía no llegó a este equipo';}}).catch(()=>{}));
@@ -7342,6 +7396,16 @@ function _compartidoRevisar(){
   openModal('modal-share');
 }
 let _shareUrl='';
+function addMalezaMovil(){
+  addMalezaRow();
+  const rows=document.querySelectorAll('#maleza-rows>div[id^=mr-]');const d=rows[rows.length-1];
+  if(d){d.scrollIntoView({block:'center',behavior:'smooth'});const i=d.querySelector('input[type=text]');if(i)setTimeout(()=>i.focus(),250);}
+}
+function addProdMovil(){
+  addProdRow();
+  const rows=document.querySelectorAll('#prod-rows>div[id^=pr-]');const d=rows[rows.length-1];
+  if(d)d.scrollIntoView({block:'center',behavior:'smooth'});
+}
 function compartidoAgregar(){
   const id=document.getElementById('share-relev').value;
   const r=(DB.relevamientos||[]).find(x=>x.id===id);
@@ -7734,11 +7798,11 @@ function addProdRow(data=null){
       <span style="font-size:10px;color:var(--text3)">%lote</span>
       <input type="number" id="pr-f-${idx}" value="${factorGuardado}" min="1" max="100" step="1" placeholder="100" class="fi" style="width:54px" oninput="calcCostoRow(${idx})" title="% del lote">
     </div>
-    <div style="display:flex;align-items:center;gap:3px">
+    <div class="pr-hide-m" style="display:flex;align-items:center;gap:3px">
       <span style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace">USD</span>
       <input type="number" id="pr-precio-${idx}" value="${precioGuardado}" step="0.01" min="0" placeholder="precio" title="Precio USD/unidad" class="fi" style="width:72px" oninput="calcCostoRow(${idx})">
     </div>
-    <span id="pr-costo-${idx}" style="font-size:11px;color:var(--text3);white-space:nowrap;font-family:'DM Mono',monospace;min-width:90px"></span>
+    <span id="pr-costo-${idx}" class="pr-hide-m" style="font-size:11px;color:var(--text3);white-space:nowrap;font-family:'DM Mono',monospace;min-width:90px"></span>
     <button class="btn bd bxs" onclick="document.getElementById('pr-${idx}').remove()">✕</button>`;
   // Calcular costo al cargar y también intentar autocompletar precio del catálogo
   setTimeout(()=>{
@@ -8406,7 +8470,7 @@ function renderRelev(){
       +`<td class="mono">${r.fecha||'<span class="badge bg-blue" style="font-size:9px">📅 Programado</span>'}</td>`
       +(colVis.fechaInicio?`<td class="mono">${r.fechaInicio||'<span class="muted">—</span>'}</td>`:'')
       +(colVis.fechaLimite?`<td class="mono">${r.fechaLimite||'<span class="muted">—</span>'}</td>`:'')
-      +`<td><strong contenteditable="true" class="ie" onblur="ieRelev('${r.id}','clienteNombre',this)">${r.clienteNombre}</strong>${eb?' <span class="badge bg-red" style="font-size:9px">BORRADOR</span>':''}</td>`
+      +`<td><strong contenteditable="true" class="ie" onblur="ieRelev('${r.id}','clienteNombre',this)">${r.clienteNombre}</strong>${eb?' <span class="badge bg-red" style="font-size:9px">BORRADOR</span>':''}${(r.adjuntos||[]).some(a=>a.tipo==='vpend')?' <span class="badge bg-amber" style="font-size:9px" title="Falta pegar el enlace del video">🎥 video pendiente</span>':''}</td>`
       +`<td><a href="#" onclick="event.preventDefault();navTo('campo-detail',{campoId:'${r.campoId}'})" style="color:inherit;text-decoration:underline;text-decoration-style:dotted" title="Ver ficha del campo">${r.campoNombre}</a> › <a href="#" onclick="event.preventDefault();navTo('lote',{loteId:'${r.loteId}',cliId:'${r.clienteId}',campoId:'${r.campoId}'})" style="color:var(--accent);font-weight:500">${r.loteNombre}</a>${r.loteHa?` <span class="badge bg-green">${r.loteHa} ha</span>`:''}</td>`
       +(colVis.cultivo?`<td><span class="badge bg-amber ie" contenteditable="true" onblur="ieRelev('${r.id}','cultivo',this)">${r.cultivo||'—'}</span></td>`:'')
       +(colVis.malezas?`<td>${ms}</td>`:'')
@@ -10462,7 +10526,7 @@ function addProdRowApl(data=null){
       <span style="font-size:10px;color:var(--text3)">%lote</span>
       <input type="number" id="adpr-f-${idx}" value="${factorGuardado}" min="1" max="100" step="1" placeholder="100" class="fi" style="width:54px" oninput="calcCostoRow(${idx},'adpr')" title="% del lote">
     </div>
-    <div style="display:flex;align-items:center;gap:3px">
+    <div class="pr-hide-m" style="display:flex;align-items:center;gap:3px">
       <span style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace">USD</span>
       <input type="number" id="adpr-precio-${idx}" value="${precioGuardado}" step="0.01" min="0" placeholder="precio" title="Precio USD/unidad" class="fi" style="width:72px" oninput="calcCostoRow(${idx},'adpr')">
     </div>
