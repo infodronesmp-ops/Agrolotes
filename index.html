@@ -830,7 +830,17 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
     <!-- CAMPAÑAS -->
     <div class="page" id="page-revisar">
       <div class="muted" style="font-size:12px;margin-bottom:10px">Lo que conviene revisar una vez por semana. Tocá cualquier renglón para abrirlo y corregirlo.</div>
+      <div class="filters" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;padding:0">
+        <select id="rev-cli" class="fi" style="max-width:220px" onchange="renderRevisar()"><option value="">Todos los clientes</option></select>
+        <input type="text" id="rev-q" class="fi" placeholder="Buscar (lote, campo, tipo, responsable)..." style="flex:1;min-width:160px" oninput="renderRevisar()">
+      </div>
       <div id="revisar-body"></div>
+      <div id="rev-barra" style="display:none;position:sticky;bottom:0;z-index:20;background:var(--card);border:1px solid var(--accent);border-radius:var(--rl);box-shadow:var(--shadow);padding:8px 12px;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px">
+        <strong id="rev-barra-txt" style="font-size:13px"></strong>
+        <button class="btn bp bsm" id="rev-btn-edit" onclick="revEditarMasivo()">✏️ Editar fechas / responsable / realizada</button>
+        <button class="btn bp bsm" id="rev-btn-nohizo" onclick="revNoHizoSel()">No se hizo</button>
+        <button class="btn bs bsm" onclick="revLimpiarSel()">Quitar selección</button>
+      </div>
     </div>
     <div class="page" id="page-campanas">
       <div class="rf ph mb16" style="gap:8px;flex-wrap:wrap;align-items:center">
@@ -1564,6 +1574,21 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
     <div class="mh"><span class="mt">📍 ¿Qué lote es este?</span><button class="mx" onclick="closeModal('modal-gps')">✕</button></div>
     <div class="mb"><div class="muted" style="font-size:11px;margin-bottom:8px" id="gps-info"></div><div id="gps-lista"></div>
       <div class="muted" style="font-size:11px">Los lotes se ordenan por cercanía (los grandes se compensan por su tamaño). Tocá el correcto.</div></div>
+  </div>
+</div>
+
+<div class="mo" id="modal-rev-masivo">
+  <div class="modal" style="max-width:440px">
+    <div class="mh"><span class="mt">✏️ Editar los seleccionados</span><button class="mx" onclick="closeModal('modal-rev-masivo')">✕</button></div>
+    <div class="mb">
+      <div class="muted" style="font-size:12px;margin-bottom:10px" id="rm-info"></div>
+      <div class="field"><label>Nueva fecha límite</label><input type="date" id="rm-lim" class="fi"></div>
+      <div class="field"><label>👤 Responsable</label><select id="rm-resp" class="fi resp-sel" data-blank="— No cambiar —" onfocus="respSelRefrescar()" onchange="respSelCambio(this)"></select></div>
+      <label style="display:flex;gap:6px;align-items:center;font-size:13px;margin:6px 0;cursor:pointer"><input type="checkbox" id="rm-hecha" onchange="revHechaChg()"> ✅ Ya está hecha (marcar como realizada)</label>
+      <div class="field" id="rm-freal-wrap" style="display:none"><label>Fecha en que se realizó</label><input type="date" id="rm-freal" class="fi"></div>
+      <div class="muted" style="font-size:11px">Si marcás "ya está hecha", la fecha límite no se cambia.</div>
+    </div>
+    <div class="mf"><button class="btn bs" onclick="closeModal('modal-rev-masivo')">Cancelar</button><button class="btn bp" onclick="revAplicarMasivo()">Aplicar</button></div>
   </div>
 </div>
 
@@ -2773,6 +2798,150 @@ function _itemDonde(o){
   const lote=o.loteNombre||(DB.lotes||[]).find(l=>l.id===o.loteId)?.nombre||(o.loteId?'':'General');
   return [cli,campo,lote].filter(Boolean).join(' › ')||'General';
 }
+// ── Actividades obligatorias por lote (campaña activa) ──
+// Fechas límite "más o menos fijas" según cultivo: pasada la fecha, si no hay nada cargado, se marca faltante.
+let _obligCache=[];
+function _cultCat(c){
+  c=(c||'').toLowerCase();
+  if(/trigo|cebada|avena|centeno|colza|carinata/.test(c))return'fina';
+  if(/girasol/.test(c))return'girasol';
+  if(/soja/.test(c))return'soja';
+  if(/ma[ií]z/.test(c))return'maiz';
+  return null;
+}
+const DIAS_POST_ESPERADA=30; // post-emergente: se espera si la siembra se hizo hace más de esto
+function obligatoriasFaltantes(){
+  const camp=getCampanaActiva();if(!camp)return[];
+  const[y1,y2]=aniosDeCampana(camp);const hoy=hoyLocal();const out=[];
+  (DB.lotes||[]).forEach(l=>{
+    const roles=cultivosRolDeLote(l.id,camp).filter(r=>r.rol!=='cob');
+    if(!roles.length)return;
+    if(esBarbecho(getCultivoDeLote(l.id,camp)))return;
+    const items=planItemsDeLote(l.id,camp);
+    const siembras=items.filter(i=>i.tipo==='Siembra'),cosechas=items.filter(i=>i.tipo==='Cosecha');
+    const sReal=siembras.filter(i=>i.estado==='Realizada'&&i.real).map(i=>i.real).sort()[0]||null;
+    const hizo=l.noHizo||{};
+    const falta=(k,txt,tipo,plazo,cultivo)=>{if(hizo[camp+'|'+k])return;out.push({lote:l,camp,k,txt,tipo,plazo,cultivo});};
+    roles.forEach((r,idx)=>{
+      const cat=_cultCat(r.cultivo);if(!cat)return;
+      const pl={fina:{s:y1+'-08-31',c:y2+'-01-15'},girasol:{s:y1+'-12-31',c:y2+'-04-20'},maiz:{s:(r.rol==='2'?y2+'-01-10':y1+'-12-31'),c:y2+'-10-31'},soja:{s:y1+'-12-30',c:null}}[cat];
+      const cul=`${r.cultivo} (${ROL_LABEL[r.rol]})`,suf=idx?String(idx+1):'';
+      if(hoy>pl.s&&siembras.length<=idx)falta('siembra'+suf,'Siembra','Siembra',pl.s,cul);
+      if(pl.c&&hoy>pl.c&&cosechas.length<=idx)falta('cosecha'+suf,'Cosecha','Cosecha',pl.c,cul);
+    });
+    const sPlan=siembras.filter(i=>i.estado!=='Realizada').map(i=>i.fechaFin||i.fecha).filter(Boolean).sort()[0]||null;
+    const sRefL=sReal||sPlan; // para el barbecho largo alcanza con la siembra planificada
+    if(sRefL){
+      const ap=items.filter(i=>i.tipo==='Aplicación');
+      const d20=new Date(sRefL);d20.setDate(d20.getDate()-20);const aviso=d20.toISOString().slice(0,10);
+      const cul0=`${roles[0].cultivo} (${ROL_LABEL[roles[0].rol]})`;
+      if(hoy>=aviso&&!ap.some(i=>planColumnaDe(i,sRefL)==='apBarbLargo'))falta('apBarbLargo','Aplicación barbecho largo','Aplicación',aviso,cul0);
+    }
+    if(sReal){
+      const cols=new Set(items.filter(i=>i.tipo==='Aplicación').map(i=>planColumnaDe(i,sReal)));
+      const cul=`${roles[0].cultivo} (${ROL_LABEL[roles[0].rol]})`;
+      if(!cols.has('apBarbCorto'))falta('apBarbCorto','Aplicación barbecho corto / presiembra','Aplicación',null,cul);
+      const limPost=new Date(sReal);limPost.setDate(limPost.getDate()+DIAS_POST_ESPERADA);
+      if(hoy>limPost.toISOString().slice(0,10)&&!cols.has('apPost'))falta('apPost','Aplicación post-emergente','Aplicación',null,cul);
+    }
+  });
+  const nom=l=>((DB.clientes||[]).find(c=>c.id===l.clienteId)?.nombre||'')+'|'+l.nombre;
+  return out.sort((a,b)=>nom(a.lote).localeCompare(nom(b.lote),'es',{numeric:true}));
+}
+// Cambio rápido Programado/Realizado desde la lista de relevamientos
+function actMEditarEstado(id,esRelev,valor){
+  if(esRelev){
+    const r=(DB.relevamientos||[]).find(x=>x.id===id);if(!r)return;
+    if(valor==='Realizada'){if(!r.fecha)r.fecha=hoyLocal();}else r.fecha='';
+  }else{
+    const a=(DB.actividades||[]).find(x=>x.id===id);if(!a)return;
+    if(valor==='Realizada'){a.estado='Realizada';if(!a.fechaRealizacion)a.fechaRealizacion=hoyLocal();}
+    else{a.estado='Pendiente';a.fechaRealizacion=null;}
+  }
+  save();refrescarVistasActividad();
+}
+function obligCargar(i){
+  const f=_obligCache[i];if(!f)return;
+  _planCamp=f.camp;
+  abrirModalActividadMasiva([f.lote.id],f.tipo,f.camp,planMomentoDeCol(f.k.replace(/\d$/,'')));
+}
+// ── Selección y edición masiva en "Para revisar" ──
+let _revSel=new Set(),_revCerr=new Set();
+function revTog(i,abierto){if(abierto)_revCerr.delete(i);else _revCerr.add(i);}
+function _revKey(it){return it.k==='falta'?'F:'+it.o.lote.id+'|'+it.o.k:(it.k==='rel'?'R:':it.k==='lote'?'L:':'A:')+it.o.id;}
+function _revPasaFiltro(it){
+  const cli=document.getElementById('rev-cli')?.value||'',q=(document.getElementById('rev-q')?.value||'').toLowerCase().trim();
+  const o=it.k==='falta'?it.o.lote:it.o;
+  if(cli&&o.clienteId!==cli)return false;
+  if(q){
+    const donde=it.k==='falta'?_itemDonde({clienteId:o.clienteId,campoId:o.campoId,loteNombre:o.nombre}):it.k==='lote'?_itemDonde({clienteId:o.clienteId,campoId:o.campoId,loteNombre:o.nombre}):_itemDonde(o);
+    const txt=(donde+' '+(it.k==='falta'?it.o.txt+' '+it.o.cultivo:(o.tipo||''))+' '+(o.responsable||'')).toLowerCase();
+    if(!txt.includes(q))return false;
+  }
+  return true;
+}
+function revSel(key,on){if(on)_revSel.add(key);else _revSel.delete(key);_revBarra();}
+function revSelSec(i,on){
+  const sec=revisarSecciones()[i];if(!sec)return;
+  sec.items.filter(_revPasaFiltro).forEach(it=>{if(on)_revSel.add(_revKey(it));else _revSel.delete(_revKey(it));});
+  renderRevisar();
+}
+function revLimpiarSel(){_revSel.clear();renderRevisar();}
+function _revBarra(){
+  const bar=document.getElementById('rev-barra');if(!bar)return;
+  const n=_revSel.size,nAR=[..._revSel].filter(k=>k[0]==='A'||k[0]==='R').length,nF=[..._revSel].filter(k=>k[0]==='F').length;
+  bar.style.display=n?'flex':'none';
+  document.getElementById('rev-barra-txt').textContent=`${n} seleccionad${n===1?'a':'as'}`;
+  document.getElementById('rev-btn-edit').style.display=nAR?'':'none';
+  document.getElementById('rev-btn-nohizo').style.display=nF?'':'none';
+}
+function revEditarMasivo(){
+  const ks=[..._revSel].filter(k=>k[0]==='A'||k[0]==='R');if(!ks.length)return;
+  document.getElementById('rm-info').textContent=`Se aplica a ${ks.length} actividad(es)/relevamiento(s). Dejá en blanco lo que no quieras cambiar.`;
+  document.getElementById('rm-lim').value='';respSelSet('rm-resp','');
+  document.getElementById('rm-hecha').checked=false;document.getElementById('rm-freal').value=hoyLocal();revHechaChg();
+  openModal('modal-rev-masivo');
+}
+function revHechaChg(){document.getElementById('rm-freal-wrap').style.display=document.getElementById('rm-hecha').checked?'block':'none';}
+function revAplicarMasivo(){
+  const lim=document.getElementById('rm-lim').value,resp=respNombreCanon(document.getElementById('rm-resp').value);
+  const hecha=document.getElementById('rm-hecha').checked,freal=document.getElementById('rm-freal').value;
+  if(hecha&&!freal){mostrarSnackbar('Poné la fecha en que se realizó','amber');return;}
+  if(!lim&&!resp&&!hecha){mostrarSnackbar('No completaste nada para cambiar','amber');return;}
+  if(resp)respRegistrar(resp);
+  let n=0;
+  [..._revSel].filter(k=>k[0]==='A'||k[0]==='R').forEach(k=>{
+    const id=k.slice(2);const esR=k[0]==='R';
+    const o=esR?(DB.relevamientos||[]).find(x=>x.id===id):(DB.actividades||[]).find(x=>x.id===id);if(!o)return;
+    if(resp)o.responsable=resp;
+    if(hecha){
+      if(esR)o.fecha=freal;else{o.estado='Realizada';o.fechaRealizacion=freal;if(!o.fecha)o.fecha=freal;}
+    }else if(lim){
+      if(esR)o.fechaLimite=lim;else o.fechaFin=lim;
+      const ini=esR?o.fechaInicio:o.fecha;if(ini&&ini>lim){if(esR)o.fechaInicio=lim;else o.fecha=lim;}
+    }
+    n++;
+  });
+  save();closeModal('modal-rev-masivo');_revSel.clear();
+  actualizarCampanitaTareas();refrescarVistasActividad();renderRevisar();
+  mostrarSnackbar(`✅ Se actualizaron ${n}`,'blue');
+}
+function revNoHizoSel(){
+  const ks=[..._revSel].filter(k=>k[0]==='F');let n=0;
+  ks.forEach(key=>{
+    const f=_obligCache.find(x=>'F:'+x.lote.id+'|'+x.k===key);if(!f)return;
+    const l=DB.lotes.find(x=>x.id===f.lote.id);if(!l)return;
+    l.noHizo=Object.assign({},l.noHizo||{},{[f.camp+'|'+f.k]:true});n++;
+  });
+  save();_revSel.clear();renderRevisar();mostrarSnackbar(`Anotado: ${n} marcadas como "no se hizo"`,'blue');
+}
+function obligNoHizo(i){
+  const f=_obligCache[i];if(!f)return;
+  const l=DB.lotes.find(x=>x.id===f.lote.id);if(!l)return;
+  l.noHizo=Object.assign({},l.noHizo||{},{[f.camp+'|'+f.k]:true});
+  save();renderRevisar();
+  mostrarSnackbar(`Anotado: "${f.txt}" no se hizo en ${l.nombre}`,'blue');
+}
 function revisarSecciones(){
   const acts=(DB.actividades||[]).filter(a=>!a.borrado&&estadoDe(a)==='Pendiente');
   const progs=(DB.relevamientos||[]).filter(r=>!r.borrado&&r.estado!=='Borrador'&&!r.fecha);
@@ -2783,25 +2952,33 @@ function revisarSecciones(){
     {t:'👤 Sin responsable',d:'Pendientes que no tienen a nadie asignado.',items:acts.filter(a=>!a.responsable).map(A).concat(progs.filter(r=>!r.responsable).map(R))},
     {t:'📅 Pendientes sin fecha límite',d:'Sin fecha límite nunca aparecen como vencidas.',items:acts.filter(a=>!a.fechaFin).map(A).concat(progs.filter(r=>!r.fechaLimite).map(R))},
     {t:'⚠️ Relevamientos en borrador',d:'Los que quedaron a medias.',items:(DB.relevamientos||[]).filter(r=>!r.borrado&&r.estado==='Borrador').map(R)},
+    {t:'🧩 Actividades obligatorias faltantes',d:'Campaña activa: siembra y cosecha pasada su fecha habitual sin cargar; barbecho largo desde 20 días antes de la siembra; barbecho corto y post-emergente cuando la siembra ya se hizo. "No se hizo" las saca del reporte.',items:(_obligCache=obligatoriasFaltantes()).map((o,i)=>({k:'falta',o,i}))},
     {t:'📍 Lotes sin ubicación',d:'Les falta cargar la ubicación (coordenadas o link de Google Maps) — sirve para el botón "¿Qué lote es este?".',items:(DB.lotes||[]).filter(l=>l.lat==null||l.lng==null).sort((a,b)=>(a.clienteId||'').localeCompare(b.clienteId||'')||naturalCmp(a.nombre,b.nombre)).map(o=>({k:'lote',o}))},
     {t:'🎥 Videos pendientes',d:'Falta pegar el enlace del video.',items:(DB.relevamientos||[]).filter(r=>!r.borrado&&(r.adjuntos||[]).some(a=>a.tipo==='vpend')).map(R)}
   ];
 }
 function renderRevisar(){
   const box=document.getElementById('revisar-body');if(!box)return;
-  const sec=revisarSecciones();
-  box.innerHTML=sec.map(x=>{
+  const secAll=revisarSecciones();
+  const sec=secAll.map(x=>({...x,items:x.items.filter(_revPasaFiltro)}));
+  const clis=document.getElementById('rev-cli');
+  if(clis&&clis.options.length<2){clis.innerHTML='<option value="">Todos los clientes</option>'+(DB.clientes||[]).slice().sort((a,b)=>naturalCmp(a.nombre,b.nombre)).map(c=>`<option value="${hEsc(c.id)}">${hEsc(c.nombre)}</option>`).join('');}
+  box.innerHTML=sec.map((x,si)=>{
     const n=x.items.length;
+    const selTodo=n&&x.items.some(it=>it.k!=='lote')?`<label style="display:flex;gap:6px;align-items:center;padding:6px 10px;font-size:12px;border-top:1px solid var(--border);cursor:pointer"><input type="checkbox" ${x.items.filter(it=>it.k!=='lote').every(it=>_revSel.has(_revKey(it)))?'checked':''} onchange="revSelSec(${si},this.checked)"> Seleccionar todo (${x.items.filter(it=>it.k!=='lote').length})</label>`:'';
+    const cb=it=>`<input type="checkbox" style="margin-right:8px" ${_revSel.has(_revKey(it))?'checked':''} onclick="event.stopPropagation()" onchange="revSel('${_revKey(it).replace(/'/g,"\\'")}',this.checked)">`;
     const filas=x.items.map(it=>{
+      if(it.k==='falta'){const f=it.o;const fl=f.plazo?`debía estar antes del ${f.plazo.slice(8,10)}/${f.plazo.slice(5,7)}`:'';return `<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;padding:7px 10px;border-top:1px solid var(--border);font-size:12px"><span>${cb(it)}<strong>${hEsc(f.txt)}</strong> · ${hEsc(_itemDonde({clienteId:f.lote.clienteId,campoId:f.lote.campoId,loteNombre:f.lote.nombre}))} · ${hEsc(f.cultivo)}<br><span class="muted" style="font-size:11px">${fl}</span></span><span style="display:flex;gap:6px"><button class="btn bp bxs" onclick="obligCargar(${it.i})">+ Cargar</button><button class="btn bs bxs" onclick="obligNoHizo(${it.i})">No se hizo</button></span></div>`;}
       const o=it.o;const tipo=it.k==='rel'?'Relevamiento':it.k==='lote'?'Lote':(o.tipo||'Actividad');
       const resp=o.responsable?` · 👤 ${hEsc(o.responsable)}`:'';
       const fl=it.k==='lote'?'':it.k==='rel'?o.fechaLimite:o.fechaFin;
       const extra=it.extra||(it.k==='lote'?(o.ha?o.ha+' ha':''):(fl?`vence el ${fl}`:''));
-      return `<div onclick="revisarAbrir('${it.k}','${o.id}')" style="cursor:pointer;display:flex;justify-content:space-between;gap:8px;align-items:center;padding:7px 10px;border-top:1px solid var(--border);font-size:12px"><span><strong>${hEsc(tipo)}</strong> · ${hEsc(it.k==='lote'?_itemDonde({clienteId:o.clienteId,campoId:o.campoId,loteNombre:o.nombre}):_itemDonde(o))}${resp}</span><span class="muted" style="font-size:11px;text-align:right">${hEsc(extra)}</span></div>`;
+      return `<div onclick="revisarAbrir('${it.k}','${o.id}')" style="cursor:pointer;display:flex;justify-content:space-between;gap:8px;align-items:center;padding:7px 10px;border-top:1px solid var(--border);font-size:12px"><span>${it.k==='lote'?'':cb(it)}<strong>${hEsc(tipo)}</strong> · ${hEsc(it.k==='lote'?_itemDonde({clienteId:o.clienteId,campoId:o.campoId,loteNombre:o.nombre}):_itemDonde(o))}${resp}</span><span class="muted" style="font-size:11px;text-align:right">${hEsc(extra)}</span></div>`;
     }).join('');
-    return `<details class="card" ${n?'open':''} style="margin-bottom:10px"><summary class="ch" style="cursor:pointer;list-style:none"><span class="ct">${x.t}</span><span class="badge ${n?'bg-red':'bg-green'}">${n?n:'✓ todo en orden'}</span></summary>${n?`<div class="muted" style="font-size:11px;padding:6px 12px">${x.d}</div>${filas}`:''}</details>`;
+    return `<details class="card" ${n&&!_revCerr.has(si)?'open':''} ontoggle="revTog(${si},this.open)" style="margin-bottom:10px"><summary class="ch" style="cursor:pointer;list-style:none"><span class="ct">${x.t}</span><span class="badge ${n?'bg-red':'bg-green'}">${n?n:'✓ todo en orden'}</span></summary>${n?`<div class="muted" style="font-size:11px;padding:6px 12px">${x.d}</div>${selTodo}${filas}`:''}</details>`;
   }).join('');
-  const tot=sec.reduce((a,x)=>a+x.items.length,0);
+  const tot=secAll.reduce((a,x)=>a+x.items.length,0);
+  _revBarra();
   const b=document.getElementById('revisar-badge');if(b){b.style.display=tot?'inline-block':'none';b.textContent=tot>99?'99+':tot;}
 }
 function revisarAbrir(k,id){
