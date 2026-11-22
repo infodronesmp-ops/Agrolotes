@@ -623,6 +623,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
 
     <!-- OT -->
     <div class="page" id="page-ot">
+      <div style="text-align:right;margin-bottom:8px"><button class="btn bs bsm" onclick="otCfgAbrir()" title="Texto de recomendaciones al pie y ubicación de lotes en el PDF">⚙️ Pie y ubicación de la orden</button></div>
       <!-- OT LIBRE: para alguien que no está cargado como cliente -->
       <div class="card mb12" id="otl-card">
         <div class="ch"><span class="ct">📝 OT libre — para alguien que no cargaste como cliente</span>
@@ -1589,6 +1590,25 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
       <div class="muted" style="font-size:11px">Si marcás "ya está hecha", la fecha límite no se cambia.</div>
     </div>
     <div class="mf"><button class="btn bs" onclick="closeModal('modal-rev-masivo')">Cancelar</button><button class="btn bp" onclick="revAplicarMasivo()">Aplicar</button></div>
+  </div>
+</div>
+
+<div class="mo" id="modal-ot-cfg">
+  <div class="modal" style="max-width:640px">
+    <div class="mh"><span class="mt">⚙️ Pie y ubicación de la orden</span><button class="mx" onclick="closeModal('modal-ot-cfg')">✕</button></div>
+    <div class="mb">
+      <label style="display:flex;gap:6px;align-items:center;font-size:13px;margin-bottom:6px;cursor:pointer"><input type="checkbox" id="oc-ubic"> 📍 Mostrar la ubicación (coordenadas) de cada lote</label>
+      <label style="display:flex;gap:6px;align-items:center;font-size:13px;margin-bottom:10px;cursor:pointer"><input type="checkbox" id="oc-pie"> Mostrar las recomendaciones al pie de la orden (letra chica)</label>
+      <div class="field"><label>Texto de recomendaciones</label><textarea id="oc-texto" class="fi" rows="9" style="font-size:12px"></textarea>
+        <button type="button" class="btn bs bxs" style="margin-top:4px" onclick="otCfgRestaurar()">Restaurar el texto original</button></div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px">
+        <div class="field" style="margin:0"><label>Tu nombre</label><input type="text" id="oc-asesor" class="fi" placeholder="Ing. Agr. ..."></div>
+        <div class="field" style="margin:0"><label>Matrícula</label><input type="text" id="oc-mat" class="fi"></div>
+        <div class="field" style="margin:0"><label>Teléfono</label><input type="text" id="oc-tel" class="fi"></div>
+      </div>
+      <div class="muted" style="font-size:11px;margin-top:6px">Si completás tu nombre, matrícula y teléfono, el pie termina con "Ante cualquier duda comunicarse con...". Lo que dejes vacío no se imprime.</div>
+    </div>
+    <div class="mf"><button class="btn bs" onclick="closeModal('modal-ot-cfg')">Cancelar</button><button class="btn bp" onclick="otCfgGuardar()">Guardar</button></div>
   </div>
 </div>
 
@@ -2874,13 +2894,19 @@ function _revPasaFiltro(it){
   const o=it.k==='falta'?it.o.lote:it.o;
   if(cli&&o.clienteId!==cli)return false;
   if(q){
-    const donde=it.k==='falta'?_itemDonde({clienteId:o.clienteId,campoId:o.campoId,loteNombre:o.nombre}):it.k==='lote'?_itemDonde({clienteId:o.clienteId,campoId:o.campoId,loteNombre:o.nombre}):_itemDonde(o);
+    const donde=it.k==='falta'?_itemDonde({clienteId:o.clienteId,campoId:o.campoId,loteNombre:o.nombre}):(it.k==='lote'||it.k==='lcult'||it.k==='lrel')?_itemDonde({clienteId:o.clienteId,campoId:o.campoId,loteNombre:o.nombre}):_itemDonde(o);
     const txt=(donde+' '+(it.k==='falta'?it.o.txt+' '+it.o.cultivo:(o.tipo||''))+' '+(o.responsable||'')).toLowerCase();
     if(!txt.includes(q))return false;
   }
   return true;
 }
 function revSel(key,on){if(on)_revSel.add(key);else _revSel.delete(key);_revBarra();}
+function revSetCultivo(loteId,camp,v){
+  if(!v)return;
+  setCultivoDeLote(loteId,camp,v==='__sin__'?'':v);
+  renderRevisar();
+}
+function revProgramarRelev(loteId,camp){_planCamp=camp;abrirModalActividadMasiva([loteId],'Relevamiento',camp,null);}
 function revSelSec(i,on){
   const sec=revisarSecciones()[i];if(!sec)return;
   sec.items.filter(_revPasaFiltro).forEach(it=>{if(on)_revSel.add(_revKey(it));else _revSel.delete(_revKey(it));});
@@ -2954,6 +2980,9 @@ function revisarSecciones(){
     {t:'⚠️ Relevamientos en borrador',d:'Los que quedaron a medias.',items:(DB.relevamientos||[]).filter(r=>!r.borrado&&r.estado==='Borrador').map(R)},
     {t:'🧩 Actividades obligatorias faltantes',d:'Campaña activa: siembra y cosecha pasada su fecha habitual sin cargar; barbecho largo desde 20 días antes de la siembra; barbecho corto y post-emergente cuando la siembra ya se hizo. "No se hizo" las saca del reporte.',items:(_obligCache=obligatoriasFaltantes()).map((o,i)=>({k:'falta',o,i}))},
     {t:'📍 Lotes sin ubicación',d:'Les falta cargar la ubicación (coordenadas o link de Google Maps) — sirve para el botón "¿Qué lote es este?".',items:(DB.lotes||[]).filter(l=>l.lat==null||l.lng==null).sort((a,b)=>(a.clienteId||'').localeCompare(b.clienteId||'')||naturalCmp(a.nombre,b.nombre)).map(o=>({k:'lote',o}))},
+    {t:'🌱 Lotes sin cultivo cargado',d:'Campaña activa. Elegí el cultivo acá mismo, o "Sin cultivo (a propósito)" para sacarlo de la lista.',items:(()=>{const camp=getCampanaActiva();if(!camp)return[];return(DB.lotes||[]).filter(l=>!cultivosRolDeLote(l.id,camp).length&&!(DB.loteSinCultivo||{})[l.id+'||'+camp]).sort((a,b)=>(a.clienteId||'').localeCompare(b.clienteId||'')||naturalCmp(a.nombre,b.nombre)).map(o=>({k:'lcult',o,camp}));})()},
+    {t:'🔍 Lotes sin relevar hace más de 60 días',d:'Lotes con cultivo en la campaña activa que no se relevaron en los últimos 60 días (o nunca).',items:(()=>{const camp=getCampanaActiva();if(!camp)return[];return(DB.lotes||[]).filter(l=>cultivosRolDeLote(l.id,camp).length&&!esBarbecho(getCultivoDeLote(l.id,camp))).map(l=>({l,d:diasSinRelevarDeLote(l.id)})).filter(x=>x.d===null||x.d>60).sort((a,b)=>(b.d===null?1e9:b.d)-(a.d===null?1e9:a.d)).map(x=>({k:'lrel',o:x.l,camp,dias:x.d}));})()},
+    {t:'🧪 Aplicaciones realizadas sin productos',d:'Figuran como realizadas pero no tienen ningún producto cargado.',items:(DB.actividades||[]).filter(a=>!a.borrado&&a.tipo==='Aplicación'&&estadoDe(a)==='Realizada'&&!(a.productos||[]).length).map(o=>({k:'act',o}))},
     {t:'🎥 Videos pendientes',d:'Falta pegar el enlace del video.',items:(DB.relevamientos||[]).filter(r=>!r.borrado&&(r.adjuntos||[]).some(a=>a.tipo==='vpend')).map(R)}
   ];
 }
@@ -2965,10 +2994,12 @@ function renderRevisar(){
   if(clis&&clis.options.length<2){clis.innerHTML='<option value="">Todos los clientes</option>'+(DB.clientes||[]).slice().sort((a,b)=>naturalCmp(a.nombre,b.nombre)).map(c=>`<option value="${hEsc(c.id)}">${hEsc(c.nombre)}</option>`).join('');}
   box.innerHTML=sec.map((x,si)=>{
     const n=x.items.length;
-    const selTodo=n&&x.items.some(it=>it.k!=='lote')?`<label style="display:flex;gap:6px;align-items:center;padding:6px 10px;font-size:12px;border-top:1px solid var(--border);cursor:pointer"><input type="checkbox" ${x.items.filter(it=>it.k!=='lote').every(it=>_revSel.has(_revKey(it)))?'checked':''} onchange="revSelSec(${si},this.checked)"> Seleccionar todo (${x.items.filter(it=>it.k!=='lote').length})</label>`:'';
+    const selTodo=n&&x.items.some(it=>!['lote','lcult','lrel'].includes(it.k))?`<label style="display:flex;gap:6px;align-items:center;padding:6px 10px;font-size:12px;border-top:1px solid var(--border);cursor:pointer"><input type="checkbox" ${x.items.filter(it=>!['lote','lcult','lrel'].includes(it.k)).every(it=>_revSel.has(_revKey(it)))?'checked':''} onchange="revSelSec(${si},this.checked)"> Seleccionar todo (${x.items.filter(it=>!['lote','lcult','lrel'].includes(it.k)).length})</label>`:'';
     const cb=it=>`<input type="checkbox" style="margin-right:8px" ${_revSel.has(_revKey(it))?'checked':''} onclick="event.stopPropagation()" onchange="revSel('${_revKey(it).replace(/'/g,"\\'")}',this.checked)">`;
     const filas=x.items.map(it=>{
       if(it.k==='falta'){const f=it.o;const fl=f.plazo?`debía estar antes del ${f.plazo.slice(8,10)}/${f.plazo.slice(5,7)}`:'';return `<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;padding:7px 10px;border-top:1px solid var(--border);font-size:12px"><span>${cb(it)}<strong>${hEsc(f.txt)}</strong> · ${hEsc(_itemDonde({clienteId:f.lote.clienteId,campoId:f.lote.campoId,loteNombre:f.lote.nombre}))} · ${hEsc(f.cultivo)}<br><span class="muted" style="font-size:11px">${fl}</span></span><span style="display:flex;gap:6px"><button class="btn bp bxs" onclick="obligCargar(${it.i})">+ Cargar</button><button class="btn bs bxs" onclick="obligNoHizo(${it.i})">No se hizo</button></span></div>`;}
+      if(it.k==='lcult'){const l=it.o;const opts=(DB.cultivos||[]).filter(c=>!/^barbecho$/i.test(c)).map(c=>`<option value="${hEsc(c)}">${hEsc(c)}</option>`).join('');return `<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;padding:7px 10px;border-top:1px solid var(--border);font-size:12px"><span><strong>Lote</strong> · ${hEsc(_itemDonde({clienteId:l.clienteId,campoId:l.campoId,loteNombre:l.nombre}))}${l.ha?' · '+l.ha+' ha':''}</span><select class="fi" style="max-width:200px;min-height:32px" onchange="revSetCultivo('${l.id}','${hEsc(it.camp)}',this.value)"><option value="">Elegir cultivo...</option>${opts}<option value="__sin__">Sin cultivo (a propósito)</option></select></div>`;}
+      if(it.k==='lrel'){const l=it.o;return `<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;padding:7px 10px;border-top:1px solid var(--border);font-size:12px"><span><strong>Lote</strong> · ${hEsc(_itemDonde({clienteId:l.clienteId,campoId:l.campoId,loteNombre:l.nombre}))} · ${hEsc(getCultivoDeLote(l.id,it.camp))}<br><span class="muted" style="font-size:11px">${it.dias===null?'Nunca se relevó':'Último relevamiento hace '+it.dias+' días'}</span></span><button class="btn bp bxs" onclick="revProgramarRelev('${l.id}','${hEsc(it.camp)}')">+ Programar relevamiento</button></div>`;}
       const o=it.o;const tipo=it.k==='rel'?'Relevamiento':it.k==='lote'?'Lote':(o.tipo||'Actividad');
       const resp=o.responsable?` · 👤 ${hEsc(o.responsable)}`:'';
       const fl=it.k==='lote'?'':it.k==='rel'?o.fechaLimite:o.fechaFin;
@@ -9378,6 +9409,7 @@ function otlRender(rec){
       <div class="ot-section-lbl" style="color:var(--accent2);font-size:11px">📦 Resumen total de productos</div>
       <table style="width:100%;border-collapse:collapse"><thead><tr style="background:var(--bg2)">${th('Producto')}${th('Total insumos necesarios')}</tr></thead><tbody>${resumen}</tbody></table>
     </div>
+    ${otPieHTML()}
   </div>
   <div style="text-align:right;margin-bottom:8px" class="ph"><button class="btn bb bsm" onclick="printOT()">🖨️ Imprimir / PDF</button></div>`;
   setTimeout(()=>cont.scrollIntoView({behavior:'smooth',block:'start'}),50);
@@ -9391,6 +9423,36 @@ function otlCargar(rec){
   _otlLotes=(d.lotes||[{campo:d.campo||'',lote:d.lote||'',ha:d.ha||'',cultivo:d.cultivo||''}]).map(l=>({...l}));otlRenderLotes();
   _otlRows=d.prods.map(p=>({pid:p.pid,dosis:p.dosis,unidad:p.unidad}));otlRenderProds();
   otlRender(rec);
+}
+// ── Pie de recomendaciones y ubicación de lotes en la Orden de Trabajo ──
+const OT_PIE_DEFAULT='El equipo de aplicación debe estar inscripto en el Ministerio de Desarrollo Agrario. El operario debe contar con el carnet de aplicador vigente y utilizar siempre el equipo de protección personal durante la carga de los productos y la limpieza de la máquina. Suspender las aplicaciones si los vientos están en dirección a poblados, viviendas, cauces de agua, arroyos, tomas de agua y espejos de agua. Asegurarse de obtener 20-30 gotas/cm² y un tamaño de gota de 200-300 micrones. Equipo terrestre, con picos de abanico plano. Suspender las aplicaciones con vientos superiores a 16 km/h. Si los vientos superan los 10 km/h utilizar pastillas de aire inducido y presión de trabajo no mayor a 3 bar. Mantener el botalón bajo y la velocidad no mayor a 15 km/h. Finalizada la carga de productos, enjuagar los envases a presión 30 seg. con triple lavado (Norma IRAM 12069) y perforarlos. Enjuagar el tanque de la pulverizadora antes de la carga del producto, con cloro al 0,5%, para asegurar que no queden residuos de anteriores aplicaciones. Los enjuagues deben hacerse lejos de tomas de agua, canales, arroyos o espejos de agua.';
+function otCfg(){
+  const c=DB.otConfig||{};
+  return {ubic:c.ubic!==false,pie:c.pie!==false,asesor:c.asesor||'',matricula:c.matricula||'',tel:c.tel||'',texto:(c.texto!==undefined&&c.texto!==null&&c.texto!=='')?c.texto:OT_PIE_DEFAULT};
+}
+function otPieHTML(){
+  const c=otCfg();if(!c.pie)return'';
+  const firma=[c.asesor?hEsc(c.asesor):'',c.matricula?'Matrícula '+hEsc(c.matricula):'',c.tel?'Tel. '+hEsc(c.tel):''].filter(Boolean).join(' · ');
+  return `<div class="ot-pie" style="border-top:1px solid var(--border);margin-top:10px;padding:8px 4px 0;font-size:8.5px;line-height:1.35;color:var(--text2);page-break-inside:avoid;break-inside:avoid"><strong style="font-size:9px">Recomendaciones de aplicación</strong><br>${hEsc(c.texto)}${firma?`<br><strong>Ante cualquier duda comunicarse con: ${firma}</strong>`:''}</div>`;
+}
+function otUbicHTML(loteIds){
+  const c=otCfg();if(!c.ubic)return'';
+  const ls=[...new Set(loteIds)].map(id=>(DB.lotes||[]).find(l=>l.id===id)).filter(l=>l&&l.lat!=null&&l.lng!=null);
+  if(!ls.length)return'';
+  return `<div class="ot-ubic" style="padding:4px 12px;font-size:10px;color:var(--text2);border-top:1px solid var(--border)">📍 Ubicación: ${ls.map(l=>`<a href="https://www.google.com/maps?q=${l.lat},${l.lng}" style="color:inherit;text-decoration:none"><strong>${hEsc(l.nombre)}</strong> ${l.lat}, ${l.lng}</a>`).join(' &nbsp;·&nbsp; ')}</div>`;
+}
+function otCfgAbrir(){
+  const c=otCfg();
+  document.getElementById('oc-ubic').checked=c.ubic;document.getElementById('oc-pie').checked=c.pie;
+  document.getElementById('oc-asesor').value=c.asesor;document.getElementById('oc-mat').value=c.matricula;document.getElementById('oc-tel').value=c.tel;
+  document.getElementById('oc-texto').value=c.texto;
+  openModal('modal-ot-cfg');
+}
+function otCfgRestaurar(){document.getElementById('oc-texto').value=OT_PIE_DEFAULT;}
+function otCfgGuardar(){
+  DB.otConfig={ubic:document.getElementById('oc-ubic').checked,pie:document.getElementById('oc-pie').checked,asesor:document.getElementById('oc-asesor').value.trim(),matricula:document.getElementById('oc-mat').value.trim(),tel:document.getElementById('oc-tel').value.trim(),texto:document.getElementById('oc-texto').value.trim()};
+  save();closeModal('modal-ot-cfg');
+  mostrarSnackbar('✅ Guardado. Se aplica a las órdenes que generes o vuelvas a abrir','green');
 }
 function recargarOT(id){
   const ot=DB.ots.find(o=>o.id===id);if(!ot)return;
@@ -9707,6 +9769,7 @@ function buildOTFromIds(ids,keep,existing){
         +` <span class="badge bg-green">${haG.toFixed(1)} ha</span>`
         +cultivosGrupo.map(c=>` <span class="badge bg-amber">${c}</span>`).join('')
         +(multi?` <span class="badge bg-blue">Tratamiento unificado</span>`:'')+`</div>`
+        +otUbicHTML(lts.map(lt=>lt.relevs[0].loteId))
         +((r.malezas||[]).length?`<div style="padding:7px 12px;background:var(--purple-bg);font-size:11px;color:var(--purple)">🔬 <strong>Diagnóstico:</strong> ${malStr}</div>`:'')
         +(prodsRows?`<table class="ot-prod-tabla" style="width:100%;border-collapse:collapse;table-layout:fixed"><col class="col-orden"><col class="col-prod"><col class="col-dosis"><col class="col-total"><col style="width:34px"><thead><tr style="background:var(--bg2)">${thC('Orden de carga')}${th('Producto')}${th('Dosis / ha')}${th('Total '+(multi?lts.length+' lotes':'lote'))}<th></th></tr></thead><tbody>${prodsRows}</tbody></table>`:'<div style="padding:8px 12px;font-size:12px;color:var(--text3)">Sin productos</div>')
         +`<div class="no-print" style="padding:6px 10px;border-top:1px solid var(--border)">
@@ -9792,6 +9855,7 @@ function buildOTFromIds(ids,keep,existing){
         <tbody>${resumenProds||'<tr><td colspan="3" style="padding:10px;color:var(--text3);font-size:12px">Sin productos</td></tr>'}</tbody>
       </table>
     </div>
+    ${otPieHTML()}
   </div>
   <div style="text-align:right;margin-bottom:8px" class="ph">
     <button class="btn bb bsm" onclick="printOT()">🖨️ Imprimir / PDF</button>
