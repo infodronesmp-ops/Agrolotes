@@ -5294,7 +5294,7 @@ function guardarComoBorrador(){
 function restaurarBorradorSiExiste(){
   // Ya no usamos sessionStorage — los borradores están en DB
   // Notificar si hay borradores pendientes
-  const borradores=DB.relevamientos.filter(r=>r.estado==='Borrador');
+  const borradores=DB.relevamientos.filter(r=>!r.borrado&&r.estado==='Borrador');
   if(borradores.length){
     mostrarSnackbar(`⚠️ Tenés ${borradores.length} relevamiento${borradores.length>1?'s':''} sin completar — aparecen en rojo en la lista`,'red');
   }
