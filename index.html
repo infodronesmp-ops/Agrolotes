@@ -2831,9 +2831,14 @@ function _dondeHTML(o,esLote){
   return [hEsc(cli),hEsc(campo),lhtml].filter(Boolean).join(' › ')||'General';
 }
 function _cultAct(a){
-  let c=a.cultivoSnapshot||'';
-  if(!c&&a.loteId&&a.campaña){try{c=getCultivoDeLote(a.loteId,a.campaña)||'';}catch(e){}}
-  return c?' · 🌾 '+c+(a.campaña?' ('+a.campaña+')':''):(a.campaña?' · '+a.campaña:'');
+  let camp=a.campaña||'';
+  if(!camp){try{camp=campanaDeFecha(a.fechaRealizacion||a.fecha||a.fechaFin||'')||'';}catch(e){}}
+  let c=a.cultivoSnapshot||a.cultivo||'';
+  if(!c&&a.loteId&&camp){
+    try{c=cultivosRolDeLote(a.loteId,camp).filter(r=>r.rol!=='cob').map(r=>r.cultivo).join(' + ');}catch(e){}
+  }
+  if(!c&&a.relevId){const r=(DB.relevamientos||[]).find(x=>x.id===a.relevId);c=r?.cultivo||'';}
+  return c?' · 🌾 '+c+(camp?' ('+camp+')':''):(camp?' · campaña '+camp:' · sin cultivo cargado');
 }
 // ── Actividades obligatorias por lote (campaña activa) ──
 // Fechas límite "más o menos fijas" según cultivo: pasada la fecha, si no hay nada cargado, se marca faltante.
