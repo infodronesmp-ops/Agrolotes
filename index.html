@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<hatml lang="es">
+<html lang="es">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -425,7 +425,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
 <div class="sidebar-overlay" onclick="toggleSidebar(false)"></div>
 <!-- SIDEBAR -->
 <nav class="sidebar">
-  <div class="brand"><h1>🌱 AgroLotes</h1><small>Relevamientos y OT · <span title="Versión de la app instalada">v219</span></small><div id="fb-status" onclick="_fbSyncPending=true;_fbSync()" title="Tocá para sincronizar ahora" style="font-size:10px;margin-top:4px;cursor:pointer;color:var(--text3)">☁️ Conectando...</div></div>
+  <div class="brand"><h1>🌱 AgroLotes</h1><small>Relevamientos y OT · <span title="Versión de la app instalada">v220</span></small><div id="fb-status" onclick="_fbSyncPending=true;_fbSync()" title="Tocá para sincronizar ahora" style="font-size:10px;margin-top:4px;cursor:pointer;color:var(--text3)">☁️ Conectando...</div></div>
   <div class="nav-sec">
     <span class="nav-lbl">Principal</span>
     <button class="nb active" onclick="navTo('vistas-venc')"><span>👁</span> Vistas</button>
@@ -3045,7 +3045,6 @@ function revisarSecciones(){
     {t:'🧪 Aplicaciones realizadas sin productos',d:'Figuran como realizadas pero no tienen ningún producto cargado.',items:(DB.actividades||[]).filter(a=>!a.borrado&&a.tipo==='Aplicación'&&estadoDe(a)==='Realizada'&&!(a.productos||[]).length).map(o=>({k:'act',o}))},
     {t:'🧴 Productos incompletos',d:'Les falta unidad, forma de formulación (define el orden de carga) o precio. A los servicios / mano de obra no se les pide formulación ni unidad. Podés eliminar desde acá las que no uses.',items:(DB.productos||[]).map(pr=>{const f=[];const serv=/servicio|mano de obra/i.test(pr.tipo||'');if(!pr.unidad&&!serv)f.push('unidad');if(!pr.form&&!serv)f.push('formulación');if(!pr.precio)f.push('precio');return f.length?{k:'prod',o:pr,falta:f}:null;}).filter(Boolean).sort((a,b)=>_normS(a.o.nombre).localeCompare(_normS(b.o.nombre),'es'))},
     {t:'📐 Lotes sin superficie',d:'Sin hectáreas los totales de las órdenes y los reportes salen mal.',items:(DB.lotes||[]).filter(l=>!(parseFloat(l.ha)>0)).sort((a,b)=>(a.clienteId||'').localeCompare(b.clienteId||'')||naturalCmp(a.nombre,b.nombre)).map(o=>({k:'lote',o}))},
-    {t:'📆 Realizadas sin fecha de realización',d:'Figuran como realizadas pero no tienen cargada la fecha en que se hicieron.',items:(DB.actividades||[]).filter(a=>!a.borrado&&estadoDe(a)==='Realizada'&&!a.fechaRealizacion).map(o=>({k:'act',o,extra:'sin fecha de realización'+_cultAct(o)}))},
     {t:'🧑‍🌾 Aplicaciones realizadas sin responsable',d:'Para saber quién aplicó.',items:(DB.actividades||[]).filter(a=>!a.borrado&&a.tipo==='Aplicación'&&estadoDe(a)==='Realizada'&&!a.responsable).map(o=>({k:'act',o,extra:(o.fechaRealizacion?'realizada el '+o.fechaRealizacion:'')+_cultAct(o)}))},
     {t:'↔️ Inicio posterior a la fecha límite',d:'La fecha de inicio es más tarde que la fecha límite.',items:acts.filter(a=>a.fecha&&a.fechaFin&&a.fecha>a.fechaFin).map(o=>({k:'act',o,extra:`inicio ${o.fecha} · límite ${o.fechaFin}`})).concat(progs.filter(r=>r.fechaInicio&&r.fechaLimite&&r.fechaInicio>r.fechaLimite).map(o=>({k:'rel',o,extra:`inicio ${o.fechaInicio} · límite ${o.fechaLimite}`})))},
     {t:'⌛ Pendientes con inicio muy viejo y sin fecha límite',d:'Más de 30 días desde la fecha de inicio y sin fecha límite, por eso no figuran como vencidas.',items:(()=>{const hoy=hoyLocal();const lim=new Date(hoy);lim.setDate(lim.getDate()-30);const L=lim.toISOString().slice(0,10);return acts.filter(a=>!a.fechaFin&&a.fecha&&a.fecha<L).map(o=>({k:'act',o,extra:'inicio '+o.fecha})).concat(progs.filter(r=>!r.fechaLimite&&r.fechaInicio&&r.fechaInicio<L).map(o=>({k:'rel',o,extra:'inicio '+o.fechaInicio})));})()},
