@@ -403,6 +403,8 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
 .vchip:hover{filter:brightness(.95);}
 .vresp{font-size:10px;opacity:.8;white-space:nowrap;border-radius:8px;background:rgba(0,0,0,.07);padding:0 5px;display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;vertical-align:bottom;box-sizing:border-box}
 #act-m-body td{overflow:hidden}
+#page-rapido .btn{justify-content:center;text-align:center;line-height:1.2}
+#page-rapido label.btn,#page-rapido button.btn{display:flex;align-items:center;justify-content:center;gap:6px}
 #act-m-body td.ph,#act-m-body td.rf{overflow:visible}
 .ctxbar{padding:7px 16px;font-size:13px;border-bottom:1px solid var(--border);border-left:5px solid var(--accent);background:var(--accent-bg);line-height:1.35}.ctxbar b{font-size:14px}.ctxbar .cx{opacity:.7}
 .vdup{float:right;margin-left:4px;opacity:.35;font-size:11px;cursor:pointer}.vchip:hover .vdup{opacity:1}
@@ -425,9 +427,10 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
 <div class="sidebar-overlay" onclick="toggleSidebar(false)"></div>
 <!-- SIDEBAR -->
 <nav class="sidebar">
-  <div class="brand"><h1>🌱 AgroLotes</h1><small>Relevamientos y OT · <span title="Versión de la app instalada">v220</span></small><div id="fb-status" onclick="_fbSyncPending=true;_fbSync()" title="Tocá para sincronizar ahora" style="font-size:10px;margin-top:4px;cursor:pointer;color:var(--text3)">☁️ Conectando...</div></div>
+  <div class="brand"><h1>🌱 AgroLotes</h1><small>Relevamientos y OT · <span title="Versión de la app instalada">v221</span></small><div id="fb-status" onclick="_fbSyncPending=true;_fbSync()" title="Tocá para sincronizar ahora" style="font-size:10px;margin-top:4px;cursor:pointer;color:var(--text3)">☁️ Conectando...</div></div>
   <div class="nav-sec">
     <span class="nav-lbl">Principal</span>
+    <button class="nb" onclick="navTo('rapido')" style="font-weight:700"><span>📱</span> Relevamiento rápido</button>
     <button class="nb active" onclick="navTo('vistas-venc')"><span>👁</span> Vistas</button>
     <button class="nb" onclick="navTo('actividades')"><span>🗓️</span> Actividades</button>
     <button class="nb" onclick="navTo('relevamientos')"><span>🔍</span> Relevamientos</button>
@@ -843,6 +846,34 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
         <button class="btn bp bsm" id="rev-btn-edit" onclick="revEditarMasivo()">✏️ Editar fechas / responsable / realizada</button>
         <button class="btn bp bsm" id="rev-btn-nohizo" onclick="revNoHizoSel()">No se hizo</button>
         <button class="btn bs bsm" onclick="revLimpiarSel()">Quitar selección</button>
+      </div>
+    </div>
+    <div class="page" id="page-rapido">
+      <div style="max-width:640px;margin:0 auto" id="rap-wrap">
+        <div id="rap-sel">
+          <input type="text" id="rap-q" class="fi" placeholder="🔎 Escribí lote, campo, cliente o cultivo..." oninput="rapRenderLista()" autocomplete="off" style="font-size:17px;padding:13px 12px;margin-bottom:8px">
+          <div style="display:flex;gap:8px;margin-bottom:8px">
+            <select id="rap-cli" class="fi" onchange="rapCliCambio()" style="flex:1;font-size:15px;padding:11px 8px"></select>
+            <select id="rap-campo" class="fi" onchange="rapRenderLista()" style="flex:1;font-size:15px;padding:11px 8px"></select>
+          </div>
+          <button type="button" class="btn bb" onclick="rapGps()" style="width:100%;padding:12px;font-size:15px;margin-bottom:10px">📍 ¿Qué lote es? (usar el GPS)</button>
+          <div id="rap-lista"></div>
+        </div>
+        <div id="rap-carga" style="display:none">
+          <div id="rap-cab" style="background:var(--accent-bg);border:1px solid var(--accent);border-radius:var(--rl);padding:12px 14px;margin-bottom:12px"></div>
+          <div style="display:flex;gap:10px;margin-bottom:10px">
+            <label class="btn bp" style="flex:1;margin:0;padding:22px 6px;font-size:17px;text-align:center;display:flex;flex-direction:column;gap:4px;align-items:center;cursor:pointer"><span style="font-size:30px">📷</span>Sacar foto<input type="file" accept="image/*" capture="environment" style="display:none" onchange="adjFotosElegidas(this)"></label>
+            <button type="button" id="rap-rec" class="btn bp" onclick="adjGrabarToggle()" style="flex:1;padding:22px 6px;font-size:17px;display:flex;flex-direction:column;gap:4px;align-items:center"><span style="font-size:30px">🎙️</span>Grabar audio</button>
+          </div>
+          <div style="display:flex;gap:10px;margin-bottom:12px">
+            <label class="btn bs" style="flex:1;margin:0;padding:14px 6px;font-size:15px;text-align:center;cursor:pointer">🎬 Grabar video<input type="file" accept="video/*" capture="environment" style="display:none" onchange="rapVideoElegido(this)"></label>
+            <label class="btn bs" style="flex:1;margin:0;padding:14px 6px;font-size:15px;text-align:center;cursor:pointer">🖼 Fotos de la galería<input type="file" accept="image/*" multiple style="display:none" onchange="adjFotosElegidas(this)"></label>
+          </div>
+          <div id="rap-adj" style="margin-bottom:10px"></div>
+          <textarea id="rap-obs" class="fi" rows="2" placeholder="Nota escrita (opcional)" style="font-size:15px;margin-bottom:10px"></textarea>
+          <button type="button" class="btn bp" onclick="rapGuardar()" style="width:100%;padding:16px;font-size:18px;font-weight:700;margin-bottom:8px">✅ Guardar relevamiento rápido</button>
+          <button type="button" class="btn bs" onclick="rapCancelar()" style="width:100%;padding:12px;font-size:14px">← Cambiar de lote / cancelar</button>
+        </div>
       </div>
     </div>
     <div class="page" id="page-campanas">
@@ -3032,8 +3063,10 @@ function revisarSecciones(){
   const acts=(DB.actividades||[]).filter(a=>!a.borrado&&estadoDe(a)==='Pendiente');
   const progs=(DB.relevamientos||[]).filter(r=>!r.borrado&&r.estado!=='Borrador'&&!r.fecha);
   const A=o=>({k:'act',o}),R=o=>({k:'rel',o});
+  const RAP=o=>({k:'rap',o});
   const venc=tareasVencidas().map(x=>({...x,extra:`vencía el ${x.lim} · hace ${_vencDias(x.lim)} días`}));
   return [
+    {t:'📱 Relevamientos rápidos para completar',d:'Los cargaste desde el celu con foto/audio/video. Escuchalos, completá el diagnóstico y los productos (✏️ Completar), o marcá que ya está.',items:(DB.relevamientos||[]).filter(r=>!r.borrado&&r.rapidoPendiente).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0)).map(RAP)},
     {t:'🔴 Tareas vencidas',d:'Su fecha límite ya pasó y siguen pendientes.',items:venc},
     {t:'👤 Sin responsable',d:'Pendientes que no tienen a nadie asignado.',items:acts.filter(a=>!a.responsable).map(A).concat(progs.filter(r=>!r.responsable).map(R))},
     {t:'📅 Pendientes sin fecha límite',d:'Sin fecha límite nunca aparecen como vencidas.',items:acts.filter(a=>!a.fechaFin).map(A).concat(progs.filter(r=>!r.fechaLimite).map(R))},
@@ -3061,13 +3094,14 @@ function renderRevisar(){
   if(clis&&clis.options.length<2){clis.innerHTML='<option value="">Todos los clientes</option>'+(DB.clientes||[]).slice().sort((a,b)=>naturalCmp(a.nombre,b.nombre)).map(c=>`<option value="${hEsc(c.id)}">${hEsc(c.nombre)}</option>`).join('');}
   box.innerHTML=sec.map((x,si)=>{
     const n=x.items.length;
-    const selTodo=n&&x.items.some(it=>!['lote','lcult','lrel','prod','mal'].includes(it.k))?`<label style="display:flex;gap:6px;align-items:center;padding:6px 10px;font-size:12px;border-top:1px solid var(--border);cursor:pointer"><input type="checkbox" ${x.items.filter(it=>!['lote','lcult','lrel','prod','mal'].includes(it.k)).every(it=>_revSel.has(_revKey(it)))?'checked':''} onchange="revSelSec(${si},this.checked)"> Seleccionar todo (${x.items.filter(it=>!['lote','lcult','lrel','prod','mal'].includes(it.k)).length})</label>`:'';
+    const selTodo=n&&x.items.some(it=>!['lote','lcult','lrel','prod','mal','rap'].includes(it.k))?`<label style="display:flex;gap:6px;align-items:center;padding:6px 10px;font-size:12px;border-top:1px solid var(--border);cursor:pointer"><input type="checkbox" ${x.items.filter(it=>!['lote','lcult','lrel','prod','mal','rap'].includes(it.k)).every(it=>_revSel.has(_revKey(it)))?'checked':''} onchange="revSelSec(${si},this.checked)"> Seleccionar todo (${x.items.filter(it=>!['lote','lcult','lrel','prod','mal','rap'].includes(it.k)).length})</label>`:'';
     const cb=it=>`<input type="checkbox" style="margin-right:8px" ${_revSel.has(_revKey(it))?'checked':''} onclick="event.stopPropagation()" onchange="revSel('${_revKey(it).replace(/'/g,"\\'")}',this.checked)">`;
     const filas=x.items.map(it=>{
       if(it.k==='falta'){const f=it.o;const fl=f.plazo?`debía estar antes del ${f.plazo.slice(8,10)}/${f.plazo.slice(5,7)}`:'';return `<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;padding:7px 10px;border-top:1px solid var(--border);font-size:12px"><span>${cb(it)}<strong>${hEsc(f.txt)}</strong> · ${_dondeHTML(f.lote,true)} · ${hEsc(f.cultivo)}<br><span class="muted" style="font-size:11px">${fl}</span></span><span style="display:flex;gap:6px"><button class="btn bp bxs" onclick="obligCargar(${it.i})">+ Cargar</button><button class="btn bs bxs" onclick="obligNoHizo(${it.i})">No se hizo</button></span></div>`;}
       if(it.k==='prod'){const pr=it.o;return `<div onclick="openModalProducto('${pr.id}')" style="cursor:pointer;display:flex;justify-content:space-between;gap:8px;align-items:center;padding:7px 10px;border-top:1px solid var(--border);font-size:12px"><span><strong>${hEsc(pr.nombre)}</strong> <span class="muted">${hEsc(pr.tipo||'')}</span></span><span style="display:flex;gap:8px;align-items:center"><span class="muted" style="font-size:11px">falta: ${it.falta.join(', ')}</span><button class="btn bd bxs" title="Eliminar esta solución" onclick="event.stopPropagation();revEliminarProd('${pr.id}')">🗑️</button></span></div>`;}
       if(it.k==='mal'){const m=it.o;return `<div onclick="openModalMaleza('${m.id}')" style="cursor:pointer;display:flex;justify-content:space-between;gap:8px;align-items:center;padding:7px 10px;border-top:1px solid var(--border);font-size:12px"><span><strong>${hEsc(m.cientifico||'(sin nombre)')}</strong>${m.comun?' · '+hEsc(m.comun):''}</span><span class="muted" style="font-size:11px">falta: ${it.falta.join(', ')}</span></div>`;}
       if(it.k==='lcult'){const l=it.o;const opts=(DB.cultivos||[]).filter(c=>!/^barbecho$/i.test(c)).map(c=>`<option value="${hEsc(c)}">${hEsc(c)}</option>`).join('');return `<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;padding:7px 10px;border-top:1px solid var(--border);font-size:12px"><span><strong>Lote</strong> · ${_dondeHTML(l,true)}${l.ha?' · '+l.ha+' ha':''}</span><select class="fi" style="max-width:200px;min-height:32px" onchange="revSetCultivo('${l.id}','${hEsc(it.camp)}',this.value)"><option value="">Elegir cultivo...</option>${opts}<option value="__sin__">Sin cultivo (a propósito)</option></select></div>`;}
+      if(it.k==='rap'){const r=it.o;const ad=r.adjuntos||[];const nf=ad.filter(a=>a.tipo==='foto').length,na=ad.filter(a=>a.tipo==='audio').length,nv=ad.filter(a=>a.tipo==='vpend'||a.tipo==='link').length;return `<div style="padding:8px 10px;border-top:1px solid var(--border);font-size:12px"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap"><span><strong>📱 ${hEsc(r.corto||'Relevamiento')}</strong> · ${_dondeHTML(r,false)}<br><span class="muted" style="font-size:11px">${r.fecha?r.fecha.slice(8,10)+'/'+r.fecha.slice(5,7):''}${r.cultivo?' · 🌾 '+hEsc(r.cultivo):''} · ${nf?'📷'+nf+' ':''}${na?'🎙'+na+' ':''}${nv?'🎬'+nv:''}${(!nf&&!na&&!nv)?'sin adjuntos':''}</span>${r.obs?'<br><span style="font-size:11px">💬 '+hEsc(r.obs)+'</span>':''}</span><span style="display:flex;gap:6px"><button class="btn bp bxs" onclick="event.stopPropagation();openModalRelev('${r.id}')">✏️ Completar</button><button class="btn bs bxs" onclick="event.stopPropagation();rapListo('${r.id}')" title="No hay nada más para cargar">✔ Ya está</button></span></div></div>`;}
       if(it.k==='lrel'){const l=it.o;return `<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;padding:7px 10px;border-top:1px solid var(--border);font-size:12px"><span><strong>Lote</strong> · ${_dondeHTML(l,true)} · ${hEsc(getCultivoDeLote(l.id,it.camp))}<br><span class="muted" style="font-size:11px">${it.dias===null?'Nunca se relevó':'Último relevamiento hace '+it.dias+' días'}</span></span><button class="btn bp bxs" onclick="revProgramarRelev('${l.id}','${hEsc(it.camp)}')">+ Programar relevamiento</button></div>`;}
       const o=it.o;const tipo=it.k==='rel'?'Relevamiento':it.k==='lote'?'Lote':(o.tipo||'Actividad');
       const resp=o.responsable?` · 👤 ${hEsc(o.responsable)}`:'';
@@ -5316,6 +5350,7 @@ const PM={
   'vistas-estado':{t:'Vistas · Por estado',s:'Pendientes y realizadas, agrupadas como prefieras'},
   'vistas-tipo':{t:'Vistas · Por tipo de actividad',s:'Un lote por fila y un tipo de actividad por columna — elegí qué tipos ver'},
   'vistas-cultivo':{t:'Vistas · Por cultivo',s:'Cultivo → Cliente → Lote, con hectáreas en cada nivel'},
+  rapido:{t:'Relevamiento rápido',s:'En el lote: foto, audio y video en segundos. Después se completa en la compu'},
   revisar:{t:'Para revisar',s:'Control semanal: lo que está vencido, incompleto o sin asignar'},
   dashboard:{t:'Reportes',s:'Estadísticas, malezas, productos y estacionalidad'},
   tablero:{t:'Tablero de Lotes',s:'Vista operativa de todos los lotes'},
@@ -5381,6 +5416,7 @@ function navTo(id,params={}){
   if(id==='productos')    renderProductos();
   if(id==='campanas')     {renderCampanas();initCampActSel();}
   if(id==='revisar')      {renderRevisar();}
+  if(id==='rapido')       rapIniciar();
   if(id==='cultivos')     renderCultivos();
   if(id==='malezas')      renderMalezas();
   if(id==='tablero')      renderTablero();
@@ -6251,7 +6287,7 @@ function loteQueLoteEs(){
     mostrarSnackbar(err.code===1?'No tengo permiso de ubicación. Habilitala en el navegador (candado de la barra).':'No pude obtener el GPS. Salí a cielo abierto, prendé la ubicación del celu y probá de nuevo.','amber');
   },{enableHighAccuracy:true,timeout:25000,maximumAge:30000});
 }
-function gpsElegirLote(id){closeModal('modal-gps');setTimeout(()=>rLoteComboSelect(id),60);}
+function gpsElegirLote(id){closeModal('modal-gps');if(window._rapGps&&document.getElementById('page-rapido')?.classList.contains('active')){window._rapGps=false;setTimeout(()=>rapElegirLote(id),60);return;}window._rapGps=false;setTimeout(()=>rLoteComboSelect(id),60);}
 function saveLote(){
   const nombre=document.getElementById('l-nombre').value.trim();
   if(!nombre||!_loteTarget)return;
@@ -6339,6 +6375,107 @@ function campoVincularGuardar(){
   const n=moverLotesACampo(ids,_vincCampoId);
   closeModal('modal-campo-vincular');_refrescarCampoVista();
   mostrarSnackbar(`✅ ${n} lote(s) pasaron al campo`,'blue');
+}
+// ══ RELEVAMIENTO RÁPIDO (celu): elegir lote → foto / audio / video → guardar. Se completa después en la compu. ══
+let _rapLote=null;
+function rapCultivo(l){try{return getCultivoDeLote(l.id,getCampanaActiva())||'';}catch(e){return '';}}
+function rapIniciar(){
+  if(_rapLote&&document.getElementById('rap-carga').style.display!=='none'){return;} // quedó a medias: se retoma
+  rapMostrarSel();
+}
+function rapMostrarSel(){
+  _rapLote=null;
+  document.getElementById('rap-carga').style.display='none';document.getElementById('rap-sel').style.display='';
+  const sc=document.getElementById('rap-cli');
+  const cv=sc.value;
+  sc.innerHTML='<option value="">Todos los clientes</option>'+DB.clientes.slice().sort((a,b)=>naturalCmp(a.nombre,b.nombre)).map(c=>`<option value="${hEsc(c.id)}">${hEsc(c.nombre)}</option>`).join('');
+  sc.value=cv;rapCliCambio(true);
+}
+function rapCliCambio(mantener){
+  const cli=document.getElementById('rap-cli').value,sc=document.getElementById('rap-campo'),cv=mantener?sc.value:'';
+  const cs=DB.campos.filter(c=>!cli||c.clienteId===cli).sort((a,b)=>naturalCmp(a.nombre,b.nombre));
+  sc.innerHTML='<option value="">Todos los campos</option>'+cs.map(c=>`<option value="${hEsc(c.id)}">${hEsc(c.nombre)}</option>`).join('');
+  sc.value=cs.some(c=>c.id===cv)?cv:'';
+  rapRenderLista();
+}
+function rapRenderLista(){
+  const box=document.getElementById('rap-lista');if(!box)return;
+  const q=_normS(document.getElementById('rap-q').value||''),cli=document.getElementById('rap-cli').value,campo=document.getElementById('rap-campo').value;
+  let ls=DB.lotes.filter(l=>(!cli||l.clienteId===cli)&&(!campo||l.campoId===campo));
+  const info=l=>{const c=DB.campos.find(x=>x.id===l.campoId),k=DB.clientes.find(x=>x.id===l.clienteId);return{c,k,cult:rapCultivo(l)};};
+  if(q){ls=ls.filter(l=>{const i=info(l);return _normS([l.nombre,i.c?.nombre,i.k?.nombre,i.cult].join(' ')).includes(q);});}
+  ls.sort((a,b)=>{const ia=info(a),ib=info(b);return naturalCmp((ia.k?.nombre||'')+(ia.c?.nombre||''),(ib.k?.nombre||'')+(ib.c?.nombre||''))||naturalCmp(a.nombre,b.nombre);});
+  if(!q&&!cli&&!campo){box.innerHTML='<div class="muted" style="padding:12px;text-align:center;font-size:14px">Elegí el cliente y el campo, o escribí arriba (lote, campo, cliente o cultivo).</div>';return;}
+  if(!ls.length){box.innerHTML='<div class="muted" style="padding:12px;text-align:center">No encontré ningún lote.</div>';return;}
+  box.innerHTML=ls.slice(0,60).map(l=>{const i=info(l);
+    return `<div onclick="rapElegirLote('${l.id}')" style="cursor:pointer;border:1px solid var(--border);border-radius:var(--rl);padding:13px 14px;margin-bottom:8px;background:var(--card)"><div style="font-size:12px;color:var(--text2)">${hEsc(i.k?.nombre||'?')} › ${hEsc(i.c?.nombre||'?')}</div><div style="font-size:19px;font-weight:700">🟩 ${hEsc(l.nombre)}${l.ha?` <span class="muted" style="font-size:13px;font-weight:400">${l.ha} ha</span>`:''}</div><div style="font-size:13px;margin-top:2px">${i.cult?'🌾 '+hEsc(i.cult):'<span class="muted">sin cultivo cargado</span>'}</div></div>`;
+  }).join('')+(ls.length>60?`<div class="muted" style="text-align:center;font-size:12px">Hay ${ls.length-60} más: escribí para afinar la búsqueda.</div>`:'');
+}
+function rapGps(){window._rapGps=true;loteQueLoteEs();}
+function rapElegirLote(id){
+  const l=DB.lotes.find(x=>x.id===id);if(!l)return;
+  _adjLimpiarHuerfanos();_relevAdj=[];_adjNuevos=[];_adjQuitados=[];_editRelevId=null;
+  _rapLote=id;
+  const c=DB.campos.find(x=>x.id===l.campoId),k=DB.clientes.find(x=>x.id===l.clienteId),cult=rapCultivo(l);
+  document.getElementById('rap-cab').innerHTML=`<div style="font-size:24px;font-weight:800;line-height:1.15">📍 ${hEsc(c?.nombre||'?')}</div><div style="font-size:15px;margin-top:3px">${hEsc(k?.nombre||'?')}</div><div style="font-size:19px;font-weight:700;margin-top:6px">🟩 ${hEsc(l.nombre)}${l.ha?` <span class="muted" style="font-size:13px;font-weight:400">${l.ha} ha</span>`:''}</div><div style="font-size:15px;margin-top:2px">${cult?'🌾 '+hEsc(cult):'<span class="muted">sin cultivo cargado</span>'}</div>`;
+  document.getElementById('rap-obs').value='';
+  document.getElementById('rap-sel').style.display='none';document.getElementById('rap-carga').style.display='';
+  _rapAdjRender();
+  const ct=document.querySelector('.content');if(ct)ct.scrollTop=0;
+}
+function rapCancelar(){
+  const ya=_relevAdj.length||(document.getElementById('rap-obs').value||'').trim();
+  const salir=()=>{_adjLimpiarHuerfanos();_relevAdj=[];_adjNuevos=[];_adjQuitados=[];rapMostrarSel();};
+  if(ya)confirmarAccion('¿Descartar lo que cargaste en este lote?',salir,'Descartar');else salir();
+}
+async function rapVideoElegido(input){
+  const f=(input.files||[])[0];input.value='';if(!f)return;
+  let dur=0;
+  try{dur=await new Promise(ok=>{const v=document.createElement('video');const u=URL.createObjectURL(f);v.preload='metadata';v.onloadedmetadata=()=>{const d=v.duration;URL.revokeObjectURL(u);ok(isFinite(d)?Math.round(d):0);};v.onerror=()=>{URL.revokeObjectURL(u);ok(0);};v.src=u;});}catch(e){}
+  const d=new Date(f.lastModified||Date.now());
+  const hora=String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+  const ref=`video del ${hora}${dur?' · '+dur+' s':''}${f.name?' · '+f.name:''}`;
+  _relevAdj.push({id:uid(),tipo:'vpend',nombre:'Video',ref,ts:Date.now()});
+  _rapAdjRender();
+  mostrarSnackbar('🎬 Video anotado. Queda en la galería de tu celu.','green');
+}
+function _rapAdjRender(){
+  const box=document.getElementById('rap-adj');if(!box)return;
+  const fotos=_relevAdj.filter(a=>a.tipo==='foto'),audios=_relevAdj.filter(a=>a.tipo==='audio'),vids=_relevAdj.filter(a=>a.tipo==='vpend');
+  box.innerHTML=
+    (fotos.length?`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">${fotos.map(a=>`<div style="position:relative"><img id="adj-th-${a.id}" alt="foto" style="width:92px;height:92px;object-fit:cover;border-radius:8px;border:1px solid var(--border)"><button type="button" onclick="adjQuitar('${a.id}')" style="position:absolute;top:-6px;right:-6px;background:#c0392b;color:#fff;border:none;border-radius:50%;width:24px;height:24px;font-size:13px;cursor:pointer">✕</button></div>`).join('')}</div>`:'')
+    +audios.map(a=>`<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px"><span id="adj-au-${a.id}"><button type="button" class="btn bs" onclick="adjEscuchar('${a.id}')">▶ Escuchar (${_fmtSeg(a.dur)})</button></span><button type="button" class="btn bs bxs" onclick="adjQuitar('${a.id}')">✕</button></div>`).join('')
+    +vids.map(a=>`<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:13px"><span>🎬 ${hEsc(a.ref||'Video')}</span><button type="button" class="btn bs bxs" onclick="adjQuitar('${a.id}')">✕</button></div>`).join('')
+    +(!_relevAdj.length?'<div class="muted" style="font-size:13px;text-align:center;padding:4px">Todavía no cargaste nada.</div>':'');
+  fotos.forEach(a=>_mediaCargar(a.id,'foto').then(m=>{const el=document.getElementById('adj-th-'+a.id);if(el&&m)el.src=m.data;}).catch(()=>{}));
+  _recBoton();
+}
+function rapGuardar(){
+  const l=DB.lotes.find(x=>x.id===_rapLote);if(!l)return;
+  if(_rec){mostrarSnackbar('Primero parás la grabación de audio (⏹)','amber');return;}
+  const obs=(document.getElementById('rap-obs').value||'').trim();
+  if(!_relevAdj.length&&!obs){mostrarSnackbar('Cargá al menos una foto, un audio, un video o una nota','amber');return;}
+  const c=DB.campos.find(x=>x.id===l.campoId),k=DB.clientes.find(x=>x.id===l.clienteId),camp=getCampanaActiva();
+  const obj={id:uid(),fecha:hoyLocal(),fechaInicio:null,fechaLimite:null,campaña:camp,cultivo:rapCultivo(l),
+    clienteId:l.clienteId,campoId:l.campoId,loteId:l.id,clienteNombre:k?.nombre||'',campoNombre:c?.nombre||'',loteNombre:l.nombre||'',loteHa:l.ha||0,
+    malezas:[],productos:[],obs,adjuntos:_relevAdj.map(a=>({...a})),estado:'Relevado',borradorTs:null,
+    createdAt:Date.now(),corto:nextRelevCodigo(),rapido:true,rapidoPendiente:true};
+  _editRelevId=null;_adjCommit();
+  DB.relevamientos.push(obj);
+  // si el lote tenía un relevamiento programado pendiente, esta visita lo cierra
+  const pend=(DB.actividades||[]).filter(a=>a.loteId===l.id&&!a.borrado&&a.tipo==='Relevamiento'&&estadoDe(a)==='Pendiente'&&!a.relevId).sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||''));
+  if(pend.length){pend[0].relevId=obj.id;pend[0].estado='Realizada';pend[0].fechaRealizacion=obj.fecha;}
+  _relevAdj=[];_adjNuevos=[];_adjQuitados=[];_rapLote=null;
+  save();_mediaContar();_mediaSubir();
+  try{refrescarVistasActividad();}catch(e){}
+  document.getElementById('rap-q').value='';
+  rapMostrarSel();
+  mostrarSnackbar('✅ Guardado. Quedó en "Para revisar" para completarlo en la compu.','green');
+}
+function rapListo(id){
+  const r=DB.relevamientos.find(x=>x.id===id);if(!r)return;
+  r.rapidoPendiente=false;r.rapidoCompletadoTs=Date.now();save();renderRevisar();
+  mostrarSnackbar('Listo, ya no figura para completar','blue');
 }
 function deleteLote(cliId,campoId,loteId){
   const nRel=DB.relevamientos.filter(r=>r.loteId===loteId).length;
@@ -7770,9 +7907,16 @@ function _recLimpiar(){
 }
 function _fmtSeg(s){s=Math.round(s||0);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');}
 function _recBoton(){
-  const b=document.getElementById('r-adj-rec');if(!b)return;
-  if(_rec){const s=Math.floor((Date.now()-_rec.t0)/1000);b.textContent='⏹ Parar ('+_fmtSeg(s)+')';b.style.background='var(--red,#c0392b)';b.style.color='#fff';}
-  else{b.textContent='🎙️ Grabar nota de voz';b.style.background='';b.style.color='';}
+  const b=document.getElementById('r-adj-rec');
+  if(b){
+    if(_rec){const s=Math.floor((Date.now()-_rec.t0)/1000);b.textContent='⏹ Parar ('+_fmtSeg(s)+')';b.style.background='var(--red,#c0392b)';b.style.color='#fff';}
+    else{b.textContent='🎙️ Grabar nota de voz';b.style.background='';b.style.color='';}
+  }
+  const g=document.getElementById('rap-rec');
+  if(g){
+    if(_rec){const s=Math.floor((Date.now()-_rec.t0)/1000);g.innerHTML='<span style="font-size:30px">⏹</span>Parar ('+_fmtSeg(s)+')';g.style.background='var(--red,#c0392b)';g.style.color='#fff';}
+    else{g.innerHTML='<span style="font-size:30px">🎙️</span>Grabar audio';g.style.background='';g.style.color='';}
+  }
 }
 async function adjGrabarToggle(){
   if(_rec){try{_rec.mr.stop();}catch(e){_recLimpiar();}return;}
@@ -7879,6 +8023,7 @@ async function adjEscuchar(id){
   box.innerHTML=`<audio controls autoplay src="${m.data}" style="height:32px;max-width:100%"></audio>`;
 }
 function _adjRender(){
+  try{if(document.getElementById('rap-adj'))_rapAdjRender();}catch(e){}
   const box=document.getElementById('r-adj-lista');if(!box)return;
   const vps=_relevAdj.filter(a=>a.tipo==='vpend');
   const fotos=_relevAdj.filter(a=>a.tipo==='foto'),links=_relevAdj.filter(a=>a.tipo==='link'),audios=_relevAdj.filter(a=>a.tipo==='audio');
@@ -7887,7 +8032,7 @@ function _adjRender(){
   box.innerHTML=
     (fotos.length?`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">${fotos.map(a=>`<div style="position:relative"><img id="adj-th-${a.id}" alt="foto" style="width:84px;height:84px;object-fit:cover;border-radius:6px;border:1px solid var(--border);cursor:zoom-in;background:var(--bg2)" onclick="adjVer('${a.id}')"><button type="button" class="btn bs bxs" style="position:absolute;top:-6px;right:-6px;padding:0 5px;border-radius:50%" title="Quitar foto" onclick="adjQuitar('${a.id}')">✕</button></div>`).join('')}</div>`:'')
     +(audios.length?audios.map(a=>`<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px"><span id="adj-au-${a.id}"><button type="button" class="btn bs bxs" onclick="adjEscuchar('${a.id}')">▶ Escuchar nota (${_fmtSeg(a.dur)})</button></span><button type="button" class="btn bs bxs" title="Quitar nota" onclick="adjQuitar('${a.id}')">✕</button></div>`).join(''):'')
-    +(vps.length?vps.map(a=>`<div style="background:var(--amber-bg);border:1px solid var(--amber);border-radius:var(--r);padding:6px 8px;margin-bottom:6px"><div style="font-size:12px;font-weight:600;margin-bottom:4px">🎥 Video pendiente — falta el enlace</div><div class="rf" style="gap:6px;flex-wrap:wrap"><input type="text" id="adj-vp-${a.id}" class="fi" placeholder="Pegá el enlace del video" style="flex:1;min-width:140px"><button type="button" class="btn bs bxs" onclick="adjVpPegar('${a.id}')">📋 Pegar</button><button type="button" class="btn bp bxs" onclick="adjVpListo('${a.id}')">Listo</button><button type="button" class="btn bs bxs" onclick="adjQuitar('${a.id}')">✕</button></div></div>`).join(''):'')
+    +(vps.length?vps.map(a=>`<div style="background:var(--amber-bg);border:1px solid var(--amber);border-radius:var(--r);padding:6px 8px;margin-bottom:6px"><div style="font-size:12px;font-weight:600;margin-bottom:4px">🎥 Video pendiente — falta el enlace</div>${a.ref?`<div class="muted" style="font-size:11px;margin-bottom:5px">📱 En el celu: ${hEsc(a.ref)}. Buscalo en la galería a esa hora.</div>`:''}<div class="rf" style="gap:6px;flex-wrap:wrap"><input type="text" id="adj-vp-${a.id}" class="fi" placeholder="Pegá el enlace del video" style="flex:1;min-width:140px"><button type="button" class="btn bs bxs" onclick="adjVpPegar('${a.id}')">📋 Pegar</button><button type="button" class="btn bp bxs" onclick="adjVpListo('${a.id}')">Listo</button><button type="button" class="btn bs bxs" onclick="adjQuitar('${a.id}')">✕</button></div></div>`).join(''):'')
     +(links.length?links.map(a=>`<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px"><a href="${hEsc(a.url)}" target="_blank" rel="noopener noreferrer" class="btn bs bxs">▶ ${hEsc(a.nombre)}</a><span class="muted" style="font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:240px">${hEsc(a.url)}</span><button type="button" class="btn bs bxs" onclick="adjQuitar('${a.id}')">✕</button></div>`).join(''):'')
     +(!_relevAdj.length?'<div class="muted" style="font-size:11px">Todavía no hay nada adjunto.</div>':'');
   fotos.forEach(a=>_mediaCargar(a.id,'foto').then(m=>{const el=document.getElementById('adj-th-'+a.id);if(!el)return;if(m)el.src=m.data;else{el.alt='⏳';el.style.opacity='.35';el.title='Todavía no llegó a este equipo';}}).catch(()=>{}));
@@ -8397,6 +8542,7 @@ function saveRelev(){
     corto:_editRelevId?(DB.relevamientos.find(r=>r.id===_editRelevId)?.corto||nextRelevCodigo()):nextRelevCodigo(),
     borradorTs:null,
   };
+  if(_editRelevId){const _o=DB.relevamientos.find(r=>r.id===_editRelevId);if(_o&&_o.rapidoPendiente){objBase.rapidoPendiente=false;objBase.rapidoCompletadoTs=Date.now();}}
   // Modo normal: un solo destino (null = el lote del formulario). Modo "varios
   // lotes": una copia completa por cada lote del carrito, cada una con SU
   // cliente/campo/lote/cultivo, y sus propias actividades derivadas.
@@ -8981,7 +9127,7 @@ function renderRelev(){
       :`<select class="estado-sel" onchange="actMEditarEstado('${r.id}',true,this.value)" style="font-size:11px;padding:3px 6px;border-radius:6px;border:1px solid var(--border);background:var(--bg);font-family:'Sora',sans-serif;cursor:pointer;color:var(--text)">`
       +`<option value="Pendiente"${!realizado?' selected':''}>📅 Programado</option>`
       +`<option value="Realizada"${realizado?' selected':''}>✅ Realizado</option>`
-      +`</select>${ligadaLink}`;
+      +`</select>${ligadaLink}${r.rapidoPendiente?' <span class="badge bg-amber" style="font-size:9px" title="Cargado rápido desde el celu: falta completarlo">📱 por completar</span>':''}`;
     const aplicarBtn='';
     return '<tr class="'+rc+'">'
       +`<td><input type="checkbox" ${_seleccionados.has(r.id)?'checked':''} onchange="toggleSeleccion('${r.id}',this)"></td>`
