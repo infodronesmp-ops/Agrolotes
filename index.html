@@ -427,7 +427,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
 <div class="sidebar-overlay" onclick="toggleSidebar(false)"></div>
 <!-- SIDEBAR -->
 <nav class="sidebar">
-  <div class="brand"><h1>🌱 AgroLotes</h1><small>Relevamientos y OT · <span title="Versión de la app instalada">v222</span></small><div id="fb-status" onclick="_fbSyncPending=true;_fbSync()" title="Tocá para sincronizar ahora" style="font-size:10px;margin-top:4px;cursor:pointer;color:var(--text3)">☁️ Conectando...</div></div>
+  <div class="brand"><h1>🌱 AgroLotes</h1><small>Relevamientos y OT · <span title="Versión de la app instalada">v223</span></small><div id="fb-status" onclick="_fbSyncPending=true;_fbSync()" title="Tocá para sincronizar ahora" style="font-size:10px;margin-top:4px;cursor:pointer;color:var(--text3)">☁️ Conectando...</div></div>
   <div class="nav-sec">
     <span class="nav-lbl">Principal</span>
     <button class="nb" onclick="navTo('rapido')" style="font-weight:700"><span>📱</span> Relevamiento rápido</button>
@@ -3023,6 +3023,15 @@ function revEditarMasivo(){
   openModal('modal-rev-masivo');
 }
 function revHechaChg(){document.getElementById('rm-freal-wrap').style.display=document.getElementById('rm-hecha').checked?'block':'none';}
+function revCambiarLimite(k,id,v){
+  if(!v)return;
+  const esR=k==='rel';
+  const o=esR?(DB.relevamientos||[]).find(x=>x.id===id):(DB.actividades||[]).find(x=>x.id===id);if(!o)return;
+  if(esR)o.fechaLimite=v;else o.fechaFin=v;
+  const ini=esR?o.fechaInicio:o.fecha;if(ini&&ini>v){if(esR)o.fechaInicio=v;else o.fecha=v;}
+  save();actualizarCampanitaTareas();try{refrescarVistasActividad();}catch(e){}renderRevisar();
+  mostrarSnackbar('📅 Nuevo vencimiento: '+v.slice(8,10)+'/'+v.slice(5,7)+'/'+v.slice(0,4),'blue');
+}
 function revAplicarMasivo(){
   const lim=document.getElementById('rm-lim').value,resp=respNombreCanon(document.getElementById('rm-resp').value);
   const hecha=document.getElementById('rm-hecha').checked,freal=document.getElementById('rm-freal').value;
@@ -3110,7 +3119,7 @@ function renderRevisar(){
       const resp=o.responsable?` · 👤 ${hEsc(o.responsable)}`:'';
       const fl=it.k==='lote'?'':it.k==='rel'?o.fechaLimite:o.fechaFin;
       const extra=it.extra||(it.k==='lote'?(o.ha?o.ha+' ha':''):(fl?`vence el ${fl}`:''));
-      return `<div onclick="revisarAbrir('${it.k}','${o.id}')" style="cursor:pointer;display:flex;justify-content:space-between;gap:8px;align-items:center;padding:7px 10px;border-top:1px solid var(--border);font-size:12px"><span>${it.k==='lote'?'':cb(it)}<strong>${hEsc(tipo)}</strong> · ${_dondeHTML(o,it.k==='lote')}${resp}</span><span class="muted" style="font-size:11px;text-align:right">${hEsc(extra)}</span></div>`;
+      return `<div onclick="revisarAbrir('${it.k}','${o.id}')" style="cursor:pointer;display:flex;justify-content:space-between;gap:8px;align-items:center;padding:7px 10px;border-top:1px solid var(--border);font-size:12px"><span>${it.k==='lote'?'':cb(it)}<strong>${hEsc(tipo)}</strong> · ${_dondeHTML(o,it.k==='lote')}${resp}</span>${(it.k==='act'||it.k==='rel')&&fl?`<span style="text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:2px"><span class="muted" style="font-size:11px">${fl<hoyLocal()?'venció hace '+_vencDias(fl)+' días':(it.extra&&!/vencía/.test(it.extra)?hEsc(it.extra):'vence')}</span><input type="date" value="${fl}" title="Cambiar la fecha de vencimiento" onclick="event.stopPropagation()" onchange="revCambiarLimite('${it.k}','${o.id}',this.value)" style="font-size:12px;padding:3px 4px;border:1px solid var(--border);border-radius:6px;background:var(--card);color:var(--text);font-family:inherit"></span>`:`<span class="muted" style="font-size:11px;text-align:right">${hEsc(extra)}</span>`}</div>`;
     }).join('');
     return `<details class="card" ${n&&!_revCerr.has(si)?'open':''} ontoggle="revTog(${si},this.open)" style="margin-bottom:10px"><summary class="ch" style="cursor:pointer;list-style:none"><span class="ct">${x.t}</span><span class="badge ${n?'bg-red':'bg-green'}">${n?n:'✓ todo en orden'}</span></summary>${n?`<div class="muted" style="font-size:11px;padding:6px 12px">${x.d}</div>${selTodo}${filas}`:''}</details>`;
   }).join('');
