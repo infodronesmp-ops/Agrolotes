@@ -427,7 +427,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
 <div class="sidebar-overlay" onclick="toggleSidebar(false)"></div>
 <!-- SIDEBAR -->
 <nav class="sidebar">
-  <div class="brand"><h1>🌱 AgroLotes</h1><small>Relevamientos y OT · <span title="Versión de la app instalada">v221</span></small><div id="fb-status" onclick="_fbSyncPending=true;_fbSync()" title="Tocá para sincronizar ahora" style="font-size:10px;margin-top:4px;cursor:pointer;color:var(--text3)">☁️ Conectando...</div></div>
+  <div class="brand"><h1>🌱 AgroLotes</h1><small>Relevamientos y OT · <span title="Versión de la app instalada">v222</span></small><div id="fb-status" onclick="_fbSyncPending=true;_fbSync()" title="Tocá para sincronizar ahora" style="font-size:10px;margin-top:4px;cursor:pointer;color:var(--text3)">☁️ Conectando...</div></div>
   <div class="nav-sec">
     <span class="nav-lbl">Principal</span>
     <button class="nb" onclick="navTo('rapido')" style="font-weight:700"><span>📱</span> Relevamiento rápido</button>
@@ -857,6 +857,7 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
             <select id="rap-campo" class="fi" onchange="rapRenderLista()" style="flex:1;font-size:15px;padding:11px 8px"></select>
           </div>
           <button type="button" class="btn bb" onclick="rapGps()" style="width:100%;padding:12px;font-size:15px;margin-bottom:10px">📍 ¿Qué lote es? (usar el GPS)</button>
+          <div id="rap-encurso"></div>
           <div id="rap-lista"></div>
         </div>
         <div id="rap-carga" style="display:none">
@@ -869,10 +870,12 @@ hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
             <label class="btn bs" style="flex:1;margin:0;padding:14px 6px;font-size:15px;text-align:center;cursor:pointer">🎬 Grabar video<input type="file" accept="video/*" capture="environment" style="display:none" onchange="rapVideoElegido(this)"></label>
             <label class="btn bs" style="flex:1;margin:0;padding:14px 6px;font-size:15px;text-align:center;cursor:pointer">🖼 Fotos de la galería<input type="file" accept="image/*" multiple style="display:none" onchange="adjFotosElegidas(this)"></label>
           </div>
+          <button type="button" id="rap-prob" class="btn bs" onclick="rapProblemaToggle()" style="width:100%;padding:14px;font-size:16px;margin-bottom:10px;border:2px solid var(--red);color:var(--red);font-weight:700">⚠️ Problema detectado</button>
           <div id="rap-adj" style="margin-bottom:10px"></div>
-          <textarea id="rap-obs" class="fi" rows="2" placeholder="Nota escrita (opcional)" style="font-size:15px;margin-bottom:10px"></textarea>
-          <button type="button" class="btn bp" onclick="rapGuardar()" style="width:100%;padding:16px;font-size:18px;font-weight:700;margin-bottom:8px">✅ Guardar relevamiento rápido</button>
-          <button type="button" class="btn bs" onclick="rapCancelar()" style="width:100%;padding:12px;font-size:14px">← Cambiar de lote / cancelar</button>
+          <textarea id="rap-obs" class="fi" rows="2" placeholder="Nota escrita (opcional)" oninput="_rapPersistDeb()" style="font-size:15px;margin-bottom:6px"></textarea>
+          <div id="rap-auto" class="muted" style="font-size:12px;text-align:center;margin-bottom:10px">💾 Se guarda solo: si salís, no se pierde nada.</div>
+          <button type="button" class="btn bp" onclick="rapTerminar()" style="width:100%;padding:16px;font-size:18px;font-weight:700;margin-bottom:8px">✅ Terminar y elegir otro lote</button>
+          <button type="button" class="btn bs" onclick="rapDescartar()" style="width:100%;padding:10px;font-size:13px;color:var(--red)">🗑 Descartar este relevamiento</button>
         </div>
       </div>
     </div>
@@ -3066,7 +3069,7 @@ function revisarSecciones(){
   const RAP=o=>({k:'rap',o});
   const venc=tareasVencidas().map(x=>({...x,extra:`vencía el ${x.lim} · hace ${_vencDias(x.lim)} días`}));
   return [
-    {t:'📱 Relevamientos rápidos para completar',d:'Los cargaste desde el celu con foto/audio/video. Escuchalos, completá el diagnóstico y los productos (✏️ Completar), o marcá que ya está.',items:(DB.relevamientos||[]).filter(r=>!r.borrado&&r.rapidoPendiente).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0)).map(RAP)},
+    {t:'📱 Relevamientos rápidos para completar',d:'Los cargaste desde el celu con foto/audio/video. Mirá las fotos y escuchá el audio. Si está todo bien, ✔ Aceptar y queda como relevamiento hecho. Si hay que cargar algo, ✏️ Completar. Los marcados con ⚠️ son problemas: creá el seguimiento.',items:(DB.relevamientos||[]).filter(r=>!r.borrado&&r.rapidoPendiente).sort((a,b)=>(b.problema?1:0)-(a.problema?1:0)||(a.createdAt||0)-(b.createdAt||0)).map(RAP)},
     {t:'🔴 Tareas vencidas',d:'Su fecha límite ya pasó y siguen pendientes.',items:venc},
     {t:'👤 Sin responsable',d:'Pendientes que no tienen a nadie asignado.',items:acts.filter(a=>!a.responsable).map(A).concat(progs.filter(r=>!r.responsable).map(R))},
     {t:'📅 Pendientes sin fecha límite',d:'Sin fecha límite nunca aparecen como vencidas.',items:acts.filter(a=>!a.fechaFin).map(A).concat(progs.filter(r=>!r.fechaLimite).map(R))},
@@ -3101,7 +3104,7 @@ function renderRevisar(){
       if(it.k==='prod'){const pr=it.o;return `<div onclick="openModalProducto('${pr.id}')" style="cursor:pointer;display:flex;justify-content:space-between;gap:8px;align-items:center;padding:7px 10px;border-top:1px solid var(--border);font-size:12px"><span><strong>${hEsc(pr.nombre)}</strong> <span class="muted">${hEsc(pr.tipo||'')}</span></span><span style="display:flex;gap:8px;align-items:center"><span class="muted" style="font-size:11px">falta: ${it.falta.join(', ')}</span><button class="btn bd bxs" title="Eliminar esta solución" onclick="event.stopPropagation();revEliminarProd('${pr.id}')">🗑️</button></span></div>`;}
       if(it.k==='mal'){const m=it.o;return `<div onclick="openModalMaleza('${m.id}')" style="cursor:pointer;display:flex;justify-content:space-between;gap:8px;align-items:center;padding:7px 10px;border-top:1px solid var(--border);font-size:12px"><span><strong>${hEsc(m.cientifico||'(sin nombre)')}</strong>${m.comun?' · '+hEsc(m.comun):''}</span><span class="muted" style="font-size:11px">falta: ${it.falta.join(', ')}</span></div>`;}
       if(it.k==='lcult'){const l=it.o;const opts=(DB.cultivos||[]).filter(c=>!/^barbecho$/i.test(c)).map(c=>`<option value="${hEsc(c)}">${hEsc(c)}</option>`).join('');return `<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;padding:7px 10px;border-top:1px solid var(--border);font-size:12px"><span><strong>Lote</strong> · ${_dondeHTML(l,true)}${l.ha?' · '+l.ha+' ha':''}</span><select class="fi" style="max-width:200px;min-height:32px" onchange="revSetCultivo('${l.id}','${hEsc(it.camp)}',this.value)"><option value="">Elegir cultivo...</option>${opts}<option value="__sin__">Sin cultivo (a propósito)</option></select></div>`;}
-      if(it.k==='rap'){const r=it.o;const ad=r.adjuntos||[];const nf=ad.filter(a=>a.tipo==='foto').length,na=ad.filter(a=>a.tipo==='audio').length,nv=ad.filter(a=>a.tipo==='vpend'||a.tipo==='link').length;return `<div style="padding:8px 10px;border-top:1px solid var(--border);font-size:12px"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap"><span><strong>📱 ${hEsc(r.corto||'Relevamiento')}</strong> · ${_dondeHTML(r,false)}<br><span class="muted" style="font-size:11px">${r.fecha?r.fecha.slice(8,10)+'/'+r.fecha.slice(5,7):''}${r.cultivo?' · 🌾 '+hEsc(r.cultivo):''} · ${nf?'📷'+nf+' ':''}${na?'🎙'+na+' ':''}${nv?'🎬'+nv:''}${(!nf&&!na&&!nv)?'sin adjuntos':''}</span>${r.obs?'<br><span style="font-size:11px">💬 '+hEsc(r.obs)+'</span>':''}</span><span style="display:flex;gap:6px"><button class="btn bp bxs" onclick="event.stopPropagation();openModalRelev('${r.id}')">✏️ Completar</button><button class="btn bs bxs" onclick="event.stopPropagation();rapListo('${r.id}')" title="No hay nada más para cargar">✔ Ya está</button></span></div></div>`;}
+      if(it.k==='rap'){const r=it.o;const ad=r.adjuntos||[];const fotos=ad.filter(a=>a.tipo==='foto'),auds=ad.filter(a=>a.tipo==='audio'),vids=ad.filter(a=>a.tipo==='vpend'||a.tipo==='link');const prob=!!r.problema;return `<div style="padding:8px 10px;border-top:1px solid var(--border);font-size:12px;${prob?'background:var(--red-bg);border-left:4px solid var(--red)':''}"><div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start;flex-wrap:wrap"><span>${prob?'<strong style="color:var(--red)">⚠️ PROBLEMA DETECTADO</strong><br>':''}<strong>📱 ${hEsc(r.corto||'Relevamiento')}</strong> · ${_dondeHTML(r,false)}<br><span class="muted" style="font-size:11px">${r.fecha?r.fecha.slice(8,10)+'/'+r.fecha.slice(5,7):''}${r.cultivo?' · 🌾 '+hEsc(r.cultivo):''}${r.rapidoEnCurso?' · ⏳ quedó sin terminar de cargar':''}</span>${r.obs?'<br><span style="font-size:11px">💬 '+hEsc(r.obs)+'</span>':''}</span><span style="display:flex;gap:6px;flex-wrap:wrap">${prob?`<button class="btn bp bxs" onclick="event.stopPropagation();rapSeguimiento('${r.id}')">➕ Crear seguimiento</button>`:''}<button class="btn bs bxs" onclick="event.stopPropagation();openModalRelev('${r.id}')">✏️ Completar</button><button class="btn ${prob?'bs':'bp'} bxs" onclick="event.stopPropagation();rapListo('${r.id}')" title="Lo vi y está todo bien: queda como relevamiento hecho">✔ Aceptar</button></span></div><div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:6px">${fotos.map(a=>`<img data-rvth="${a.id}" onclick="event.stopPropagation();adjVer('${a.id}')" alt="foto" style="width:64px;height:64px;object-fit:cover;border-radius:6px;border:1px solid var(--border);cursor:zoom-in;background:var(--bg2)">`).join('')}${auds.map(a=>`<span style="display:inline-flex;gap:3px;align-items:center"><span id="adj-au-${a.id}"><button type="button" class="btn bs bxs" onclick="event.stopPropagation();adjEscuchar('${a.id}')">▶ ${_fmtSeg(a.dur)}</button></span><button type="button" class="btn bs bxs" title="Abrir en otra pestaña (para descargar)" onclick="event.stopPropagation();adjAudioAbrir('${a.id}')">↗</button></span>`).join('')}${vids.map(a=>`<span class="muted" style="font-size:11px">🎬 ${hEsc(a.ref||a.nombre||'video')}</span>`).join('')}${(!fotos.length&&!auds.length&&!vids.length)?'<span class="muted">sin adjuntos</span>':''}</div></div>`;}
       if(it.k==='lrel'){const l=it.o;return `<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;padding:7px 10px;border-top:1px solid var(--border);font-size:12px"><span><strong>Lote</strong> · ${_dondeHTML(l,true)} · ${hEsc(getCultivoDeLote(l.id,it.camp))}<br><span class="muted" style="font-size:11px">${it.dias===null?'Nunca se relevó':'Último relevamiento hace '+it.dias+' días'}</span></span><button class="btn bp bxs" onclick="revProgramarRelev('${l.id}','${hEsc(it.camp)}')">+ Programar relevamiento</button></div>`;}
       const o=it.o;const tipo=it.k==='rel'?'Relevamiento':it.k==='lote'?'Lote':(o.tipo||'Actividad');
       const resp=o.responsable?` · 👤 ${hEsc(o.responsable)}`:'';
@@ -3112,6 +3115,7 @@ function renderRevisar(){
     return `<details class="card" ${n&&!_revCerr.has(si)?'open':''} ontoggle="revTog(${si},this.open)" style="margin-bottom:10px"><summary class="ch" style="cursor:pointer;list-style:none"><span class="ct">${x.t}</span><span class="badge ${n?'bg-red':'bg-green'}">${n?n:'✓ todo en orden'}</span></summary>${n?`<div class="muted" style="font-size:11px;padding:6px 12px">${x.d}</div>${selTodo}${filas}`:''}</details>`;
   }).join('');
   const tot=secAll.reduce((a,x)=>a+x.items.length,0);
+  try{box.querySelectorAll('img[data-rvth]').forEach(el=>_adjThumb(el.dataset.rvth,el));}catch(e){}
   _revBarra();
   const b=document.getElementById('revisar-badge');if(b){b.style.display=tot?'inline-block':'none';b.textContent=tot>99?'99+':tot;}
 }
@@ -6280,7 +6284,7 @@ function loteQueLoteEs(){
     document.getElementById('gps-lista').innerHTML=rank.map(x=>{
       const campo=DB.campos.find(c=>c.id===x.l.campoId),c2=DB.clientes.find(c=>c.id===x.l.clienteId);
       const dist=x.d>=1000?(x.d/1000).toFixed(1)+' km':Math.round(x.d)+' m';
-      return `<div onclick="gpsElegirLote('${x.l.id}')" style="cursor:pointer;border:1px solid var(--border);border-radius:var(--r);padding:10px;margin-bottom:6px;background:var(--card)"><div style="font-weight:600;font-size:14px">${hEsc(x.l.nombre)}${x.l.ha?' · '+x.l.ha+' ha':''}</div><div class="muted" style="font-size:12px">${hEsc(c2?.nombre||'?')} › ${hEsc(campo?.nombre||'?')} · del centro a ${dist}</div></div>`;
+      return `<div onclick="gpsElegirLote('${x.l.id}')" style="cursor:pointer;border:1px solid var(--border);border-radius:var(--r);padding:10px;margin-bottom:6px;background:var(--card)"><div style="font-weight:600;font-size:14px">${hEsc(x.l.nombre)}${x.l.ha?' · '+x.l.ha+' ha':''}</div><div class="muted" style="font-size:12px">${hEsc(c2?.nombre||'?')} › ${hEsc(campo?.nombre||'?')} · del centro a ${dist}</div><div style="font-size:13px;margin-top:3px">${(()=>{let cu='';try{cu=getCultivoDeLote(x.l.id,getCampanaActiva())||'';}catch(e){}return cu?'🌾 <strong>'+hEsc(cu)+'</strong>':'<span class="muted">sin cultivo cargado</span>';})()}</div><a href="https://www.google.com/maps?q=${x.l.lat},${x.l.lng}" target="_blank" rel="noopener" onclick="event.stopPropagation()" class="btn bs bxs" style="margin-top:6px;text-decoration:none">🗺 Ver el lote en el mapa</a></div>`;
     }).join('');
     openModal('modal-gps');
   },err=>{
@@ -6389,7 +6393,7 @@ function rapMostrarSel(){
   const sc=document.getElementById('rap-cli');
   const cv=sc.value;
   sc.innerHTML='<option value="">Todos los clientes</option>'+DB.clientes.slice().sort((a,b)=>naturalCmp(a.nombre,b.nombre)).map(c=>`<option value="${hEsc(c.id)}">${hEsc(c.nombre)}</option>`).join('');
-  sc.value=cv;rapCliCambio(true);
+  sc.value=cv;rapCliCambio(true);rapEnCursoRender();
 }
 function rapCliCambio(mantener){
   const cli=document.getElementById('rap-cli').value,sc=document.getElementById('rap-campo'),cv=mantener?sc.value:'';
@@ -6412,21 +6416,79 @@ function rapRenderLista(){
   }).join('')+(ls.length>60?`<div class="muted" style="text-align:center;font-size:12px">Hay ${ls.length-60} más: escribí para afinar la búsqueda.</div>`:'');
 }
 function rapGps(){window._rapGps=true;loteQueLoteEs();}
-function rapElegirLote(id){
+let _rapRelevId=null,_rapProblema=false,_rapTimer=null;
+function rapElegirLote(id,resumirId){
   const l=DB.lotes.find(x=>x.id===id);if(!l)return;
   _adjLimpiarHuerfanos();_relevAdj=[];_adjNuevos=[];_adjQuitados=[];_editRelevId=null;
-  _rapLote=id;
+  _rapLote=id;_rapRelevId=null;_rapProblema=false;
+  let obs='';
+  const ex=resumirId?DB.relevamientos.find(r=>r.id===resumirId):DB.relevamientos.find(r=>r.rapido&&r.rapidoEnCurso&&r.loteId===id&&!r.borrado);
+  if(ex){_rapRelevId=ex.id;_relevAdj=(ex.adjuntos||[]).map(a=>({...a}));_rapProblema=!!ex.problema;obs=ex.obs||'';}
   const c=DB.campos.find(x=>x.id===l.campoId),k=DB.clientes.find(x=>x.id===l.clienteId),cult=rapCultivo(l);
   document.getElementById('rap-cab').innerHTML=`<div style="font-size:24px;font-weight:800;line-height:1.15">📍 ${hEsc(c?.nombre||'?')}</div><div style="font-size:15px;margin-top:3px">${hEsc(k?.nombre||'?')}</div><div style="font-size:19px;font-weight:700;margin-top:6px">🟩 ${hEsc(l.nombre)}${l.ha?` <span class="muted" style="font-size:13px;font-weight:400">${l.ha} ha</span>`:''}</div><div style="font-size:15px;margin-top:2px">${cult?'🌾 '+hEsc(cult):'<span class="muted">sin cultivo cargado</span>'}</div>`;
-  document.getElementById('rap-obs').value='';
+  document.getElementById('rap-obs').value=obs;
   document.getElementById('rap-sel').style.display='none';document.getElementById('rap-carga').style.display='';
-  _rapAdjRender();
+  _rapProbPintar();_rapAdjRender();
   const ct=document.querySelector('.content');if(ct)ct.scrollTop=0;
 }
-function rapCancelar(){
-  const ya=_relevAdj.length||(document.getElementById('rap-obs').value||'').trim();
-  const salir=()=>{_adjLimpiarHuerfanos();_relevAdj=[];_adjNuevos=[];_adjQuitados=[];rapMostrarSel();};
-  if(ya)confirmarAccion('¿Descartar lo que cargaste en este lote?',salir,'Descartar');else salir();
+function _rapProbPintar(){
+  const b=document.getElementById('rap-prob');if(!b)return;
+  b.style.background=_rapProblema?'var(--red)':'';b.style.color=_rapProblema?'#fff':'var(--red)';
+  b.textContent=_rapProblema?'⚠️ PROBLEMA MARCADO (tocá para sacarlo)':'⚠️ Problema detectado';
+}
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&document.getElementById('page-rapido')?.classList.contains('active')&&_rapLote){try{_rapPersist();}catch(e){}}});
+function rapProblemaToggle(){_rapProblema=!_rapProblema;_rapProbPintar();_rapPersist();}
+function _rapPersistDeb(){clearTimeout(_rapTimer);_rapTimer=setTimeout(_rapPersist,700);}
+// Guarda solo, cada vez que se suma o quita algo (foto, audio, video, nota, problema)
+function _rapPersist(){
+  clearTimeout(_rapTimer);
+  if(!_rapLote)return;
+  const l=DB.lotes.find(x=>x.id===_rapLote);if(!l)return;
+  const obs=(document.getElementById('rap-obs')?.value||'').trim();
+  let r=_rapRelevId?DB.relevamientos.find(x=>x.id===_rapRelevId):null;
+  if(r){
+    r.adjuntos=_relevAdj.map(a=>({...a}));r.obs=obs;
+    if(_rapProblema)r.problema=true;else delete r.problema;
+  }else{
+    if(!_relevAdj.length&&!obs&&!_rapProblema)return;
+    const c=DB.campos.find(x=>x.id===l.campoId),k=DB.clientes.find(x=>x.id===l.clienteId),camp=getCampanaActiva();
+    r={id:uid(),fecha:hoyLocal(),fechaInicio:null,fechaLimite:null,campaña:camp,cultivo:rapCultivo(l),
+      clienteId:l.clienteId,campoId:l.campoId,loteId:l.id,clienteNombre:k?.nombre||'',campoNombre:c?.nombre||'',loteNombre:l.nombre||'',loteHa:l.ha||0,
+      malezas:[],productos:[],obs,adjuntos:_relevAdj.map(a=>({...a})),estado:'Relevado',borradorTs:null,
+      createdAt:Date.now(),corto:nextRelevCodigo(),rapido:true,rapidoPendiente:true,rapidoEnCurso:true};
+    if(_rapProblema)r.problema=true;
+    DB.relevamientos.push(r);_rapRelevId=r.id;
+    const pend=(DB.actividades||[]).filter(a=>a.loteId===l.id&&!a.borrado&&a.tipo==='Relevamiento'&&estadoDe(a)==='Pendiente'&&!a.relevId).sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||''));
+    if(pend.length){pend[0].relevId=r.id;pend[0].estado='Realizada';pend[0].fechaRealizacion=r.fecha;}
+  }
+  _adjCommit();save();_mediaContar();_mediaSubir();
+  const a=document.getElementById('rap-auto');if(a)a.textContent='💾 Guardado '+new Date().toTimeString().slice(0,5)+' · se guarda solo';
+}
+function rapTerminar(){
+  if(_rec){mostrarSnackbar('Primero parás la grabación de audio (⏹)','amber');return;}
+  _rapPersist();
+  const r=_rapRelevId?DB.relevamientos.find(x=>x.id===_rapRelevId):null;
+  if(r){delete r.rapidoEnCurso;save();}
+  _relevAdj=[];_adjNuevos=[];_adjQuitados=[];_rapLote=null;_rapRelevId=null;_rapProblema=false;
+  try{refrescarVistasActividad();}catch(e){}
+  document.getElementById('rap-q').value='';
+  rapMostrarSel();
+  mostrarSnackbar(r?'✅ Guardado. Queda en "Para revisar" para aceptarlo en la compu.':'No cargaste nada en ese lote.',r?'green':'amber');
+}
+function rapDescartar(){
+  const r=_rapRelevId?DB.relevamientos.find(x=>x.id===_rapRelevId):null;
+  const salir=()=>{
+    if(r){r.borrado=true;r.borradoTs=Date.now();save();}
+    else{_adjLimpiarHuerfanos();}
+    _relevAdj=[];_adjNuevos=[];_adjQuitados=[];_rapLote=null;_rapRelevId=null;_rapProblema=false;rapMostrarSel();
+  };
+  if(r||_relevAdj.length)confirmarAccion('¿Descartar este relevamiento rápido? (queda en la Papelera)',salir,'Descartar');else salir();
+}
+function rapResumir(relevId){const r=DB.relevamientos.find(x=>x.id===relevId);if(r)rapElegirLote(r.loteId,relevId);}
+function rapEnCursoRender(){
+  const box=document.getElementById('rap-encurso');if(!box)return;
+  const en=DB.relevamientos.filter(r=>r.rapido&&r.rapidoEnCurso&&!r.borrado);
+  box.innerHTML=en.length?`<div style="background:var(--amber-bg);border:1px solid var(--amber);border-radius:var(--rl);padding:8px 10px;margin-bottom:10px"><div style="font-size:13px;font-weight:700;margin-bottom:4px">⏳ Sin terminar (${en.length})</div>${en.map(r=>`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px;padding:3px 0"><span>${hEsc(r.loteNombre)} · ${hEsc(r.campoNombre)}${r.problema?' ⚠️':''}</span><button type="button" class="btn bp bxs" onclick="rapResumir('${r.id}')">Seguir</button></div>`).join('')}</div>`:'';
 }
 async function rapVideoElegido(input){
   const f=(input.files||[])[0];input.value='';if(!f)return;
@@ -6444,38 +6506,21 @@ function _rapAdjRender(){
   const fotos=_relevAdj.filter(a=>a.tipo==='foto'),audios=_relevAdj.filter(a=>a.tipo==='audio'),vids=_relevAdj.filter(a=>a.tipo==='vpend');
   box.innerHTML=
     (fotos.length?`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">${fotos.map(a=>`<div style="position:relative"><img id="adj-th-${a.id}" alt="foto" style="width:92px;height:92px;object-fit:cover;border-radius:8px;border:1px solid var(--border)"><button type="button" onclick="adjQuitar('${a.id}')" style="position:absolute;top:-6px;right:-6px;background:#c0392b;color:#fff;border:none;border-radius:50%;width:24px;height:24px;font-size:13px;cursor:pointer">✕</button></div>`).join('')}</div>`:'')
-    +audios.map(a=>`<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px"><span id="adj-au-${a.id}"><button type="button" class="btn bs" onclick="adjEscuchar('${a.id}')">▶ Escuchar (${_fmtSeg(a.dur)})</button></span><button type="button" class="btn bs bxs" onclick="adjQuitar('${a.id}')">✕</button></div>`).join('')
+    +audios.map(a=>`<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px"><span id="adj-au-${a.id}"><button type="button" class="btn bs" onclick="adjEscuchar('${a.id}')">▶ Escuchar (${_fmtSeg(a.dur)})</button></span><button type="button" class="btn bs bxs" onclick="adjAudioAbrir('${a.id}')">↗</button><button type="button" class="btn bs bxs" onclick="adjQuitar('${a.id}')">✕</button></div>`).join('')
     +vids.map(a=>`<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:13px"><span>🎬 ${hEsc(a.ref||'Video')}</span><button type="button" class="btn bs bxs" onclick="adjQuitar('${a.id}')">✕</button></div>`).join('')
     +(!_relevAdj.length?'<div class="muted" style="font-size:13px;text-align:center;padding:4px">Todavía no cargaste nada.</div>':'');
-  fotos.forEach(a=>_mediaCargar(a.id,'foto').then(m=>{const el=document.getElementById('adj-th-'+a.id);if(el&&m)el.src=m.data;}).catch(()=>{}));
+  fotos.forEach(a=>_adjThumb(a.id,document.getElementById('adj-th-'+a.id)));
   _recBoton();
-}
-function rapGuardar(){
-  const l=DB.lotes.find(x=>x.id===_rapLote);if(!l)return;
-  if(_rec){mostrarSnackbar('Primero parás la grabación de audio (⏹)','amber');return;}
-  const obs=(document.getElementById('rap-obs').value||'').trim();
-  if(!_relevAdj.length&&!obs){mostrarSnackbar('Cargá al menos una foto, un audio, un video o una nota','amber');return;}
-  const c=DB.campos.find(x=>x.id===l.campoId),k=DB.clientes.find(x=>x.id===l.clienteId),camp=getCampanaActiva();
-  const obj={id:uid(),fecha:hoyLocal(),fechaInicio:null,fechaLimite:null,campaña:camp,cultivo:rapCultivo(l),
-    clienteId:l.clienteId,campoId:l.campoId,loteId:l.id,clienteNombre:k?.nombre||'',campoNombre:c?.nombre||'',loteNombre:l.nombre||'',loteHa:l.ha||0,
-    malezas:[],productos:[],obs,adjuntos:_relevAdj.map(a=>({...a})),estado:'Relevado',borradorTs:null,
-    createdAt:Date.now(),corto:nextRelevCodigo(),rapido:true,rapidoPendiente:true};
-  _editRelevId=null;_adjCommit();
-  DB.relevamientos.push(obj);
-  // si el lote tenía un relevamiento programado pendiente, esta visita lo cierra
-  const pend=(DB.actividades||[]).filter(a=>a.loteId===l.id&&!a.borrado&&a.tipo==='Relevamiento'&&estadoDe(a)==='Pendiente'&&!a.relevId).sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||''));
-  if(pend.length){pend[0].relevId=obj.id;pend[0].estado='Realizada';pend[0].fechaRealizacion=obj.fecha;}
-  _relevAdj=[];_adjNuevos=[];_adjQuitados=[];_rapLote=null;
-  save();_mediaContar();_mediaSubir();
-  try{refrescarVistasActividad();}catch(e){}
-  document.getElementById('rap-q').value='';
-  rapMostrarSel();
-  mostrarSnackbar('✅ Guardado. Quedó en "Para revisar" para completarlo en la compu.','green');
 }
 function rapListo(id){
   const r=DB.relevamientos.find(x=>x.id===id);if(!r)return;
-  r.rapidoPendiente=false;r.rapidoCompletadoTs=Date.now();save();renderRevisar();
-  mostrarSnackbar('Listo, ya no figura para completar','blue');
+  const hacer=()=>{r.rapidoPendiente=false;delete r.rapidoEnCurso;r.rapidoCompletadoTs=Date.now();save();renderRevisar();mostrarSnackbar('✔ Aceptado: queda como relevamiento hecho','blue');};
+  if(r.problema)confirmarAccion('Este relevamiento tiene un PROBLEMA marcado. ¿Aceptarlo sin crear un seguimiento?',hacer,'Aceptar igual');else hacer();
+}
+function rapSeguimiento(id){
+  const r=DB.relevamientos.find(x=>x.id===id);if(!r)return;
+  openModalActividad(r.loteId,r.clienteId,r.campoId);
+  setTimeout(()=>{try{const o=document.getElementById('act-obs');if(o&&!o.value)o.value='Seguimiento de problema detectado ('+(r.corto||'relevamiento')+', '+(r.fecha||'')+')'+(r.obs?': '+r.obs:'');}catch(e){}},80);
 }
 function deleteLote(cliId,campoId,loteId){
   const nRel=DB.relevamientos.filter(r=>r.loteId===loteId).length;
@@ -7923,7 +7968,7 @@ async function adjGrabarToggle(){
   if(_relevAdj.filter(a=>a.tipo==='audio').length>=ADJ_MAX_AUDIOS){mostrarSnackbar(`Máximo ${ADJ_MAX_AUDIOS} notas de voz por relevamiento`,'amber');return;}
   if(!navigator.mediaDevices||!window.MediaRecorder){mostrarSnackbar('Este navegador no permite grabar audio','amber');return;}
   let stream;
-  try{stream=await navigator.mediaDevices.getUserMedia({audio:true});}
+  try{try{stream=await navigator.mediaDevices.getUserMedia({audio:{noiseSuppression:true,echoCancellation:true,autoGainControl:true,channelCount:1}});}catch(e0){if(e0&&e0.name==='NotAllowedError')throw e0;stream=await navigator.mediaDevices.getUserMedia({audio:true});}}
   catch(e){mostrarSnackbar('No tengo permiso para usar el micrófono. Habilitalo en el navegador.','amber');return;}
   const mimes=['audio/webm;codecs=opus','audio/webm','audio/mp4','audio/ogg;codecs=opus'];
   const mime=mimes.find(m=>{try{return MediaRecorder.isTypeSupported(m);}catch(e){return false;}})||'';
@@ -8007,12 +8052,35 @@ function adjQuitar(id){
   if(a.tipo==='foto'||a.tipo==='audio')_adjQuitados.push({id,tipo:a.tipo});
   _adjRender();
 }
+const _THUMB_PH='data:image/svg+xml;utf8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="84" height="84"><rect width="84" height="84" fill="#e6e2d8"/><text x="42" y="54" font-size="28" text-anchor="middle">📷</text></svg>');
+function _adjThumb(id,el,intento){
+  intento=intento||0;if(!el)return;
+  if(!el.id)el.id='th-'+Math.random().toString(36).slice(2);
+  const elId=el.id;
+  if(!el.getAttribute('src'))el.src=_THUMB_PH;
+  _mediaCargar(id,'foto').then(m=>{
+    if(m&&m.data){el.onerror=()=>{el.onerror=null;el.src=_THUMB_PH;};el.src=m.data;el.style.opacity='';el.title='Tocá para ampliar';return;}
+    el.style.opacity='.55';el.title='Cargando la foto… (si recién se sacó en el celu, tarda en llegar)';
+    if(intento<5)setTimeout(()=>_adjThumb(id,document.getElementById(elId),intento+1),[1500,3000,6000,12000,20000][intento]);
+  }).catch(()=>{if(intento<5)setTimeout(()=>_adjThumb(id,document.getElementById(elId),intento+1),4000);});
+}
+async function adjAudioAbrir(id){
+  const w=window.open('about:blank','_blank'); // se abre ya, para que el navegador no lo bloquee
+  const m=await _mediaCargar(id,'audio');
+  if(!m){try{w&&w.close();}catch(e){}mostrarSnackbar('Ese audio todavía no llegó a este equipo','amber');return;}
+  try{
+    const blob=await (await fetch(m.data)).blob();
+    const u=URL.createObjectURL(blob);
+    if(w)w.location.href=u;else window.open(u,'_blank');
+    setTimeout(()=>URL.revokeObjectURL(u),600000);
+  }catch(e){try{w&&w.close();}catch(e2){}mostrarSnackbar('No pude abrir el audio','red');}
+}
 async function adjVer(id){
   const m=await _mediaCargar(id,'foto');
   if(!m){mostrarSnackbar('Esa foto todavía no llegó a este equipo (se está subiendo desde el celular)','amber');return;}
   const o=document.createElement('div');
   o.style.cssText='position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.88);display:flex;align-items:center;justify-content:center;padding:12px;cursor:zoom-out';
-  o.innerHTML=`<img src="${m.data}" style="max-width:100%;max-height:100%;border-radius:6px"><span style="position:absolute;top:10px;right:16px;color:#fff;font-size:26px">✕</span>`;
+  o.innerHTML=`<img src="${m.data}" style="max-width:100%;max-height:100%;border-radius:6px"><span style="position:absolute;top:10px;right:16px;color:#fff;font-size:26px">✕</span><a href="${m.data}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="position:absolute;bottom:14px;left:50%;transform:translateX(-50%);background:#fff;color:#222;border-radius:20px;padding:7px 14px;font-size:13px;text-decoration:none">↗ Abrir en otra pestaña (para guardarla)</a>`;
   o.onclick=()=>o.remove();document.body.appendChild(o);
 }
 async function adjEscuchar(id){
@@ -8023,7 +8091,7 @@ async function adjEscuchar(id){
   box.innerHTML=`<audio controls autoplay src="${m.data}" style="height:32px;max-width:100%"></audio>`;
 }
 function _adjRender(){
-  try{if(document.getElementById('rap-adj'))_rapAdjRender();}catch(e){}
+  try{if(document.getElementById('rap-adj')){_rapAdjRender();if(_rapLote&&document.getElementById('page-rapido')?.classList.contains('active'))_rapPersist();}}catch(e){}
   const box=document.getElementById('r-adj-lista');if(!box)return;
   const vps=_relevAdj.filter(a=>a.tipo==='vpend');
   const fotos=_relevAdj.filter(a=>a.tipo==='foto'),links=_relevAdj.filter(a=>a.tipo==='link'),audios=_relevAdj.filter(a=>a.tipo==='audio');
@@ -8031,11 +8099,11 @@ function _adjRender(){
   const cnt=document.getElementById('r-adj-cnt');if(cnt)cnt.textContent=_relevAdj.length?`(${_relevAdj.length})`:'';
   box.innerHTML=
     (fotos.length?`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">${fotos.map(a=>`<div style="position:relative"><img id="adj-th-${a.id}" alt="foto" style="width:84px;height:84px;object-fit:cover;border-radius:6px;border:1px solid var(--border);cursor:zoom-in;background:var(--bg2)" onclick="adjVer('${a.id}')"><button type="button" class="btn bs bxs" style="position:absolute;top:-6px;right:-6px;padding:0 5px;border-radius:50%" title="Quitar foto" onclick="adjQuitar('${a.id}')">✕</button></div>`).join('')}</div>`:'')
-    +(audios.length?audios.map(a=>`<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px"><span id="adj-au-${a.id}"><button type="button" class="btn bs bxs" onclick="adjEscuchar('${a.id}')">▶ Escuchar nota (${_fmtSeg(a.dur)})</button></span><button type="button" class="btn bs bxs" title="Quitar nota" onclick="adjQuitar('${a.id}')">✕</button></div>`).join(''):'')
+    +(audios.length?audios.map(a=>`<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px"><span id="adj-au-${a.id}"><button type="button" class="btn bs bxs" onclick="adjEscuchar('${a.id}')">▶ Escuchar nota (${_fmtSeg(a.dur)})</button></span><button type="button" class="btn bs bxs" title="Abrir en otra pestaña (desde ahí se puede descargar y compartir)" onclick="adjAudioAbrir('${a.id}')">↗ Abrir</button><button type="button" class="btn bs bxs" title="Quitar nota" onclick="adjQuitar('${a.id}')">✕</button></div>`).join(''):'')
     +(vps.length?vps.map(a=>`<div style="background:var(--amber-bg);border:1px solid var(--amber);border-radius:var(--r);padding:6px 8px;margin-bottom:6px"><div style="font-size:12px;font-weight:600;margin-bottom:4px">🎥 Video pendiente — falta el enlace</div>${a.ref?`<div class="muted" style="font-size:11px;margin-bottom:5px">📱 En el celu: ${hEsc(a.ref)}. Buscalo en la galería a esa hora.</div>`:''}<div class="rf" style="gap:6px;flex-wrap:wrap"><input type="text" id="adj-vp-${a.id}" class="fi" placeholder="Pegá el enlace del video" style="flex:1;min-width:140px"><button type="button" class="btn bs bxs" onclick="adjVpPegar('${a.id}')">📋 Pegar</button><button type="button" class="btn bp bxs" onclick="adjVpListo('${a.id}')">Listo</button><button type="button" class="btn bs bxs" onclick="adjQuitar('${a.id}')">✕</button></div></div>`).join(''):'')
     +(links.length?links.map(a=>`<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px"><a href="${hEsc(a.url)}" target="_blank" rel="noopener noreferrer" class="btn bs bxs">▶ ${hEsc(a.nombre)}</a><span class="muted" style="font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:240px">${hEsc(a.url)}</span><button type="button" class="btn bs bxs" onclick="adjQuitar('${a.id}')">✕</button></div>`).join(''):'')
     +(!_relevAdj.length?'<div class="muted" style="font-size:11px">Todavía no hay nada adjunto.</div>':'');
-  fotos.forEach(a=>_mediaCargar(a.id,'foto').then(m=>{const el=document.getElementById('adj-th-'+a.id);if(!el)return;if(m)el.src=m.data;else{el.alt='⏳';el.style.opacity='.35';el.title='Todavía no llegó a este equipo';}}).catch(()=>{}));
+  fotos.forEach(a=>_adjThumb(a.id,document.getElementById('adj-th-'+a.id)));
   _recBoton();
 }
 // ── Compartir desde Google Fotos / Drive (Android, app instalada) ──
@@ -9127,7 +9195,7 @@ function renderRelev(){
       :`<select class="estado-sel" onchange="actMEditarEstado('${r.id}',true,this.value)" style="font-size:11px;padding:3px 6px;border-radius:6px;border:1px solid var(--border);background:var(--bg);font-family:'Sora',sans-serif;cursor:pointer;color:var(--text)">`
       +`<option value="Pendiente"${!realizado?' selected':''}>📅 Programado</option>`
       +`<option value="Realizada"${realizado?' selected':''}>✅ Realizado</option>`
-      +`</select>${ligadaLink}${r.rapidoPendiente?' <span class="badge bg-amber" style="font-size:9px" title="Cargado rápido desde el celu: falta completarlo">📱 por completar</span>':''}`;
+      +`</select>${ligadaLink}${r.rapidoPendiente?' <span class="badge bg-amber" style="font-size:9px" title="Cargado rápido desde el celu: falta completarlo">📱 por completar</span>':''}${r.problema?' <span class="badge bg-red" style="font-size:9px" title="Se marcó un problema en el lote">⚠️ problema</span>':''}`;
     const aplicarBtn='';
     return '<tr class="'+rc+'">'
       +`<td><input type="checkbox" ${_seleccionados.has(r.id)?'checked':''} onchange="toggleSeleccion('${r.id}',this)"></td>`
